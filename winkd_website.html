@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Winkd Messenger — Aero</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, sans-serif;
+  font-size: 12px;
+  background: #1a3a5c;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(40,100,180,0.4) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(80,140,220,0.3) 0%, transparent 50%);
+  min-height: 100vh;
+  padding: 20px;
+  color: #1a1a1a;
+}
+
+/* ── AERO GLASS MIXIN ── */
+.glass {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.25);
+}
+
+/* ── TASKBAR ── */
+.taskbar {
+  background: linear-gradient(to bottom,
+    rgba(60,110,200,0.85) 0%,
+    rgba(30,70,160,0.92) 40%,
+    rgba(20,55,140,0.95) 100%);
+  border: 1px solid rgba(100,160,255,0.4);
+  border-radius: 6px;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 16px;
+  box-shadow:
+    0 2px 12px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.25),
+    inset 0 -1px 0 rgba(0,0,0,0.3);
+}
+.taskbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 10px;
+  border-right: 1px solid rgba(255,255,255,0.2);
+  margin-right: 4px;
+}
+.taskbar-logo img { width: 22px; height: 22px; object-fit: contain; }
+.taskbar-logo-text { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 0.3px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+
+.tb-btn {
+  background: linear-gradient(to bottom,
+    rgba(255,255,255,0.18) 0%,
+    rgba(255,255,255,0.05) 50%,
+    rgba(0,0,0,0.1) 100%);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+  transition: all 0.1s;
+  white-space: nowrap;
+}
+.tb-btn:hover {
+  background: linear-gradient(to bottom,
+    rgba(255,255,255,0.28) 0%,
+    rgba(255,255,255,0.12) 50%,
+    rgba(0,0,0,0.05) 100%);
+}
+.tb-btn.on {
+  background: linear-gradient(to bottom,
+    rgba(0,0,0,0.15) 0%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.18) 100%);
+  border-color: rgba(255,255,255,0.4);
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.3), 0 0 8px rgba(100,180,255,0.4);
+}
+.tb-icon { width: 16px; height: 16px; object-fit: contain; }
+
+.pane { display: none; }
+.pane.on { display: block; }
+
+/* ── AERO WINDOW CHROME ── */
+.aero-window {
+  border-radius: 8px 8px 4px 4px;
+  overflow: hidden;
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.6),
+    0 2px 8px rgba(0,0,0,0.4),
+    inset 0 0 0 1px rgba(255,255,255,0.15);
+}
+
+.aero-titlebar {
+  background: linear-gradient(to bottom,
+    rgba(180,210,255,0.35) 0%,
+    rgba(120,170,240,0.25) 40%,
+    rgba(80,130,210,0.30) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.25);
+  padding: 6px 8px 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  position: relative;
+}
+.aero-titlebar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.05) 100%);
+  pointer-events: none;
+  border-radius: 8px 8px 0 0;
+}
+.aero-title-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.aero-title-icon { width: 18px; height: 18px; object-fit: contain; }
+.aero-title-text {
+  font-size: 12px;
+  font-weight: 400;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,40,0.7);
+}
+
+/* Aero window buttons */
+.aero-winbtns { display: flex; gap: 2px; }
+.aero-wb {
+  width: 26px;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+  border: 1px solid;
+  font-family: 'Segoe UI', sans-serif;
+  transition: all 0.1s;
+}
+.aero-wb-min, .aero-wb-max {
+  background: linear-gradient(to bottom, rgba(255,255,255,0.4) 0%, rgba(180,210,255,0.25) 100%);
+  border-color: rgba(100,160,255,0.5) rgba(60,110,200,0.6) rgba(60,110,200,0.6) rgba(100,160,255,0.5);
+  color: rgba(30,60,120,0.9);
+}
+.aero-wb-min:hover, .aero-wb-max:hover {
+  background: linear-gradient(to bottom, rgba(255,255,255,0.6) 0%, rgba(200,225,255,0.4) 100%);
+}
+.aero-wb-close {
+  background: linear-gradient(to bottom, rgba(255,180,180,0.7) 0%, rgba(220,60,60,0.6) 100%);
+  border-color: rgba(255,120,120,0.6) rgba(180,40,40,0.7) rgba(180,40,40,0.7) rgba(255,120,120,0.6);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.aero-wb-close:hover {
+  background: linear-gradient(to bottom, rgba(255,100,100,0.9) 0%, rgba(200,20,20,0.9) 100%);
+}
+
+/* ── SIDEBAR ── */
+.aero-sidebar {
+  width: 215px;
+  background: linear-gradient(to bottom,
+    rgba(200,220,255,0.15) 0%,
+    rgba(180,205,250,0.10) 100%);
+  border-right: 1px solid rgba(255,255,255,0.15);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.aero-profile {
+  background: linear-gradient(to bottom,
+    rgba(100,160,255,0.25) 0%,
+    rgba(60,120,220,0.15) 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  padding: 10px;
+}
+.aero-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+}
+.aero-my-av {
+  width: 42px;
+  height: 42px;
+  border-radius: 6px;
+  border: 2px solid rgba(255,255,255,0.5);
+  background: linear-gradient(135deg, #6060D0 0%, #3030A0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,100,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.aero-av-status {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(200,220,255,0.4);
+}
+.aero-my-name { font-size: 12px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.aero-my-mood { font-size: 10px; color: rgba(220,235,255,0.85); font-style: italic; margin-top: 1px; }
+.aero-status-row { display: flex; gap: 4px; }
+.aero-spill {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  border: 1px solid;
+  transition: all 0.1s;
+}
+
+.aero-search {
+  padding: 7px 9px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+.aero-search-box {
+  width: 100%;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 14px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: rgba(220,235,255,0.7);
+  font-family: 'Segoe UI', sans-serif;
+  outline: none;
+}
+
+.aero-grp-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(180,210,255,0.9);
+  padding: 6px 10px 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.aero-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: 0;
+  transition: all 0.1s;
+}
+.aero-contact:hover {
+  background: rgba(255,255,255,0.12);
+}
+.aero-contact.sel {
+  background: linear-gradient(to right,
+    rgba(80,140,255,0.35) 0%,
+    rgba(60,120,220,0.20) 100%);
+  border-left: 2px solid rgba(120,180,255,0.8);
+}
+.aero-cav {
+  width: 32px;
+  height: 32px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.aero-cdot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(20,40,80,0.6);
+}
+.aero-cname { font-size: 11px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aero-cmood { font-size: 10px; color: rgba(200,220,255,0.75); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aero-cbadge {
+  background: linear-gradient(to bottom, #FF7020, #DD4000);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── CHAT AREA ── */
+.aero-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(to bottom,
+    rgba(240,246,255,0.95) 0%,
+    rgba(230,240,255,0.95) 100%);
+}
+.aero-chat-header {
+  background: linear-gradient(to bottom,
+    rgba(200,220,255,0.6) 0%,
+    rgba(180,205,250,0.4) 100%);
+  border-bottom: 1px solid rgba(120,170,240,0.3);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  backdrop-filter: blur(4px);
+}
+.aero-chat-hdr-av {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  border: 2px solid rgba(100,160,255,0.5);
+  background: linear-gradient(135deg, #8060A0 0%, #503080 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.aero-chat-name { font-size: 13px; font-weight: 600; color: #1a2a4a; }
+.aero-chat-status { font-size: 10px; color: #007700; font-weight: 600; }
+.aero-chat-mood { font-size: 10px; color: #556; font-style: italic; }
+.aero-hbtn {
+  background: linear-gradient(to bottom,
+    rgba(255,255,255,0.9) 0%,
+    rgba(220,235,255,0.8) 50%,
+    rgba(200,220,255,0.7) 100%);
+  border: 1px solid rgba(100,150,220,0.5);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #1a2a4a;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 1px 3px rgba(0,0,0,0.15);
+  transition: all 0.1s;
+}
+.aero-hbtn:hover {
+  background: linear-gradient(to bottom,
+    rgba(220,235,255,1.0) 0%,
+    rgba(180,210,255,0.9) 100%);
+  border-color: rgba(80,130,220,0.7);
+}
+
+/* Messages */
+.aero-msgs {
+  flex: 1;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  background: rgba(245,249,255,0.97);
+}
+.mrow { display: flex; gap: 8px; }
+.mrow.me { flex-direction: row-reverse; }
+.m-av {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  border: 1px solid rgba(100,150,220,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  margin-top: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.m-body { max-width: 68%; }
+.m-meta { font-size: 9px; color: #88A; margin-bottom: 2px; }
+.mrow.me .m-meta { text-align: right; }
+.m-them {
+  background: linear-gradient(to bottom,
+    rgba(240,246,255,1) 0%,
+    rgba(228,238,255,1) 100%);
+  border: 1px solid rgba(160,190,240,0.6);
+  border-radius: 8px;
+  border-top-left-radius: 2px;
+  padding: 7px 11px;
+  font-size: 12px;
+  color: #1a2a40;
+  line-height: 1.5;
+  box-shadow: 0 1px 4px rgba(0,0,80,0.08), inset 0 1px 0 rgba(255,255,255,0.8);
+}
+.m-me {
+  background: linear-gradient(to bottom,
+    rgba(220,235,255,1) 0%,
+    rgba(190,215,255,1) 100%);
+  border: 1px solid rgba(100,160,240,0.5);
+  border-radius: 8px;
+  border-top-right-radius: 2px;
+  padding: 7px 11px;
+  font-size: 12px;
+  color: #1a2a40;
+  line-height: 1.5;
+  box-shadow: 0 1px 4px rgba(0,0,80,0.1), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+.winkd-evt {
+  background: linear-gradient(to bottom,
+    rgba(255,240,200,1) 0%,
+    rgba(255,220,150,1) 100%);
+  border: 1px solid rgba(220,160,40,0.6);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 11px;
+  color: #7a4000;
+  font-weight: 600;
+  text-align: center;
+  align-self: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+/* Toolbar */
+.aero-toolbar {
+  background: linear-gradient(to bottom,
+    rgba(210,228,255,0.95) 0%,
+    rgba(190,215,255,0.95) 100%);
+  border-top: 1px solid rgba(120,170,240,0.4);
+  border-bottom: 1px solid rgba(120,170,240,0.3);
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+.aero-tbtn {
+  background: linear-gradient(to bottom,
+    rgba(255,255,255,0.9) 0%,
+    rgba(220,235,255,0.7) 100%);
+  border: 1px solid rgba(120,170,240,0.4);
+  border-radius: 4px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #1a2a50;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+  transition: all 0.1s;
+}
+.aero-tbtn:hover {
+  background: linear-gradient(to bottom,
+    rgba(220,235,255,1) 0%,
+    rgba(180,210,255,0.9) 100%);
+  border-color: rgba(80,130,220,0.6);
+}
+.aero-tbtn.winkd {
+  background: linear-gradient(to bottom,
+    rgba(255,240,200,1) 0%,
+    rgba(255,210,100,0.9) 100%);
+  border-color: rgba(200,150,30,0.6);
+  color: #6a3000;
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 0 6px rgba(255,180,0,0.2);
+}
+.aero-tbtn.nudge {
+  background: linear-gradient(to bottom,
+    rgba(210,255,210,1) 0%,
+    rgba(160,240,160,0.9) 100%);
+  border-color: rgba(60,160,60,0.5);
+  color: #1a4a1a;
+  font-weight: 700;
+}
+.aero-sep {
+  width: 1px;
+  background: rgba(100,150,220,0.4);
+  height: 18px;
+  margin: 0 3px;
+  box-shadow: 1px 0 0 rgba(255,255,255,0.6);
+}
+.aero-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  align-items: flex-end;
+  background: rgba(240,246,255,0.97);
+  border-top: 1px solid rgba(120,170,240,0.25);
+}
+.aero-input {
+  flex: 1;
+  background: linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(245,250,255,1) 100%);
+  border: 1px solid rgba(100,150,220,0.5);
+  border-radius: 6px;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #888;
+  outline: none;
+  box-shadow: inset 0 1px 3px rgba(0,0,80,0.08);
+}
+.aero-send {
+  background: linear-gradient(to bottom,
+    rgba(100,170,255,1) 0%,
+    rgba(40,110,230,1) 50%,
+    rgba(20,80,200,1) 100%);
+  border: 1px solid rgba(20,80,200,0.8);
+  border-radius: 6px;
+  padding: 7px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Segoe UI', sans-serif;
+  color: #fff;
+  cursor: pointer;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.4),
+    0 2px 4px rgba(0,0,0,0.2);
+  transition: all 0.1s;
+}
+.aero-send:hover {
+  background: linear-gradient(to bottom,
+    rgba(130,190,255,1) 0%,
+    rgba(60,130,245,1) 50%,
+    rgba(30,95,215,1) 100%);
+}
+
+/* Statusbar */
+.aero-statusbar {
+  background: linear-gradient(to bottom,
+    rgba(190,215,255,0.9) 0%,
+    rgba(170,200,250,0.95) 100%);
+  border-top: 1px solid rgba(120,170,240,0.3);
+  padding: 3px 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 10px;
+  color: #3a5a9a;
+}
+
+/* ── LANDING PAGE ── */
+.lp-chrome {
+  border-radius: 8px 8px 4px 4px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.15);
+}
+.ie-titlebar {
+  background: linear-gradient(to bottom,
+    rgba(160,200,255,0.35) 0%,
+    rgba(100,160,240,0.25) 40%,
+    rgba(60,120,210,0.30) 100%);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ie-title { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.ie-toolbar {
+  background: linear-gradient(to bottom,
+    rgba(220,235,255,0.97) 0%,
+    rgba(200,220,255,0.95) 100%);
+  border-bottom: 1px solid rgba(120,170,240,0.4);
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ie-navbtn {
+  background: linear-gradient(to bottom,
+    rgba(255,255,255,0.9) 0%,
+    rgba(215,232,255,0.8) 100%);
+  border: 1px solid rgba(120,170,240,0.4);
+  border-radius: 4px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #1a2a50;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+}
+.ie-address {
+  flex: 1;
+  background: rgba(255,255,255,0.97);
+  border: 1px solid rgba(100,150,220,0.5);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: #1a2a50;
+  font-family: 'Segoe UI', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: inset 0 1px 3px rgba(0,0,80,0.1);
+}
+.ie-go {
+  background: linear-gradient(to bottom,
+    rgba(255,255,255,0.9) 0%,
+    rgba(215,232,255,0.8) 100%);
+  border: 1px solid rgba(120,170,240,0.4);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #1a2a50;
+  cursor: pointer;
+  font-weight: 600;
+}
+.lp-body { background: #fff; color: #1a1a1a; }
+.lp-hero {
+  background: linear-gradient(135deg,
+    #0a3a8a 0%,
+    #1a5acc 40%,
+    #0e4ab8 70%,
+    #083080 100%);
+  padding: 28px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.lp-hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 100%);
+  pointer-events: none;
+}
+.lp-hero-text { flex: 1; }
+.lp-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.lp-logo-img { width: 52px; height: 52px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4)); }
+.lp-logo-name { font-size: 32px; font-weight: 300; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.4); letter-spacing: -0.5px; }
+.lp-logo-name strong { font-weight: 700; }
+.lp-hero-sub { font-size: 13px; color: rgba(200,220,255,0.95); line-height: 1.6; max-width: 440px; }
+.lp-dl-hero {
+  background: linear-gradient(to bottom,
+    rgba(255,220,60,1) 0%,
+    rgba(240,170,0,1) 100%);
+  border: 1px solid rgba(200,130,0,0.8);
+  border-radius: 6px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #2a1a00;
+  cursor: pointer;
+  text-align: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,180,0.7),
+    0 3px 8px rgba(0,0,0,0.3);
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-family: 'Segoe UI', sans-serif;
+}
+.lp-nav {
+  background: linear-gradient(to bottom, #f0f4ff 0%, #e4ecff 100%);
+  border-bottom: 1px solid #c8d8f0;
+  display: flex;
+  padding: 0;
+}
+.lp-nav-link {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #1a3a8a;
+  cursor: pointer;
+  border-right: 1px solid #c8d8f0;
+  transition: all 0.1s;
+  font-weight: 600;
+}
+.lp-nav-link:hover { background: #316AC5; color: #fff; }
+.lp-main-area { display: flex; }
+.lp-content { flex: 1; padding: 18px 20px; border-right: 1px solid #d8e4f8; }
+.lp-right { width: 210px; padding: 14px; background: #f4f8ff; }
+.lp-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a3a8a;
+  border-bottom: 2px solid #3a7adc;
+  padding-bottom: 5px;
+  margin-bottom: 12px;
+}
+.lp-p { font-size: 12px; line-height: 1.7; color: #222; margin-bottom: 10px; }
+.feat-box {
+  background: linear-gradient(to bottom, #eef4ff 0%, #e4eeff 100%);
+  border: 1px solid #b8d0f0;
+  border-left: 3px solid #3a7adc;
+  border-radius: 0 4px 4px 0;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+.feat-box-title { font-size: 12px; font-weight: 700; color: #1a3a8a; }
+.feat-box-desc { font-size: 11px; color: #334; line-height: 1.6; margin-top: 2px; }
+.dl-box {
+  background: linear-gradient(to bottom, #fffbe8 0%, #fff0b0 100%);
+  border: 1px solid #e0c040;
+  border-radius: 6px;
+  padding: 14px;
+  margin-bottom: 14px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+.dl-box-title { font-size: 13px; font-weight: 700; color: #1a1a00; margin-bottom: 10px; }
+.dl-btn {
+  display: block;
+  background: linear-gradient(to bottom,
+    rgba(255,255,255,0.97) 0%,
+    rgba(220,235,255,0.9) 100%);
+  border: 1px solid rgba(100,150,220,0.5);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #1a2a50;
+  cursor: pointer;
+  margin: 4px 0;
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+}
+.dl-btn.primary {
+  background: linear-gradient(to bottom, #5090e8 0%, #2060c0 100%);
+  border-color: #1050a0;
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.2);
+}
+.news-item { background: #fff; border: 1px solid #d0e0f8; border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; }
+.news-date { font-size: 10px; color: #88A; }
+.news-title { font-size: 11px; font-weight: 700; color: #1a3a8a; }
+.news-desc { font-size: 10px; color: #444; margin-top: 2px; line-height: 1.5; }
+.sys-req { font-size: 10px; color: #444; line-height: 1.8; }
+.online-pill {
+  background: linear-gradient(to bottom, #eef8ee 0%, #d8f0d8 100%);
+  border: 1px solid #80c080;
+  border-radius: 4px;
+  padding: 8px;
+  text-align: center;
+  font-size: 10px;
+  color: #1a4a1a;
+  margin-top: 10px;
+}
+.lp-footer {
+  background: linear-gradient(to bottom, #1a3a8a 0%, #102880 100%);
+  color: rgba(180,210,255,0.9);
+  font-size: 10px;
+  padding: 8px 20px;
+  text-align: center;
+}
+
+/* ── MOBILE (Windows 7 Phone / early WP) ── */
+.mob-wrap {
+  background: linear-gradient(to bottom,
+    rgba(20,50,120,0.6) 0%,
+    rgba(10,30,80,0.5) 100%);
+  backdrop-filter: blur(8px);
+  padding: 24px;
+  display: flex;
+  gap: 28px;
+  justify-content: center;
+  align-items: flex-start;
+  border-radius: 0 0 8px 8px;
+}
+.mob-cap {
+  font-size: 11px;
+  text-align: center;
+  color: rgba(200,220,255,0.9);
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.ph-device {
+  width: 258px;
+  background: linear-gradient(to bottom, #2a2a2a 0%, #1a1a1a 100%);
+  border-radius: 20px 20px 28px 28px;
+  padding: 10px 8px 18px;
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.7),
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    0 0 0 1px rgba(255,255,255,0.08);
+}
+.ph-screen {
+  background: #fff;
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+}
+.ph-titlebar {
+  background: linear-gradient(to bottom,
+    rgba(40,100,220,1) 0%,
+    rgba(20,70,180,1) 100%);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Segoe UI', sans-serif;
+}
+.ph-nav-strip {
+  background: linear-gradient(to bottom, #e4ecff 0%, #d8e4ff 100%);
+  border-bottom: 1px solid #b8d0f0;
+  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ph-logo-sm {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1a3a8a;
+  font-family: 'Segoe UI', sans-serif;
+}
+.ph-logo-sm img { width: 14px; height: 14px; object-fit: contain; }
+.ph-search-sm {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #b0c8f0;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: #aaa;
+  font-family: 'Segoe UI', sans-serif;
+}
+.ph-grp-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  color: #1a3a8a;
+  background: linear-gradient(to bottom, #d8e8ff 0%, #c8dcff 100%);
+  padding: 3px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.ph-citem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e8f0ff;
+  cursor: pointer;
+}
+.ph-citem:hover { background: #eef4ff; }
+.ph-citem.sel {
+  background: linear-gradient(to right, #ddeeff, #e8f4ff);
+  border-left: 3px solid #3a7adc;
+}
+.ph-cav {
+  width: 32px;
+  height: 32px;
+  border-radius: 5px;
+  border: 1px solid rgba(100,150,220,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  position: relative;
+}
+.ph-cdot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+}
+.ph-cname { font-size: 11px; font-weight: 700; color: #1a2a40; }
+.ph-cprev { font-size: 9px; color: #668; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-badge-sm {
+  background: linear-gradient(to bottom, #FF7020, #DD4000);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 5px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.ph-time-sm { font-size: 9px; color: #aaa; margin-left: auto; flex-shrink: 0; }
+.ph-softbar {
+  background: linear-gradient(to bottom, #c8d8f8 0%, #b8c8f0 100%);
+  border-top: 1px solid #a0b8e8;
+  padding: 4px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ph-soft { font-size: 10px; font-weight: 700; color: #1a3a8a; cursor: pointer; font-family: 'Segoe UI', sans-serif; }
+
+/* Chat phone */
+.ph-chat-hdr {
+  background: linear-gradient(to bottom, #eef4ff 0%, #e4eeff 100%);
+  border-bottom: 1px solid #c0d4f8;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.ph-back-btn { font-size: 13px; color: #3a7adc; cursor: pointer; font-weight: 700; }
+.ph-chat-av {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  border: 1px solid rgba(100,150,220,0.4);
+  background: linear-gradient(135deg, #8060A0, #503080);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+}
+.ph-chat-name { font-size: 11px; font-weight: 700; color: #1a2a40; }
+.ph-chat-on { font-size: 9px; color: #007700; font-weight: 600; }
+.ph-msgs {
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: #f8faff;
+  overflow-y: auto;
+}
+.ph-msg { max-width: 82%; }
+.ph-msg.them { align-self: flex-start; }
+.ph-msg.me { align-self: flex-end; }
+.ph-msg-who { font-size: 8px; color: #88A; margin-bottom: 1px; }
+.ph-msg.me .ph-msg-who { text-align: right; }
+.ph-bub-them {
+  background: linear-gradient(to bottom, #eef4ff, #e4eeff);
+  border: 1px solid #b8d0f0;
+  border-radius: 8px;
+  border-top-left-radius: 2px;
+  padding: 5px 8px;
+  font-size: 10px;
+  color: #1a2a40;
+  line-height: 1.4;
+}
+.ph-bub-me {
+  background: linear-gradient(to bottom, #d8eaff, #bdd8ff);
+  border: 1px solid #90c0f0;
+  border-radius: 8px;
+  border-top-right-radius: 2px;
+  padding: 5px 8px;
+  font-size: 10px;
+  color: #1a2a40;
+  line-height: 1.4;
+}
+.ph-winkd {
+  background: linear-gradient(to bottom, #fff8e0, #ffeda0);
+  border: 1px solid #e0c040;
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 9px;
+  color: #7a4000;
+  font-weight: 700;
+  text-align: center;
+  align-self: center;
+}
+.ph-toolbar {
+  background: linear-gradient(to bottom, #e4eeff, #d8e8ff);
+  border-top: 1px solid #b8d0f0;
+  padding: 4px 6px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.ph-tbtn {
+  background: linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(215,232,255,0.85) 100%);
+  border: 1px solid rgba(120,170,240,0.5);
+  border-radius: 3px;
+  padding: 3px 7px;
+  font-size: 9px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #1a2a50;
+  cursor: pointer;
+}
+.ph-tbtn.winkd {
+  background: linear-gradient(to bottom, #fff8d0, #ffe880);
+  border-color: #c0a020;
+  color: #6a3000;
+  font-weight: 700;
+}
+.ph-input-area {
+  padding: 5px 7px;
+  background: #f0f6ff;
+  border-top: 1px solid #c0d4f8;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.ph-input-box {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #b0c8f0;
+  border-radius: 4px;
+  padding: 3px 7px;
+  font-size: 10px;
+  color: #aaa;
+  font-family: 'Segoe UI', sans-serif;
+}
+.ph-send-btn {
+  background: linear-gradient(to bottom, #5090e8, #2060c0);
+  border: 1px solid #1050a0;
+  border-radius: 4px;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'Segoe UI', sans-serif;
+  color: #fff;
+  cursor: pointer;
+}
+.ph-device-btns {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.ph-soft-btn {
+  width: 36px;
+  height: 14px;
+  background: linear-gradient(to bottom, #555, #333);
+  border-radius: 4px;
+  border: 1px solid #222;
+}
+.ph-dpad {
+  width: 46px;
+  height: 46px;
+  background: radial-gradient(circle, #666 0%, #333 100%);
+  border-radius: 50%;
+  border: 2px solid #222;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+.ph-dpad-c {
+  width: 18px;
+  height: 18px;
+  background: radial-gradient(circle, #888 0%, #555 100%);
+  border-radius: 50%;
+  border: 1px solid #333;
+}
+</style>
+</head>
+<body>
+<div style="max-width:980px;margin:0 auto;">
+
+  <!-- TASKBAR -->
+  <div class="taskbar">
+    <div class="taskbar-logo">
+      <img src="https://i.imgur.com/kmVfSzn.png" class="tb-icon" alt="Winkd">
+      <span class="taskbar-logo-text">Winkd</span>
+    </div>
+    <div class="tb-btn on" id="tb-lp" onclick="show('lp')">
+      <img src="https://i.imgur.com/kmVfSzn.png" class="tb-icon" alt="">
+      winkd.net — Windows Internet Explorer
+    </div>
+    <div class="tb-btn" id="tb-dt" onclick="show('dt')">
+      <img src="https://i.imgur.com/kmVfSzn.png" class="tb-icon" alt="">
+      Winkd Messenger
+    </div>
+    <div class="tb-btn" id="tb-mb" onclick="show('mb')">
+      <img src="https://i.imgur.com/kmVfSzn.png" class="tb-icon" alt="">
+      Winkd Mobile
+    </div>
+  </div>
+
+  <!-- ══════ LANDING (IE7/8 Aero style) ══════ -->
+  <div class="pane on" id="pn-lp">
+    <div class="lp-chrome">
+      <div class="ie-titlebar">
+        <div class="ie-title">
+          <img src="https://i.imgur.com/kmVfSzn.png" style="width:14px;height:14px;object-fit:contain;" alt="">
+          Winkd Messenger — Download — Windows Internet Explorer
+        </div>
+        <div class="aero-winbtns">
+          <div class="aero-wb aero-wb-min">─</div>
+          <div class="aero-wb aero-wb-max">□</div>
+          <div class="aero-wb aero-wb-close">✕</div>
+        </div>
+      </div>
+      <div class="ie-toolbar">
+        <div class="ie-navbtn">◀</div>
+        <div class="ie-navbtn">▶</div>
+        <div class="ie-navbtn">↻</div>
+        <div style="font-size:11px;color:#556;padding:0 5px;font-weight:600;">Address</div>
+        <div class="ie-address">
+          <span style="font-size:12px;">🌐</span>
+          <span style="color:#1a2a50;">http://www.winkd.net/download</span>
+        </div>
+        <div class="ie-go">Go →</div>
+      </div>
+      <div class="lp-body">
+        <!-- Hero -->
+        <div class="lp-hero">
+          <div class="lp-hero-text">
+            <div class="lp-logo-row">
+              <img src="https://i.imgur.com/kmVfSzn.png" class="lp-logo-img" alt="Winkd">
+              <div>
+                <div class="lp-logo-name"><strong>Winkd</strong> Messenger</div>
+              </div>
+            </div>
+            <div class="lp-hero-sub">Buddy lists. Away messages. Winks. Nudges. The personality of early-2000s chat rebuilt with modern encryption and zero corporate blandness. Free forever.</div>
+          </div>
+          <div>
+            <div class="lp-dl-hero">⬇ Download Winkd 1.0<br><span style="font-size:11px;font-weight:400;">Free · Windows · 8.4 MB</span></div>
+          </div>
+        </div>
+        <!-- Nav -->
+        <div class="lp-nav">
+          <div class="lp-nav-link">Home</div>
+          <div class="lp-nav-link">Download</div>
+          <div class="lp-nav-link">Features</div>
+          <div class="lp-nav-link">Security</div>
+          <div class="lp-nav-link">Support</div>
+          <div class="lp-nav-link">About</div>
+        </div>
+        <!-- Content -->
+        <div class="lp-main-area">
+          <div class="lp-content">
+            <div class="lp-section-title">Welcome to Winkd Messenger</div>
+            <div class="lp-p">Winkd brings back everything you loved about instant messaging — buddy lists, away messages, custom emoticons, and the legendary <strong>Winkd (Nudge)</strong> — rebuilt on modern infrastructure with end-to-end encryption. Free to download, no ads, no subscription, ever.</div>
+            <div class="lp-p">Version 1.0 is available for Windows Vista/7/10/11, Mac OS X, Linux, and Windows Mobile.</div>
+
+            <div class="lp-section-title" style="margin-top:16px;">Key Features</div>
+            <div class="feat-box">
+              <div class="feat-box-title">💥 The Winkd (Nudge)</div>
+              <div class="feat-box-desc">Shake a contact's window to get their attention. The most chaotic, beloved feature in messaging history — back where it belongs.</div>
+            </div>
+            <div class="feat-box">
+              <div class="feat-box-title">🔒 End-to-End Encrypted</div>
+              <div class="feat-box-desc">All messages protected by Signal Protocol. Nobody reads your conversations — not even us.</div>
+            </div>
+            <div class="feat-box">
+              <div class="feat-box-title">🟢 Status &amp; Away Messages</div>
+              <div class="feat-box-desc">Online, Away, Busy, Invisible — plus a personal mood message your friends will actually read.</div>
+            </div>
+            <div class="feat-box">
+              <div class="feat-box-title">🎭 Buddy Icons &amp; Display Names</div>
+              <div class="feat-box-desc">Animated avatars, custom display names with colors and styles. Express yourself freely.</div>
+            </div>
+            <div class="feat-box">
+              <div class="feat-box-title">✨ Winks &amp; Custom Emoticons</div>
+              <div class="feat-box-desc">Full-screen animated Winks and custom emoticon packs. Create your own and share with friends.</div>
+            </div>
+            <div class="feat-box">
+              <div class="feat-box-title">🌐 Open Source &amp; Federated</div>
+              <div class="feat-box-desc">Run your own Winkd server. Full source code on GitHub. Your data, your rules.</div>
+            </div>
+
+            <div class="lp-section-title" style="margin-top:16px;">Latest News</div>
+            <div class="news-item">
+              <div class="news-date">April 9, 2026</div>
+              <div class="news-title">Winkd 1.0 — Official Release</div>
+              <div class="news-desc">The first stable release is now available for all platforms. Download today and reconnect with your contacts.</div>
+            </div>
+            <div class="news-item">
+              <div class="news-date">March 22, 2026</div>
+              <div class="news-title">Winkd Mobile Beta for Windows Mobile available</div>
+              <div class="news-desc">Take your buddy list on the go. Compatible with Windows Mobile 5 and 6.</div>
+            </div>
+          </div>
+          <div class="lp-right">
+            <div class="dl-box">
+              <div class="dl-box-title">⬇ Download Winkd</div>
+              <div class="dl-btn primary">💻 Windows (EXE)</div>
+              <div class="dl-btn">🍎 Mac OS X (DMG)</div>
+              <div class="dl-btn">🐧 Linux (TAR.GZ)</div>
+              <div class="dl-btn">📱 Windows Mobile</div>
+              <div style="font-size:10px;color:#666;margin-top:8px;text-align:center;">v1.0.0 · 8.4 MB<br>April 9, 2026</div>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:#1a3a8a;margin-bottom:6px;">System Requirements</div>
+            <div class="sys-req">
+              <strong>Windows:</strong> Vista SP1 or later<br>
+              <strong>Mac:</strong> OS X 10.5+<br>
+              <strong>RAM:</strong> 256 MB minimum<br>
+              <strong>Disk:</strong> 30 MB free space<br>
+              <strong>Net:</strong> Broadband recommended<br><br>
+              <strong>100% Free.</strong> No ads.<br>No premium tiers.<br>No data sold. Ever.
+            </div>
+            <div class="online-pill">
+              <div style="font-weight:700;color:#1a4a1a;margin-bottom:2px;">🟢 Online Now</div>
+              <div style="font-size:20px;font-weight:700;color:#1a7a1a;">14,382</div>
+              <div style="font-size:10px;color:#336633;">users connected</div>
+            </div>
+          </div>
+        </div>
+        <div class="lp-footer">© 2026 Winkd Messenger · Open Source (MIT) · Privacy Policy · No advertisements, ever.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ DESKTOP APP ══════ -->
+  <div class="pane" id="pn-dt">
+    <div class="aero-window">
+      <div class="aero-titlebar">
+        <div class="aero-title-left">
+          <img src="https://i.imgur.com/kmVfSzn.png" class="aero-title-icon" alt="Winkd">
+          <span class="aero-title-text">Winkd Messenger</span>
+        </div>
+        <div class="aero-winbtns">
+          <div class="aero-wb aero-wb-min">─</div>
+          <div class="aero-wb aero-wb-max">□</div>
+          <div class="aero-wb aero-wb-close">✕</div>
+        </div>
+      </div>
+      <!-- Menu bar -->
+      <div style="background:linear-gradient(to bottom,rgba(220,235,255,0.97) 0%,rgba(200,220,255,0.95) 100%);border-bottom:1px solid rgba(120,170,240,0.3);padding:1px 4px;display:flex;">
+        <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;border-radius:3px;font-family:'Segoe UI',sans-serif;">File</div>
+        <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;border-radius:3px;font-family:'Segoe UI',sans-serif;">Contacts</div>
+        <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;border-radius:3px;font-family:'Segoe UI',sans-serif;">Actions</div>
+        <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;border-radius:3px;font-family:'Segoe UI',sans-serif;">Tools</div>
+        <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;border-radius:3px;font-family:'Segoe UI',sans-serif;">Help</div>
+      </div>
+      <div style="display:flex;height:540px;">
+        <!-- SIDEBAR -->
+        <div class="aero-sidebar">
+          <div class="aero-profile">
+            <div class="aero-profile-row">
+              <div class="aero-my-av">
+                ME
+                <div class="aero-av-status" style="background:#00CC00;"></div>
+              </div>
+              <div>
+                <div class="aero-my-name">You</div>
+                <div class="aero-my-mood">🎵 making beats in the dark</div>
+              </div>
+            </div>
+            <div class="aero-status-row">
+              <div class="aero-spill" style="background:rgba(0,200,0,0.2);border-color:rgba(0,180,0,0.5);color:#d0ffd0;">● Online</div>
+              <div class="aero-spill" style="background:rgba(255,180,0,0.2);border-color:rgba(220,150,0,0.5);color:#ffe8a0;">● Away</div>
+              <div class="aero-spill" style="background:rgba(220,50,50,0.2);border-color:rgba(200,40,40,0.5);color:#ffb0b0;">● Busy</div>
+            </div>
+          </div>
+          <div class="aero-search">
+            <div class="aero-search-box">🔍 Search contacts...</div>
+          </div>
+          <div style="flex:1;overflow-y:auto;">
+            <div class="aero-grp-label">● Online (4)</div>
+            <div class="aero-contact sel">
+              <div class="aero-cav" style="background:linear-gradient(135deg,#6060C8,#3030A0);">CF<div class="aero-cdot" style="background:#00CC00;"></div></div>
+              <div style="flex:1;min-width:0;">
+                <div class="aero-cname">CryptoFox</div>
+                <div class="aero-cmood">☕ vibing rn</div>
+              </div>
+              <div class="aero-cbadge">2</div>
+            </div>
+            <div class="aero-contact">
+              <div class="aero-cav" style="background:linear-gradient(135deg,#306030,#204020);">GW<div class="aero-cdot" style="background:#00CC00;"></div></div>
+              <div style="flex:1;min-width:0;">
+                <div class="aero-cname">ghostwitch</div>
+                <div class="aero-cmood">✨ lurking as usual</div>
+              </div>
+            </div>
+            <div class="aero-contact">
+              <div class="aero-cav" style="background:linear-gradient(135deg,#603060,#402040);">RV<div class="aero-cdot" style="background:#00CC00;"></div></div>
+              <div style="flex:1;min-width:0;">
+                <div class="aero-cname">ravenvoice</div>
+                <div class="aero-cmood">🎧 in the zone</div>
+              </div>
+            </div>
+            <div class="aero-contact">
+              <div class="aero-cav" style="background:linear-gradient(135deg,#605030,#403020);">NX<div class="aero-cdot" style="background:#00CC00;"></div></div>
+              <div style="flex:1;min-width:0;">
+                <div class="aero-cname">n1ghtx</div>
+                <div class="aero-cmood">🌙 moon hours</div>
+              </div>
+            </div>
+            <div class="aero-grp-label" style="color:rgba(255,200,100,0.9);">● Away (2)</div>
+            <div class="aero-contact">
+              <div class="aero-cav" style="background:linear-gradient(135deg,#806030,#604020);">SK<div class="aero-cdot" style="background:#FFAA00;"></div></div>
+              <div style="flex:1;min-width:0;">
+                <div class="aero-cname">sk8r_boi99</div>
+                <div class="aero-cmood">🎮 brb dinner</div>
+              </div>
+            </div>
+            <div class="aero-contact">
+              <div class="aero-cav" style="background:linear-gradient(135deg,#402080,#281060);">DM<div class="aero-cdot" style="background:#FFAA00;"></div></div>
+              <div style="flex:1;min-width:0;">
+                <div class="aero-cname">d4rkm0de</div>
+                <div class="aero-cmood">😴 zzzzzz</div>
+              </div>
+            </div>
+          </div>
+          <div class="aero-statusbar">
+            <span>🟢 Online</span>
+            <span style="color:rgba(180,210,255,0.7);">6 contacts</span>
+          </div>
+        </div>
+
+        <!-- CHAT PANEL -->
+        <div class="aero-chat">
+          <div class="aero-chat-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="aero-chat-hdr-av">CF</div>
+              <div>
+                <div class="aero-chat-name">CryptoFox</div>
+                <div class="aero-chat-status">● Online</div>
+                <div class="aero-chat-mood">☕ vibing rn</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:5px;">
+              <div class="aero-hbtn">📁 Send File</div>
+              
+              <div class="aero-hbtn">🚪 End Chat</div>
+            </div>
+          </div>
+          <div class="aero-toolbar">
+            <div class="aero-tbtn winkd">💥 Winkd!</div>
+            <div class="aero-tbtn nudge">🫸 Nudge</div>
+            <div class="aero-sep"></div>
+            <div class="aero-tbtn">😄 Emoticons</div>
+            <div class="aero-tbtn">✨ Winks</div>
+            <div class="aero-tbtn">🎨 Color</div>
+            <div class="aero-tbtn">🔡 Font</div>
+            <div class="aero-sep"></div>
+            <div class="aero-tbtn">📷 Photo</div>
+            
+          </div>
+          <div class="aero-msgs">
+            <div class="mrow them">
+              <div class="m-av" style="background:linear-gradient(135deg,#6060C8,#3030A0);">CF</div>
+              <div class="m-body">
+                <div class="m-meta">CryptoFox · 9:41 PM</div>
+                <div class="m-them">the buddy list is sending me back to 2003. i didn't know how much i missed all of this</div>
+              </div>
+            </div>
+            <div class="mrow me">
+              <div class="m-av" style="background:linear-gradient(135deg,#6060C8,#3030A0);">Me</div>
+              <div class="m-body">
+                <div class="m-meta">You · 9:42 PM</div>
+                <div class="m-me">right?? and it's actually encrypted this time lol</div>
+              </div>
+            </div>
+            <div class="mrow them">
+              <div class="m-av" style="background:linear-gradient(135deg,#6060C8,#3030A0);">CF</div>
+              <div class="m-body">
+                <div class="m-meta">CryptoFox · 9:43 PM</div>
+                <div class="m-them">my status says "☕ vibing rn" and i have never felt more understood by a piece of software</div>
+              </div>
+            </div>
+            <div class="winkd-evt">💥 CryptoFox has sent you a Winkd! Your window is shaking!</div>
+            <div class="mrow me">
+              <div class="m-av" style="background:linear-gradient(135deg,#6060C8,#3030A0);">Me</div>
+              <div class="m-body">
+                <div class="m-meta">You · 9:43 PM</div>
+                <div class="m-me">I AM RIGHT HERE. stop. 😂</div>
+              </div>
+            </div>
+            <div class="mrow them">
+              <div class="m-av" style="background:linear-gradient(135deg,#6060C8,#3030A0);">CF</div>
+              <div class="m-body">
+                <div class="m-meta">CryptoFox · 9:44 PM</div>
+                <div class="m-them">never</div>
+              </div>
+            </div>
+          </div>
+          <div class="aero-input-row">
+            <div class="aero-input">Type your message and press Enter to send...</div>
+            <div class="aero-send">Send</div>
+          </div>
+          <div class="aero-statusbar">
+            <span>🔒 End-to-end encrypted</span>
+            <span style="color:rgba(180,210,255,0.7);">CryptoFox is online</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ MOBILE ══════ -->
+  <div class="pane" id="pn-mb">
+    <div class="mob-wrap">
+      <!-- Phone 1 -->
+      <div>
+        <div class="mob-cap">Buddy List</div>
+        <div class="ph-device">
+          <div class="ph-screen">
+            <div class="ph-titlebar">
+              <span>💬 Winkd</span>
+              <span>🔋 9:44</span>
+            </div>
+            <div class="ph-nav-strip">
+              <div class="ph-logo-sm">
+                <img src="https://i.imgur.com/kmVfSzn.png" alt="">
+                Winkd
+              </div>
+              <div class="ph-search-sm">🔍 Search...</div>
+            </div>
+            <div class="ph-grp-lbl">● Online (4)</div>
+            <div class="ph-citem sel">
+              <div class="ph-cav" style="background:linear-gradient(135deg,#6060C8,#3030A0);">CF<div class="ph-cdot" style="background:#00CC00;"></div></div>
+              <div style="flex:1;min-width:0;">
+                <div class="ph-cname">CryptoFox</div>
+                <div class="ph-cprev">☕ vibing rn</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+                <div style="font-size:8px;color:#aaa;">9:44</div>
+                <div class="ph-badge-sm">2</div>
+              </div>
+            </div>
+            <div class="ph-citem">
+              <div class="ph-cav" style="background:linear-gradient(135deg,#306030,#204020);">GW<div class="ph-cdot" style="background:#00CC00;"></div></div>
+              <div style="flex:1;min-width:0;">
+                <div class="ph-cname">ghostwitch</div>
+                <div class="ph-cprev">✨ lurking as usual</div>
+              </div>
+              <div class="ph-time-sm">8:12</div>
+            </div>
+            <div class="ph-citem">
+              <div class="ph-cav" style="background:linear-gradient(135deg,#603060,#402040);">RV<div class="ph-cdot" style="background:#00CC00;"></div></div>
+              <div style="flex:1;min-width:0;">
+                <div class="ph-cname">ravenvoice</div>
+                <div class="ph-cprev">🎧 in the zone</div>
+              </div>
+              <div class="ph-time-sm">7:50</div>
+            </div>
+            <div class="ph-grp-lbl" style="color:#604000;background:linear-gradient(to bottom,#fff8d8,#fff0b0);">● Away (2)</div>
+            <div class="ph-citem">
+              <div class="ph-cav" style="background:linear-gradient(135deg,#806030,#604020);">SK<div class="ph-cdot" style="background:#FFAA00;"></div></div>
+              <div style="flex:1;min-width:0;">
+                <div class="ph-cname">sk8r_boi99</div>
+                <div class="ph-cprev">🎮 brb dinner</div>
+              </div>
+              <div class="ph-time-sm">5:30</div>
+            </div>
+            <div style="flex:1;"></div>
+            <div class="ph-softbar">
+              <div class="ph-soft">Menu</div>
+              <div style="font-size:10px;color:#3a7adc;font-weight:700;font-family:'Segoe UI',sans-serif;">🟢 Online</div>
+              <div class="ph-soft">Chat →</div>
+            </div>
+          </div>
+          <div class="ph-device-btns">
+            <div class="ph-soft-btn"></div>
+            <div class="ph-dpad"><div class="ph-dpad-c"></div></div>
+            <div class="ph-soft-btn"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Phone 2 -->
+      <div>
+        <div class="mob-cap">Chat Window</div>
+        <div class="ph-device">
+          <div class="ph-screen">
+            <div class="ph-titlebar">
+              <span>💬 CryptoFox</span>
+              <span>🔋 9:44</span>
+            </div>
+            <div class="ph-chat-hdr">
+              <div class="ph-back-btn">◀</div>
+              <div class="ph-chat-av">CF</div>
+              <div style="flex:1;">
+                <div class="ph-chat-name">CryptoFox</div>
+                <div class="ph-chat-on">● Online</div>
+              </div>
+              <div style="font-size:11px;color:#aaa;cursor:pointer;">⋯</div>
+            </div>
+            <div class="ph-toolbar">
+              <div class="ph-tbtn winkd">💥 Winkd!</div>
+              <div class="ph-tbtn">🫸 Nudge</div>
+              <div class="ph-tbtn">😄</div>
+              <div class="ph-tbtn">✨</div>
+              <div class="ph-tbtn">📷</div>
+            </div>
+            <div class="ph-msgs">
+              <div class="ph-msg them">
+                <div class="ph-msg-who">CryptoFox · 9:41</div>
+                <div class="ph-bub-them">buddy list is sending me back to 2003 😭</div>
+              </div>
+              <div class="ph-msg me">
+                <div class="ph-bub-me">right?? encrypted too this time lol</div>
+              </div>
+              <div class="ph-msg them">
+                <div class="ph-msg-who">CryptoFox · 9:43</div>
+                <div class="ph-bub-them">status says "vibing rn" and i feel seen</div>
+              </div>
+              <div class="ph-winkd">💥 CryptoFox sent a Winkd!</div>
+              <div class="ph-msg me">
+                <div class="ph-bub-me">STOP I'M RIGHT HERE 😂</div>
+              </div>
+              <div class="ph-msg them">
+                <div class="ph-msg-who">CryptoFox · 9:44</div>
+                <div class="ph-bub-them">never</div>
+              </div>
+            </div>
+            <div class="ph-input-area">
+              <div class="ph-input-box">Type message...</div>
+              <div class="ph-send-btn">Send</div>
+            </div>
+            <div class="ph-softbar">
+              <div class="ph-soft">Menu</div>
+              <div class="ph-soft">Back</div>
+            </div>
+          </div>
+          <div class="ph-device-btns">
+            <div class="ph-soft-btn"></div>
+            <div class="ph-dpad"><div class="ph-dpad-c"></div></div>
+            <div class="ph-soft-btn"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+function show(id) {
+  ['lp','dt','mb'].forEach(function(t) {
+    document.getElementById('pn-'+t).classList.toggle('on', t===id);
+    document.getElementById('tb-'+t).classList.toggle('on', t===id);
+  });
+}
+</script>
+</body>
+</html>
