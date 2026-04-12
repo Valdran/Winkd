@@ -18,7 +18,7 @@ if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
 if (!fs.existsSync(SOURCE)) {
   console.error('❌ icon-source.png not found.');
-  console.log('→ Download https://i.imgur.com/kmVfSzn.png, save it as icon-source.png, then re-run.');
+  console.log('→ Download https://i.imgur.com/cg6eejI.png, save it as icon-source.png, then re-run.');
   process.exit(1);
 }
 
