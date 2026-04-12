@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Winkd Messenger — Aero</title>
+<title>Winkd Desktop for winkd.net — Windows Internet Explorer</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap');
 
@@ -1087,6 +1087,53 @@ body {
   border-radius: 50%;
   border: 1px solid #333;
 }
+
+/* ── DEMO ANIMATIONS ── */
+@keyframes demo-shake {
+  0%,100%{transform:translate(0,0) rotate(0deg);}
+  10%{transform:translate(-6px,2px) rotate(-1deg);}
+  20%{transform:translate(6px,-2px) rotate(1deg);}
+  30%{transform:translate(-5px,2px) rotate(-0.8deg);}
+  40%{transform:translate(5px,-1px) rotate(0.8deg);}
+  50%{transform:translate(-3px,1px) rotate(-0.5deg);}
+  60%{transform:translate(3px,-1px) rotate(0.5deg);}
+  75%{transform:translate(-2px,0);}
+  90%{transform:translate(1px,0);}
+}
+.demo-shaking { animation: demo-shake 0.55s cubic-bezier(.36,.07,.19,.97) both; }
+
+@keyframes demo-slidein {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.demo-new-msg { animation: demo-slidein 0.35s ease forwards; }
+
+@keyframes demo-pop {
+  0%   { transform:scale(0); opacity:0; }
+  60%  { transform:scale(1.2); }
+  100% { transform:scale(1);  opacity:1; }
+}
+.demo-pop { animation: demo-pop 0.3s ease forwards; }
+
+@keyframes demo-avatar-swap {
+  0%   { transform:scale(1); }
+  40%  { transform:scale(0); }
+  60%  { transform:scale(0); }
+  100% { transform:scale(1); }
+}
+
+/* Sign-in button in taskbar */
+.tb-signin {
+  margin-left: auto;
+  background: linear-gradient(to bottom, rgba(255,210,80,0.97) 0%, rgba(235,150,0,0.97) 100%);
+  border-color: rgba(200,120,0,0.65);
+  color: #1a0800;
+  font-weight: 700;
+  text-decoration: none;
+}
+.tb-signin:hover {
+  background: linear-gradient(to bottom, rgba(255,228,120,1) 0%, rgba(245,165,0,1) 100%);
+}
 </style>
 </head>
 <body>
@@ -1100,16 +1147,17 @@ body {
     </div>
     <div class="tb-btn on" id="tb-lp" onclick="show('lp')">
       <img src="https://i.imgur.com/kmVfSzn.png" class="tb-icon" alt="">
-      winkd.net — Windows Internet Explorer
+      Winkd Desktop for winkd.net — Windows Internet Explorer
     </div>
     <div class="tb-btn" id="tb-dt" onclick="show('dt')">
       <img src="https://i.imgur.com/kmVfSzn.png" class="tb-icon" alt="">
-      Winkd Messenger
+      Winkd Desktop
     </div>
     <div class="tb-btn" id="tb-mb" onclick="show('mb')">
       <img src="https://i.imgur.com/kmVfSzn.png" class="tb-icon" alt="">
       Winkd Mobile
     </div>
+    <a href="login.html" class="tb-btn tb-signin">Sign In →</a>
   </div>
 
   <!-- ══════ LANDING (IE7/8 Aero style) ══════ -->
@@ -1149,8 +1197,104 @@ body {
             </div>
             <div class="lp-hero-sub">Buddy lists. Away messages. Winks. Nudges. The personality of early-2000s chat rebuilt with modern encryption and zero corporate blandness. Free forever.</div>
           </div>
-          <div>
-            <div class="lp-dl-hero">⬇ Download Winkd 1.0<br><span style="font-size:11px;font-weight:400;">Free · Windows · 8.4 MB</span></div>
+          <!-- ── LIVE DEMO WINDOW ── -->
+          <div id="demo-lp-win" style="width:272px;flex-shrink:0;border-radius:8px 8px 4px 4px;overflow:hidden;box-shadow:0 8px 28px rgba(0,0,0,0.65),inset 0 0 0 1px rgba(255,255,255,0.12);">
+            <!-- Titlebar -->
+            <div style="background:linear-gradient(to bottom,rgba(180,210,255,0.35) 0%,rgba(80,130,210,0.3) 100%);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.22);padding:5px 8px;display:flex;align-items:center;justify-content:space-between;min-height:28px;position:relative;">
+              <div style="position:absolute;inset:0;height:50%;background:linear-gradient(to bottom,rgba(255,255,255,0.25),transparent);pointer-events:none;border-radius:8px 8px 0 0;"></div>
+              <div style="display:flex;align-items:center;gap:5px;z-index:1;">
+                <img src="https://i.imgur.com/kmVfSzn.png" style="width:14px;height:14px;object-fit:contain;">
+                <span style="font-size:10px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);font-family:'Segoe UI',sans-serif;">Winkd Messenger</span>
+              </div>
+              <div style="display:flex;gap:2px;z-index:1;">
+                <div style="width:19px;height:14px;border-radius:3px;background:linear-gradient(to bottom,rgba(255,255,255,0.42),rgba(180,210,255,0.28));border:1px solid rgba(100,160,255,0.55);font-size:7px;display:flex;align-items:center;justify-content:center;color:rgba(20,50,120,0.9);">─</div>
+                <div style="width:19px;height:14px;border-radius:3px;background:linear-gradient(to bottom,rgba(255,180,180,0.75),rgba(220,60,60,0.65));border:1px solid rgba(255,120,120,0.65);font-size:7px;display:flex;align-items:center;justify-content:center;color:#fff;">✕</div>
+              </div>
+            </div>
+            <!-- Body -->
+            <div style="display:flex;height:310px;">
+              <!-- Sidebar -->
+              <div style="width:102px;flex-shrink:0;background:linear-gradient(to bottom,rgba(180,210,255,0.16),rgba(160,195,250,0.11));border-right:1px solid rgba(255,255,255,0.14);display:flex;flex-direction:column;overflow:hidden;">
+                <!-- Profile -->
+                <div style="background:linear-gradient(to bottom,rgba(100,160,255,0.28),rgba(60,120,220,0.18));border-bottom:1px solid rgba(255,255,255,0.15);padding:7px;">
+                  <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">
+                    <div id="demo-lp-av" style="width:28px;height:28px;border-radius:4px;background:linear-gradient(135deg,#4060c8,#2040a0);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;position:relative;flex-shrink:0;overflow:hidden;box-shadow:0 1px 5px rgba(0,0,100,0.3);">
+                      <span id="demo-lp-av-initials">WK</span>
+                    </div>
+                    <div style="overflow:hidden;flex:1;min-width:0;">
+                      <div id="demo-lp-name" style="font-size:9px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,0.4);">Winkd</div>
+                      <div style="font-size:8px;color:rgba(210,230,255,0.8);font-style:italic;white-space:nowrap;overflow:hidden;">☕ vibing rn</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:3px;">
+                    <div style="font-size:7px;padding:1px 5px;border-radius:8px;background:rgba(0,200,0,0.2);border:1px solid rgba(0,180,0,0.45);color:#c0ffb0;font-weight:600;">● Online</div>
+                  </div>
+                </div>
+                <!-- Contacts -->
+                <div style="flex:1;overflow-y:auto;scrollbar-width:none;">
+                  <div style="font-size:7px;font-weight:700;color:rgba(180,210,255,0.9);padding:4px 6px 2px;text-transform:uppercase;letter-spacing:0.5px;">● Online (3)</div>
+                  <div style="display:flex;align-items:center;gap:4px;padding:4px 6px;background:linear-gradient(to right,rgba(80,140,255,0.38),rgba(60,120,220,0.22));border-left:2px solid rgba(140,190,255,0.95);">
+                    <div style="width:20px;height:20px;border-radius:3px;background:linear-gradient(135deg,#6060c8,#3030a0);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;position:relative;flex-shrink:0;">CF<div style="position:absolute;bottom:-2px;right:-2px;width:6px;height:6px;border-radius:50%;background:#00cc00;border:1px solid rgba(20,50,100,0.6);"></div></div>
+                    <div style="font-size:8px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;text-shadow:0 1px 2px rgba(0,0,0,0.4);">CryptoFox</div>
+                    <div id="demo-lp-badge" style="background:linear-gradient(to bottom,#ff7020,#dd4000);color:#fff;border-radius:6px;font-size:7px;font-weight:700;padding:1px 4px;flex-shrink:0;">2</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:4px;padding:4px 6px;">
+                    <div style="width:20px;height:20px;border-radius:3px;background:linear-gradient(135deg,#306030,#204020);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;position:relative;flex-shrink:0;">GW<div style="position:absolute;bottom:-2px;right:-2px;width:6px;height:6px;border-radius:50%;background:#00cc00;border:1px solid rgba(20,50,100,0.6);"></div></div>
+                    <div style="font-size:8px;color:rgba(200,220,255,0.85);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">ghostwitch</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:4px;padding:4px 6px;">
+                    <div style="width:20px;height:20px;border-radius:3px;background:linear-gradient(135deg,#603060,#402040);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;position:relative;flex-shrink:0;">RV<div style="position:absolute;bottom:-2px;right:-2px;width:6px;height:6px;border-radius:50%;background:#00cc00;border:1px solid rgba(20,50,100,0.6);"></div></div>
+                    <div style="font-size:8px;color:rgba(200,220,255,0.85);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">ravenvoice</div>
+                  </div>
+                </div>
+                <div style="background:linear-gradient(to bottom,rgba(160,195,250,0.22),rgba(140,178,240,0.28));border-top:1px solid rgba(255,255,255,0.13);padding:3px 6px;font-size:7px;color:rgba(220,238,255,0.97);display:flex;justify-content:space-between;">
+                  <span>🟢 Online</span><span>3 contacts</span>
+                </div>
+              </div>
+              <!-- Chat -->
+              <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+                <!-- Chat header -->
+                <div style="background:linear-gradient(to bottom,rgba(210,228,255,0.97),rgba(195,218,255,0.95));border-bottom:1px solid rgba(140,180,240,0.35);padding:5px 8px;display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                  <div style="width:24px;height:24px;border-radius:4px;background:linear-gradient(135deg,#6060c8,#3030a0);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0;">CF</div>
+                  <div>
+                    <div style="font-size:9px;font-weight:700;color:#1a2a40;font-family:'Segoe UI',sans-serif;">CryptoFox</div>
+                    <div style="font-size:8px;color:#007700;font-weight:600;font-family:'Segoe UI',sans-serif;">● Online</div>
+                  </div>
+                </div>
+                <!-- Toolbar -->
+                <div style="background:linear-gradient(to bottom,rgba(215,232,255,0.97),rgba(198,220,255,0.97));border-bottom:1px solid rgba(130,175,240,0.2);padding:3px 5px;display:flex;gap:2px;align-items:center;flex-shrink:0;">
+                  <div style="background:linear-gradient(to bottom,rgba(255,248,200,1),rgba(255,218,100,0.92));border:1px solid rgba(200,152,28,0.58);border-radius:2px;padding:2px 5px;font-size:7px;font-weight:700;color:#6a3000;font-family:'Segoe UI',sans-serif;">💥 Winkd!</div>
+                  <div style="background:linear-gradient(to bottom,rgba(215,255,215,1),rgba(168,240,168,0.92));border:1px solid rgba(60,160,60,0.5);border-radius:2px;padding:2px 4px;font-size:7px;color:#1a4a1a;font-family:'Segoe UI',sans-serif;">🫸</div>
+                  <div style="background:linear-gradient(to bottom,rgba(255,255,255,0.92),rgba(220,236,255,0.75));border:1px solid rgba(120,170,240,0.38);border-radius:2px;padding:2px 4px;font-size:7px;color:#1a2a50;">😄</div>
+                  <div style="background:linear-gradient(to bottom,rgba(255,255,255,0.92),rgba(220,236,255,0.75));border:1px solid rgba(120,170,240,0.38);border-radius:2px;padding:2px 4px;font-size:7px;color:#1a2a50;">✨</div>
+                  <div style="background:linear-gradient(to bottom,rgba(255,255,255,0.92),rgba(220,236,255,0.75));border:1px solid rgba(120,170,240,0.38);border-radius:2px;padding:2px 4px;font-size:7px;color:#1a2a50;">🎨</div>
+                </div>
+                <!-- Messages -->
+                <div id="demo-lp-msgs" style="flex:1;padding:6px 7px;display:flex;flex-direction:column;gap:5px;overflow:hidden;background:rgba(245,249,255,0.97);">
+                  <div style="display:flex;gap:4px;">
+                    <div style="width:18px;height:18px;border-radius:3px;background:linear-gradient(135deg,#6060c8,#3030a0);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;flex-shrink:0;margin-top:1px;">CF</div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:7px;color:#88a;margin-bottom:1px;font-family:'Segoe UI',sans-serif;">CryptoFox · 9:41</div>
+                      <div style="background:linear-gradient(to bottom,rgba(240,246,255,1),rgba(228,238,255,1));border:1px solid rgba(160,190,240,0.6);border-radius:5px;border-top-left-radius:1px;padding:4px 6px;font-size:8px;color:#1a2a40;line-height:1.4;font-family:'Segoe UI',sans-serif;">the buddy list is back 😭</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:4px;flex-direction:row-reverse;">
+                    <div id="demo-lp-my-av" style="width:18px;height:18px;border-radius:3px;background:linear-gradient(135deg,#4060c8,#2040a0);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;flex-shrink:0;margin-top:1px;overflow:hidden;">WK</div>
+                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-end;">
+                      <div style="font-size:7px;color:#88a;margin-bottom:1px;font-family:'Segoe UI',sans-serif;">Winkd · 9:42</div>
+                      <div style="background:linear-gradient(to bottom,rgba(220,235,255,1),rgba(190,215,255,1));border:1px solid rgba(100,160,240,0.5);border-radius:5px;border-top-right-radius:1px;padding:4px 6px;font-size:8px;color:#1a2a40;line-height:1.4;font-family:'Segoe UI',sans-serif;">right?? encrypted too lol 😄</div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Input -->
+                <div style="padding:5px 7px;background:rgba(240,246,255,0.97);border-top:1px solid rgba(120,170,240,0.25);display:flex;gap:4px;align-items:center;flex-shrink:0;">
+                  <div id="demo-lp-input" style="flex:1;background:linear-gradient(to bottom,rgba(255,255,255,1),rgba(245,250,255,1));border:1px solid rgba(100,150,220,0.5);border-radius:4px;padding:3px 7px;font-size:8px;color:#aaa;box-shadow:inset 0 1px 3px rgba(0,0,80,0.06);font-family:'Segoe UI',sans-serif;">Type a message…</div>
+                  <div style="background:linear-gradient(to bottom,rgba(100,170,255,1),rgba(20,80,200,1));border:1px solid rgba(20,80,200,0.8);border-radius:4px;padding:3px 8px;font-size:8px;font-weight:600;color:#fff;font-family:'Segoe UI',sans-serif;">Send</div>
+                </div>
+                <!-- Status bar -->
+                <div style="background:linear-gradient(to bottom,rgba(190,215,255,0.9),rgba(170,200,250,0.95));border-top:1px solid rgba(120,170,240,0.3);padding:2px 7px;font-size:7px;color:#3a5a9a;flex-shrink:0;font-family:'Segoe UI',sans-serif;">🔒 End-to-end encrypted · CryptoFox is online</div>
+              </div>
+            </div>
           </div>
         </div>
         <!-- Nav -->
@@ -1264,12 +1408,12 @@ body {
         <div class="aero-sidebar">
           <div class="aero-profile">
             <div class="aero-profile-row">
-              <div class="aero-my-av">
-                ME
+              <div class="aero-my-av" style="overflow:hidden;padding:0;background:none;">
+                <img src="https://i.imgur.com/kmVfSzn.png" style="width:100%;height:100%;object-fit:cover;display:block;">
                 <div class="aero-av-status" style="background:#00CC00;"></div>
               </div>
               <div>
-                <div class="aero-my-name">You</div>
+                <div class="aero-my-name">Winkd</div>
                 <div class="aero-my-mood">🎵 making beats in the dark</div>
               </div>
             </div>
@@ -1421,7 +1565,7 @@ body {
       <!-- Phone 1 -->
       <div>
         <div class="mob-cap">Buddy List</div>
-        <div class="ph-device">
+        <div class="ph-device" id="demo-mb-ph1">
           <div class="ph-screen">
             <div class="ph-titlebar">
               <span>💬 Winkd</span>
@@ -1488,8 +1632,8 @@ body {
       <!-- Phone 2 -->
       <div>
         <div class="mob-cap">Chat Window</div>
-        <div class="ph-device">
-          <div class="ph-screen">
+        <div class="ph-device" id="demo-mb-ph2">
+          <div class="ph-screen" id="demo-mb-screen">
             <div class="ph-titlebar">
               <span>💬 CryptoFox</span>
               <span>🔋 9:44</span>
@@ -1510,7 +1654,7 @@ body {
               <div class="ph-tbtn">✨</div>
               <div class="ph-tbtn">📷</div>
             </div>
-            <div class="ph-msgs">
+            <div class="ph-msgs" id="demo-mb-msgs">
               <div class="ph-msg them">
                 <div class="ph-msg-who">CryptoFox · 9:41</div>
                 <div class="ph-bub-them">buddy list is sending me back to 2003 😭</div>
@@ -1558,6 +1702,206 @@ function show(id) {
     document.getElementById('tb-'+t).classList.toggle('on', t===id);
   });
 }
+
+// ── DEMO ANIMATIONS ──
+(function() {
+
+  // ── Landing Page Demo ──
+  function runDemoLP() {
+    var win  = document.getElementById('demo-lp-win');
+    var msgs = document.getElementById('demo-lp-msgs');
+    var avEl = document.getElementById('demo-lp-av');
+    var avInitials = document.getElementById('demo-lp-av-initials');
+    var myAvEl = document.getElementById('demo-lp-my-av');
+    var nameEl = document.getElementById('demo-lp-name');
+    var inputEl = document.getElementById('demo-lp-input');
+    if (!win || !msgs) return;
+
+    // Reset dynamic content
+    Array.from(msgs.querySelectorAll('.demo-dyn')).forEach(function(el){ el.remove(); });
+
+    // Reset avatar
+    if (avInitials) { avInitials.style.display=''; avInitials.textContent='WK'; }
+    var prevImg = avEl ? avEl.querySelector('img') : null;
+    if (prevImg) prevImg.remove();
+    if (avEl) avEl.style.background = 'linear-gradient(135deg,#4060c8,#2040a0)';
+
+    // Reset my-av
+    if (myAvEl) { myAvEl.innerHTML='WK'; myAvEl.style.background='linear-gradient(135deg,#4060c8,#2040a0)'; myAvEl.style.fontSize='7px'; }
+
+    // Reset name & input
+    if (nameEl) nameEl.textContent = 'Winkd';
+    if (inputEl) { inputEl.textContent='Type a message…'; inputEl.style.color='#aaa'; }
+
+    var t = 0, timers = [];
+    function at(delay, fn){ t += delay; timers.push(setTimeout(fn, t)); }
+
+    // 1. New message from CryptoFox slides in
+    at(2500, function(){
+      var el = document.createElement('div');
+      el.className = 'demo-dyn demo-new-msg';
+      el.style.cssText = 'display:flex;gap:4px;';
+      el.innerHTML =
+        '<div style="width:18px;height:18px;border-radius:3px;background:linear-gradient(135deg,#6060c8,#3030a0);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;flex-shrink:0;margin-top:1px;">CF</div>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:7px;color:#88a;margin-bottom:1px;font-family:\'Segoe UI\',sans-serif;">CryptoFox · 9:43</div>' +
+          '<div id="demo-lp-msg1" style="background:linear-gradient(to bottom,rgba(240,246,255,1),rgba(228,238,255,1));border:1px solid rgba(160,190,240,0.6);border-radius:5px;border-top-left-radius:1px;padding:4px 6px;font-size:8px;color:#1a2a40;line-height:1.4;font-family:\'Segoe UI\',sans-serif;">my status says vibing rn and i\'ve never felt more understood 😊</div>' +
+          '<div id="demo-lp-react-wrap" style="margin-top:2px;"></div>' +
+        '</div>';
+      msgs.appendChild(el);
+    });
+
+    // 2. Winkd shake + banner
+    at(2200, function(){
+      win.classList.add('demo-shaking');
+      win.addEventListener('animationend', function(){ win.classList.remove('demo-shaking'); }, {once:true});
+
+      var banner = document.createElement('div');
+      banner.className = 'demo-dyn demo-new-msg';
+      banner.style.cssText = 'background:linear-gradient(to bottom,rgba(255,240,200,1),rgba(255,220,150,1));border:1px solid rgba(220,160,40,0.6);border-radius:4px;padding:3px 8px;font-size:8px;color:#7a4000;font-weight:600;text-align:center;margin:1px 0;font-family:\'Segoe UI\',sans-serif;';
+      banner.textContent = '💥 CryptoFox sent you a Winkd! Your window is shaking!';
+      msgs.appendChild(banner);
+    });
+
+    // 3. Emoji reaction (😂) pops on the message
+    at(2200, function(){
+      var wrap = document.getElementById('demo-lp-react-wrap');
+      if (!wrap) return;
+      var pill = document.createElement('div');
+      pill.className = 'demo-pop';
+      pill.style.cssText = 'display:inline-flex;align-items:center;gap:2px;background:rgba(255,255,255,0.95);border:1px solid rgba(140,190,255,0.6);border-radius:8px;padding:1px 5px;font-size:8px;font-family:\'Segoe UI\',sans-serif;cursor:pointer;';
+      pill.innerHTML = '😂 <span style="font-size:7px;color:#5a7a9a;">1</span>';
+      wrap.appendChild(pill);
+    });
+
+    // 4. Change profile avatar to Winkd logo
+    at(2500, function(){
+      if (!avEl || !avInitials) return;
+      avInitials.style.display = 'none';
+      avEl.style.background = 'none';
+      var img = document.createElement('img');
+      img.src = 'https://i.imgur.com/kmVfSzn.png';
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:4px;';
+      avEl.style.position = 'relative';
+      avEl.appendChild(img);
+
+      // Also update the chat-side "my" avatar
+      if (myAvEl) {
+        myAvEl.innerHTML = '<img src="https://i.imgur.com/kmVfSzn.png" style="width:100%;height:100%;object-fit:cover;display:block;">';
+        myAvEl.style.background = 'none';
+      }
+    });
+
+    // 5. Type a new message into the input
+    at(2000, function(){
+      if (!inputEl) return;
+      inputEl.style.color = '#1a2a40';
+      var text = 'sending a little drawing 🎨';
+      var i = 0;
+      inputEl.textContent = '';
+      (function typeChar(){
+        if (i < text.length) { inputEl.textContent += text[i++]; setTimeout(typeChar, 55); }
+      })();
+    });
+
+    // 6. "Send" drawing message
+    at(text_len(26) + 900, function(){
+      if (inputEl) { inputEl.textContent='Type a message…'; inputEl.style.color='#aaa'; }
+      var el = document.createElement('div');
+      el.className = 'demo-dyn demo-new-msg';
+      el.style.cssText = 'display:flex;gap:4px;flex-direction:row-reverse;';
+      el.innerHTML =
+        '<div style="width:18px;height:18px;border-radius:3px;overflow:hidden;flex-shrink:0;margin-top:1px;">' +
+          '<img src="https://i.imgur.com/kmVfSzn.png" style="width:100%;height:100%;object-fit:cover;">' +
+        '</div>' +
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-end;">' +
+          '<div style="font-size:7px;color:#88a;margin-bottom:1px;font-family:\'Segoe UI\',sans-serif;">Winkd · 9:45</div>' +
+          '<div style="background:linear-gradient(to bottom,rgba(220,235,255,1),rgba(190,215,255,1));border:1px solid rgba(100,160,240,0.5);border-radius:5px;border-top-right-radius:1px;padding:4px 6px;line-height:1.4;display:inline-block;">' +
+            '<svg width="80" height="36" style="display:block;" viewBox="0 0 80 36">' +
+              '<path d="M4,28 Q14,8 22,18 Q30,28 38,14 Q46,4 56,20 Q62,28 76,12" stroke="#3a7adc" stroke-width="1.5" fill="none" stroke-linecap="round"/>' +
+              '<circle cx="8" cy="18" r="2" fill="#c060a0" opacity="0.8"/>' +
+              '<circle cx="44" cy="22" r="1.5" fill="#60a030" opacity="0.8"/>' +
+            '</svg>' +
+            '<div style="font-size:7px;color:#5a7a9a;font-style:italic;text-align:center;font-family:\'Segoe UI\',sans-serif;">🎨 ink drawing</div>' +
+          '</div>' +
+        '</div>';
+      msgs.appendChild(el);
+    });
+
+    // 7. Reset and loop
+    at(3800, function(){ runDemoLP(); });
+  }
+
+  function text_len(n){ return n * 55; }
+
+  // ── Mobile Demo ──
+  function runDemoMB() {
+    var ph2   = document.getElementById('demo-mb-ph2');
+    var msgs  = document.getElementById('demo-mb-msgs');
+    if (!ph2 || !msgs) return;
+
+    // Reset dynamic messages
+    Array.from(msgs.querySelectorAll('.demo-mb-dyn')).forEach(function(el){ el.remove(); });
+
+    var t = 0, timers = [];
+    function at(delay, fn){ t += delay; timers.push(setTimeout(fn, t)); }
+
+    // 1. New message from CryptoFox
+    at(2000, function(){
+      var el = document.createElement('div');
+      el.className = 'ph-msg them demo-mb-dyn demo-new-msg';
+      el.innerHTML = '<div class="ph-msg-who">CryptoFox · 9:44</div><div class="ph-bub-them">this app is literally perfect 🥹</div>';
+      msgs.appendChild(el);
+    });
+
+    // 2. My reply
+    at(1800, function(){
+      var el = document.createElement('div');
+      el.className = 'ph-msg me demo-mb-dyn demo-new-msg';
+      el.innerHTML = '<div class="ph-bub-me">right?? and it\'s encrypted 🔒</div>';
+      msgs.appendChild(el);
+    });
+
+    // 3. Winkd shake on the phone
+    at(1500, function(){
+      ph2.classList.add('demo-shaking');
+      ph2.addEventListener('animationend', function(){ ph2.classList.remove('demo-shaking'); }, {once:true});
+
+      var banner = document.createElement('div');
+      banner.className = 'ph-winkd demo-mb-dyn demo-new-msg';
+      banner.textContent = '💥 CryptoFox sent a Winkd! Your window is shaking!';
+      msgs.appendChild(banner);
+    });
+
+    // 4. Emoji reaction
+    at(2000, function(){
+      var last = msgs.querySelector('.ph-bub-me');
+      if (last) {
+        var pill = document.createElement('div');
+        pill.className = 'demo-pop';
+        pill.style.cssText = 'display:inline-flex;align-items:center;gap:2px;background:rgba(255,255,255,0.95);border:1px solid rgba(140,190,255,0.5);border-radius:8px;padding:1px 5px;font-size:8px;margin-top:2px;cursor:pointer;';
+        pill.innerHTML = '😂 <span style="font-size:7px;color:#5a7a9a;">1</span>';
+        last.insertAdjacentElement('afterend', pill);
+      }
+    });
+
+    // 5. Profile picture changes in toolbar logo
+    at(2200, function(){
+      var logoEl = document.querySelector('#demo-mb-screen .ph-logo-sm img');
+      if (logoEl) { logoEl.src = 'https://i.imgur.com/kmVfSzn.png'; }
+    });
+
+    // 6. Reset and loop
+    at(3500, function(){ runDemoMB(); });
+  }
+
+  // Start both loops after page load
+  window.addEventListener('DOMContentLoaded', function(){
+    setTimeout(runDemoLP, 800);
+    setTimeout(runDemoMB, 1200);
+  });
+
+})();
 </script>
 </body>
 </html>
