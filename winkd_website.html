@@ -1147,7 +1147,7 @@ body {
     </div>
     <div class="tb-btn on" id="tb-lp" onclick="show('lp')">
       <img src="https://i.imgur.com/kmVfSzn.png" class="tb-icon" alt="">
-      Winkd Desktop for winkd.net — Windows Internet Explorer
+      Download Winkd!
     </div>
     <div class="tb-btn" id="tb-dt" onclick="show('dt')">
       <img src="https://i.imgur.com/kmVfSzn.png" class="tb-icon" alt="">
@@ -1163,28 +1163,7 @@ body {
   <!-- ══════ LANDING (IE7/8 Aero style) ══════ -->
   <div class="pane on" id="pn-lp">
     <div class="lp-chrome">
-      <div class="ie-titlebar">
-        <div class="ie-title">
-          <img src="https://i.imgur.com/kmVfSzn.png" style="width:14px;height:14px;object-fit:contain;" alt="">
-          Winkd Messenger — Download — Windows Internet Explorer
-        </div>
-        <div class="aero-winbtns">
-          <div class="aero-wb aero-wb-min">─</div>
-          <div class="aero-wb aero-wb-max">□</div>
-          <div class="aero-wb aero-wb-close">✕</div>
-        </div>
-      </div>
-      <div class="ie-toolbar">
-        <div class="ie-navbtn">◀</div>
-        <div class="ie-navbtn">▶</div>
-        <div class="ie-navbtn">↻</div>
-        <div style="font-size:11px;color:#556;padding:0 5px;font-weight:600;">Address</div>
-        <div class="ie-address">
-          <span style="font-size:12px;">🌐</span>
-          <span style="color:#1a2a50;">http://www.winkd.net/download</span>
-        </div>
-        <div class="ie-go">Go →</div>
-      </div>
+
       <div class="lp-body">
         <!-- Hero -->
         <div class="lp-hero">
@@ -1383,7 +1362,7 @@ body {
 
   <!-- ══════ DESKTOP APP ══════ -->
   <div class="pane" id="pn-dt">
-    <div class="aero-window">
+    <div class="aero-window" id="demo-dt-win">
       <div class="aero-titlebar">
         <div class="aero-title-left">
           <img src="https://i.imgur.com/kmVfSzn.png" class="aero-title-icon" alt="Winkd">
@@ -1491,8 +1470,6 @@ body {
               </div>
             </div>
             <div style="display:flex;gap:5px;">
-              <div class="aero-hbtn">📁 Send File</div>
-              
               <div class="aero-hbtn">🚪 End Chat</div>
             </div>
           </div>
@@ -1502,13 +1479,12 @@ body {
             <div class="aero-sep"></div>
             <div class="aero-tbtn">😄 Emoticons</div>
             <div class="aero-tbtn">✨ Winks</div>
-            <div class="aero-tbtn">🎨 Color</div>
-            <div class="aero-tbtn">🔡 Font</div>
+            <div class="aero-tbtn" style="font-size:12px;padding:4px 10px;"><span style="font-style:italic;text-decoration:underline;font-weight:700;font-family:Georgia,serif;">A</span></div>
             <div class="aero-sep"></div>
-            <div class="aero-tbtn">📷 Photo</div>
-            
+            <div class="aero-tbtn">🖼️ BG</div>
+            <div class="aero-tbtn">✏️ Draw</div>
           </div>
-          <div class="aero-msgs">
+          <div class="aero-msgs" id="demo-dt-msgs">
             <div class="mrow them">
               <div class="m-av" style="background:linear-gradient(135deg,#6060C8,#3030A0);">CF</div>
               <div class="m-body">
@@ -1517,7 +1493,7 @@ body {
               </div>
             </div>
             <div class="mrow me">
-              <div class="m-av" style="background:linear-gradient(135deg,#6060C8,#3030A0);">Me</div>
+              <div class="m-av" style="background:linear-gradient(135deg,#4060C8,#2040A0);">Me</div>
               <div class="m-body">
                 <div class="m-meta">You · 9:42 PM</div>
                 <div class="m-me">right?? and it's actually encrypted this time lol</div>
@@ -1530,24 +1506,9 @@ body {
                 <div class="m-them">my status says "☕ vibing rn" and i have never felt more understood by a piece of software</div>
               </div>
             </div>
-            <div class="winkd-evt">💥 CryptoFox has sent you a Winkd! Your window is shaking!</div>
-            <div class="mrow me">
-              <div class="m-av" style="background:linear-gradient(135deg,#6060C8,#3030A0);">Me</div>
-              <div class="m-body">
-                <div class="m-meta">You · 9:43 PM</div>
-                <div class="m-me">I AM RIGHT HERE. stop. 😂</div>
-              </div>
-            </div>
-            <div class="mrow them">
-              <div class="m-av" style="background:linear-gradient(135deg,#6060C8,#3030A0);">CF</div>
-              <div class="m-body">
-                <div class="m-meta">CryptoFox · 9:44 PM</div>
-                <div class="m-them">never</div>
-              </div>
-            </div>
           </div>
           <div class="aero-input-row">
-            <div class="aero-input">Type your message and press Enter to send...</div>
+            <div class="aero-input" id="demo-dt-input">Type your message and press Enter to send...</div>
             <div class="aero-send">Send</div>
           </div>
           <div class="aero-statusbar">
@@ -1895,10 +1856,81 @@ function show(id) {
     at(3500, function(){ runDemoMB(); });
   }
 
+  // ── Desktop Demo ──
+  function runDemoDT() {
+    var win   = document.getElementById('demo-dt-win');
+    var msgs  = document.getElementById('demo-dt-msgs');
+    var input = document.getElementById('demo-dt-input');
+    if (!win || !msgs) return;
+
+    // Remove any dynamically added messages from previous loop
+    Array.from(msgs.querySelectorAll('.demo-dt-dyn')).forEach(function(el){ el.remove(); });
+    if (input) { input.textContent = 'Type your message and press Enter to send...'; input.style.color = '#5a7a9a'; }
+
+    var t = 0;
+    function at(delay, fn){ t += delay; setTimeout(fn, t); }
+
+    // 1. Type a message into the input
+    at(1800, function(){
+      if (!input) return;
+      input.style.color = '#1a2a40';
+      var text = 'i know right 😂 never going back';
+      var i = 0;
+      input.textContent = '';
+      (function typeChar(){
+        if (i < text.length) { input.textContent += text[i++]; setTimeout(typeChar, 48); }
+      })();
+    });
+
+    // 2. "Send" the typed message
+    at(48 * 32 + 700, function(){
+      if (input) { input.textContent = 'Type your message and press Enter to send...'; input.style.color = '#5a7a9a'; }
+      var el = document.createElement('div');
+      el.className = 'mrow me demo-dt-dyn demo-new-msg';
+      el.innerHTML =
+        '<div class="m-av" style="background:linear-gradient(135deg,#4060C8,#2040A0);">Me</div>' +
+        '<div class="m-body">' +
+          '<div class="m-meta" style="text-align:right;">You · 9:44 PM</div>' +
+          '<div class="m-me">i know right 😂 never going back</div>' +
+        '</div>';
+      msgs.appendChild(el);
+      msgs.scrollTop = msgs.scrollHeight;
+    });
+
+    // 3. Incoming Winkd — shake window + amber banner
+    at(2200, function(){
+      win.classList.add('demo-shaking');
+      win.addEventListener('animationend', function(){ win.classList.remove('demo-shaking'); }, {once:true});
+      var banner = document.createElement('div');
+      banner.className = 'winkd-evt demo-dt-dyn demo-new-msg';
+      banner.textContent = '💥 CryptoFox sent you a Winkd! Your window is shaking!';
+      msgs.appendChild(banner);
+      msgs.scrollTop = msgs.scrollHeight;
+    });
+
+    // 4. Reply from CryptoFox
+    at(2000, function(){
+      var el = document.createElement('div');
+      el.className = 'mrow them demo-dt-dyn demo-new-msg';
+      el.innerHTML =
+        '<div class="m-av" style="background:linear-gradient(135deg,#6060C8,#3030A0);">CF</div>' +
+        '<div class="m-body">' +
+          '<div class="m-meta">CryptoFox · 9:46 PM</div>' +
+          '<div class="m-them">never 😈</div>' +
+        '</div>';
+      msgs.appendChild(el);
+      msgs.scrollTop = msgs.scrollHeight;
+    });
+
+    // 5. Loop
+    at(3500, function(){ runDemoDT(); });
+  }
+
   // Start both loops after page load
   window.addEventListener('DOMContentLoaded', function(){
     setTimeout(runDemoLP, 800);
     setTimeout(runDemoMB, 1200);
+    setTimeout(runDemoDT, 1600);
   });
 
 })();
