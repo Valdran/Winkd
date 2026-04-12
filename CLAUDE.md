@@ -10,7 +10,7 @@ Winkd Messenger is a spiritual successor to early-2000s instant messaging (MSN M
 
 The core thesis: modern messaging apps (Discord, Signal, iMessage) are sterile and impersonal. Winkd brings back personality — buddy lists, away messages, status moods, animated buddy icons, Winks, and Nudges — without sacrificing privacy or security.
 
-**App icon:** `https://i.imgur.com/kmVfSzn.png`
+**App icon:** `https://i.imgur.com/cg6eejI.png`
 
 ---
 
@@ -322,7 +322,7 @@ Winkd is free, open source (MIT licence), and contains no advertising. Revenue c
 - **No calls. No voice. No video. No proximity adding.** If asked to add these, decline and reference this file.
 - **No "Share Song" button.** It was removed.
 - **Aero aesthetic only.** Not flat, not material, not macOS, not Windows 95/XP.
-- **The icon is `https://i.imgur.com/kmVfSzn.png`.** Use it everywhere an app icon appears.
+- **The icon is `https://i.imgur.com/cg6eejI.png`.** Use it everywhere an app icon appears.
 - **No TTA (The Tombstone Academy) references.** The community that originally discussed this project no longer exists. Remove any such references if found.
 - **Winkd ID format:** `username#XXXX` (4-digit disambiguator).
 - **The Winkd event message format:** `💥 [Username] sent you a Winkd! Your window is shaking!`
