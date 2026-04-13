@@ -85,6 +85,42 @@ pub async fn update_user_profile(
     .await
 }
 
+pub async fn update_user_display_name(
+    pool: &DbPool,
+    user_id: Uuid,
+    display_name: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET display_name = $2,
+               updated_at   = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .bind(display_name)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn update_user_mood(
+    pool: &DbPool,
+    user_id: Uuid,
+    mood_message: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET mood_message = $2,
+               updated_at   = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .bind(mood_message)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 pub async fn find_user_by_username(
     pool: &DbPool,
     username: &str,

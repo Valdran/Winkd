@@ -173,15 +173,17 @@ export function ProfileEditModal({
                 {/* Emoji — tap to open picker */}
                 <button
                   type="button"
-                  title="Tap to change emoji"
+                  title="Choose emoji"
                   onClick={() => setShowPicker((v) => !v)}
                   style={{
                     flexShrink: 0,
-                    width: 30,
+                    width: 32,
                     height: '100%',
                     border: 'none',
-                    borderRight: '1px solid rgba(100,150,220,0.18)',
-                    background: showPicker ? 'rgba(26,90,204,0.08)' : 'transparent',
+                    borderRight: '1px solid rgba(100,150,220,0.35)',
+                    background: showPicker
+                      ? 'rgba(26,90,204,0.14)'
+                      : 'rgba(200,220,255,0.45)',
                     cursor: 'pointer',
                     fontSize: 14,
                     display: 'flex',
@@ -189,9 +191,11 @@ export function ProfileEditModal({
                     justifyContent: 'center',
                     padding: 0,
                     transition: 'background 0.1s',
+                    gap: 1,
                   }}
                 >
                   {moodEmoji || '🙂'}
+                  <span style={{ fontSize: 7, color: 'rgba(30,70,160,0.55)', lineHeight: 1, marginTop: 1 }}>▼</span>
                 </button>
 
                 {/* Mood text — starts right after the emoji */}
