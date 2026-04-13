@@ -1,21 +1,22 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
 
-function LegacyPageRedirect({ to }: { to: string }) {
-  useEffect(() => {
-    window.location.replace(to)
-  }, [to])
+function resolveLegacyTarget(pathname: string) {
+  const baseUrl = import.meta.env.BASE_URL || '/'
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
 
-  return null
+  const isLoginPath = pathname === '/login' || pathname === '/login/'
+  const relativeTarget = isLoginPath ? 'login.html' : 'winkd_website.html'
+
+  return new URL(relativeTarget, window.location.origin + normalizedBase).toString()
 }
 
 export function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LegacyPageRedirect to="/login.html" />} />
-        <Route path="*" element={<LegacyPageRedirect to="/winkd_website.html" />} />
-      </Routes>
-    </BrowserRouter>
-  )
+  useEffect(() => {
+    const target = resolveLegacyTarget(window.location.pathname)
+    if (window.location.href !== target) {
+      window.location.replace(target)
+    }
+  }, [])
+
+  return null
 }
