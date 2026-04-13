@@ -118,28 +118,31 @@ export function LoginPage() {
         session_token: string
         winkd_id: string
         display_name: string
+        mood_message: string
       }
 
-      // Preserve existing profile data when the same user logs back in
-      let mood = pickRandomMood()
+      // Preserve avatar and status from local storage when the same user logs back in.
+      // Mood and display name are now the server's ground truth.
       let avatarData: string | null = null
       let status: OwnProfile['status'] = 'online'
       try {
         const raw = localStorage.getItem('winkd-auth')
         if (raw) {
-          const existing = JSON.parse(raw) as { state?: { session?: { profile?: OwnProfile & { avColor?: string; nameColor?: string } } } }
+          const existing = JSON.parse(raw) as { state?: { session?: { profile?: OwnProfile } } }
           const p = existing?.state?.session?.profile
           if (p && p.winkdId === data.winkd_id) {
-            mood = p.moodMessage || mood
             avatarData = p.avatarData ?? null
             status = p.status ?? 'online'
           }
         }
       } catch { /* ignore */ }
 
+      // Use server mood if present, otherwise fall back to a random 2000s mood for new accounts
+      const mood = data.mood_message || pickRandomMood()
+
       const profile: OwnProfile = {
         winkdId: data.winkd_id as `${string}#${string}`,
-        displayName: username,
+        displayName: data.display_name,
         moodMessage: mood,
         status,
         avatarData,

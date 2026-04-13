@@ -33,6 +33,7 @@ export type ClientCommandType =
   | "send_message"
   | "set_status"
   | "set_mood"
+  | "set_display_name"
   | "add_contact"
   | "accept_contact"
   | "block_contact"

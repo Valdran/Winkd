@@ -49,6 +49,7 @@ pub struct LoginResponse {
     pub session_token: String,
     pub winkd_id: String,
     pub display_name: String,
+    pub mood_message: String,
 }
 
 #[derive(Serialize)]
@@ -97,6 +98,7 @@ pub async fn login(
         session_token: token,
         winkd_id: user.winkd_id,
         display_name: user.display_name,
+        mood_message: user.mood_message,
     }))
 }
 
@@ -178,6 +180,7 @@ pub async fn register(
         session_token: token,
         winkd_id: user.winkd_id,
         display_name: user.display_name,
+        mood_message: user.mood_message,
     }))
 }
 
@@ -308,10 +311,11 @@ pub async fn oauth_callback(
 
     // Redirect to login.html which handles the hash and persists the session
     let location = format!(
-        "/login.html#oauth=success&session_token={}&winkd_id={}&display_name={}",
+        "/login.html#oauth=success&session_token={}&winkd_id={}&display_name={}&mood_message={}",
         urlencoding::encode(&session_token),
         urlencoding::encode(&user.winkd_id),
         urlencoding::encode(&user.display_name),
+        urlencoding::encode(&user.mood_message),
     );
 
     let clear_cookie = "winkd_oauth_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
