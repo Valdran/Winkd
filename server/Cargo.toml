@@ -32,10 +32,13 @@ rand = "0.8"
 uuid = { version = "1", features = ["v4"] }
 
 # Database
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate"] }
 
 # Redis (presence, ephemeral sessions)
 redis = { version = "0.26", features = ["tokio-comp"] }
+
+# HTTP client (OAuth userinfo endpoint fetching)
+reqwest = { version = "0.11", features = ["json", "rustls-tls"], default-features = false }
 
 # Env config
 dotenvy = "0.15"
@@ -48,7 +51,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # OAuth
-oauth2 = "4.4"
+oauth2 = { version = "4.4", features = ["reqwest"] }
 urlencoding = "2.1"
 
 [dev-dependencies]

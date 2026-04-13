@@ -10,6 +10,7 @@ use serde_json::json;
 #[derive(Debug)]
 pub enum AppError {
     Unauthorized,
+    Conflict(String),
     NotFound(String),
     Internal(String),
 }
@@ -18,6 +19,7 @@ impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
             AppError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".into()),
+            AppError::Conflict(msg) => (StatusCode::CONFLICT, msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
