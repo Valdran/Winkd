@@ -778,7 +778,7 @@ async function authenticateWithPassword(username, password, err, suc){
     saveSession(data.session_token, data.winkd_id, data.display_name);
     suc.textContent='Signed in successfully. Opening Winkd…';
     suc.classList.add('show');
-    setTimeout(()=>window.location.href='index.html', 900);
+    setTimeout(()=>window.location.href='app.html', 900);
   }catch{
     err.textContent='Could not connect to the server.';
     err.classList.add('show');
@@ -978,7 +978,7 @@ function simulateSuccess(msg){
     <div style="font-size:11px;color:rgba(180,210,255,0.7);">Opening Winkd Messenger…</div>
   `;
   document.body.appendChild(overlay);
-  setTimeout(function(){ window.location.href='index.html'; }, 1800);
+  setTimeout(function(){ window.location.href='app.html'; }, 1800);
 }
 
 

@@ -9,6 +9,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: 'index.html',
+        app: 'app.html',
         login: 'login.html',
         legacy: 'winkd_website.html',
       },
