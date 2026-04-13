@@ -4,6 +4,43 @@ import type { OwnProfile } from '@winkd/types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
+const MOODS_2000S = [
+  "☕ brb, getting a frappuccino",
+  "🎵 avril lavigne on repeat rn",
+  "💿 sk8er boi is stuck in my head",
+  "🌟 complicated feelings rn",
+  "🍭 sugar we're going down",
+  "💔 my chemical romance era",
+  "🎮 addicted to sims 2",
+  "✨ like omg it's so fetch",
+  "🌙 sparkling like edward cullen",
+  "🎸 boulevard of broken dreams",
+  "💫 chasing pavements",
+  "🍕 pizza hut friday night!!",
+  "💾 downloading songs on emule",
+  "📼 rewatching lord of the rings again",
+  "🧟 team edward or team jacob?",
+  "🌹 twilight saga is my life",
+  "👾 my tamagotchi is judging me",
+  "📀 burning cds for the car",
+  "🎀 wearing my von dutch hat",
+  "💻 zoning out on myspace",
+  "🌺 nelly furtado vibes",
+  "⚡ wake me up when september ends",
+  "🦄 crazy in love (beyoncé forever)",
+  "🎙️ kelly clarkson was robbed",
+  "🌊 surfing the web lol",
+  "🏴‍☠️ the pirate bay was peak",
+  "📱 brt, sending a text",
+  "🧲 one step at a time",
+  "🌀 the veronicas understood me",
+  "🐱 still thinking about my tamagotchi",
+]
+
+function pickRandomMood() {
+  return MOODS_2000S[Math.floor(Math.random() * MOODS_2000S.length)]
+}
+
 type Mode = 'login' | 'register'
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -28,7 +65,6 @@ export function LoginPage() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [oauthProviders, setOauthProviders] = useState<string[]>([])
@@ -52,7 +88,7 @@ export function LoginPage() {
       const body: Record<string, string> =
         mode === 'login'
           ? { username, password }
-          : { username, password, display_name: displayName || username }
+          : { username, password, display_name: username }
 
       if (mode === 'register' && email.trim()) {
         body.email = email.trim()
@@ -84,12 +120,29 @@ export function LoginPage() {
         display_name: string
       }
 
+      // Preserve existing profile data when the same user logs back in
+      let mood = pickRandomMood()
+      let avatarData: string | null = null
+      let status: OwnProfile['status'] = 'online'
+      try {
+        const raw = localStorage.getItem('winkd-auth')
+        if (raw) {
+          const existing = JSON.parse(raw) as { state?: { session?: { profile?: OwnProfile & { avColor?: string; nameColor?: string } } } }
+          const p = existing?.state?.session?.profile
+          if (p && p.winkdId === data.winkd_id) {
+            mood = p.moodMessage || mood
+            avatarData = p.avatarData ?? null
+            status = p.status ?? 'online'
+          }
+        }
+      } catch { /* ignore */ }
+
       const profile: OwnProfile = {
         winkdId: data.winkd_id as `${string}#${string}`,
-        displayName: data.display_name || displayName || username,
-        moodMessage: '',
-        status: 'online',
-        avatarData: null,
+        displayName: username,
+        moodMessage: mood,
+        status,
+        avatarData,
         sessionToken: data.session_token,
       }
 
@@ -257,33 +310,20 @@ export function LoginPage() {
             </div>
 
             {mode === 'register' && (
-              <>
-                <div>
-                  <label style={labelStyle}>Display Name</label>
-                  <input
-                    type="text"
-                    autoComplete="name"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="How contacts see you"
-                    style={inputStyle}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>
-                    Email{' '}
-                    <span style={{ fontWeight: 400, color: '#7a9ab0' }}>(optional)</span>
-                  </label>
-                  <input
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    style={inputStyle}
-                  />
-                </div>
-              </>
+              <div>
+                <label style={labelStyle}>
+                  Email{' '}
+                  <span style={{ fontWeight: 400, color: '#7a9ab0' }}>(optional)</span>
+                </label>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  style={inputStyle}
+                />
+              </div>
             )}
 
             <div>
