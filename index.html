@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Winkd">
-<meta name="description" content="Messaging with actual personality. Buddy lists, away messages, Winks and Nudges — rebuilt with E2E encryption.">
+<meta name="description" content="Messaging with actual personality. Buddy lists, away messages, Winks and Nudges, rebuilt with E2E encryption.">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="https://i.imgur.com/cg6eejI.png">
 <title>Winkd Messenger</title>
@@ -686,7 +686,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
     </div>
 
     <div id="chat-area" class="empty">
-      <div id="offline-toast">📡 You're offline — messages will send when reconnected</div>
+      <div id="offline-toast">📡 You're offline. Messages will send when reconnected</div>
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
         <img src="https://i.imgur.com/cg6eejI.png" alt="Winkd" style="width:80px;height:80px;object-fit:contain;">
         <span style="font-size:28px;color:#5a8abf;font-weight:400;text-shadow:0 1px 4px rgba(0,0,80,0.12);"><b>Winkd</b> Messenger</span>
@@ -703,7 +703,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
     <!-- Emoji Picker -->
     <div id="emoji-picker">
       <div class="ep-pin-strip">
-        <div class="ep-pin-label">⭐ Quick React — tap to send, hold to remove</div>
+        <div class="ep-pin-label">⭐ Quick React: tap to send, hold to remove</div>
         <div class="ep-pin-row" id="epPinRow"></div>
       </div>
       <div class="ep-search-wrap">
@@ -752,7 +752,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
       <div id="ac-panel-id">
         <label class="modal-label">Enter a Winkd ID</label>
         <input class="modal-input" type="text" id="add-id-input" placeholder="e.g. cryptofox#4821">
-        <div style="font-size:10px;color:#6688aa;margin-top:-8px;margin-bottom:14px;">Ask your friend for their Winkd ID — format is <strong>name#XXXX</strong>.</div>
+        <div style="font-size:10px;color:#6688aa;margin-top:-8px;margin-bottom:14px;">Ask your friend for their Winkd ID. Format is <strong>name#XXXX</strong>.</div>
         <div class="modal-btn-row">
           <div class="modal-btn-cancel" onclick="closeModal('add-contact-modal')">Cancel</div>
           <div class="modal-btn" onclick="addContact()">Send Request</div>
@@ -860,7 +860,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
         <div class="qr-wrap">
           <canvas id="qr-canvas" width="140" height="140"></canvas>
           <div class="winkd-id-display" id="qr-winkd-id">you#0000</div>
-          <div class="winkd-id-sub">Your Winkd ID — share it to receive contact requests</div>
+          <div class="winkd-id-sub">Your Winkd ID. Share it to receive contact requests</div>
           <div class="copy-btn" onclick="copyWinkdId()">📋 Copy Winkd ID</div>
         </div>
       </div>
@@ -874,7 +874,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
       </div>
       <hr class="modal-divider">
       <div style="font-size:9px;color:#8aabcc;text-align:center;line-height:1.6;">
-        Winkd Messenger — messaging with personality.<br>
+        Winkd Messenger, messaging with personality.<br>
         <a href="https://www.freepik.com/icon/winking-face_11068905#fromView=resource_detail&position=67" target="_blank" rel="noopener" style="color:#7aabcc;text-decoration:none;">Icon by NajmunNahar</a> via Freepik
       </div>
     </div>
@@ -1041,7 +1041,7 @@ function epBuildPins(){
   epPinned.forEach((em,i)=>{
     const slot = document.createElement('div');
     slot.className = 'ep-pin-slot' + (em?' filled':'');
-    slot.title = em ? em : ('Slot '+(i+1)+' — hold any emoji to pin');
+    slot.title = em ? em : ('Slot '+(i+1)+': hold any emoji to pin');
     if(em){
       slot.innerHTML = `<span style="font-size:19px;">${em}</span>`;
       const rm = document.createElement('div');
@@ -1399,7 +1399,7 @@ function buildChat(c){
             <div class="dp-info"><div class="dp-contact-name">${label}</div>${statusLine}${moodLine}</div>`;
   }
   area.innerHTML=`
-<div id="offline-toast" class="${navigator.onLine?'':'visible'}">📡 You're offline — messages will send when reconnected</div>
+<div id="offline-toast" class="${navigator.onLine?'':'visible'}">📡 You're offline. Messages will send when reconnected</div>
 <div style="display:flex;flex:1;overflow:hidden;min-height:0;">
   <div style="display:flex;flex-direction:column;flex:1;overflow:hidden;min-width:0;">
     <div id="chat-header">
@@ -1583,11 +1583,11 @@ function showWinkOverlay(pack,fromMe){
 function closeWinkOverlay(){clearTimeout(winkDismissTimer);const overlay=document.getElementById('wink-overlay');if(!overlay)return;overlay.classList.remove('active');setTimeout(()=>overlay.classList.remove('playing'),220);}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeWinkOverlay();closeActionSheet();}});
 
-function sendFile(){const msgs=document.getElementById('chat-messages');if(!msgs)return;const el=document.createElement('div');el.className='system-msg';el.textContent='📁 File sharing — coming in a future update.';msgs.appendChild(el);sb();}
+function sendFile(){const msgs=document.getElementById('chat-messages');if(!msgs)return;const el=document.createElement('div');el.className='system-msg';el.textContent='📁 File sharing coming in a future update.';msgs.appendChild(el);sb();}
 function endChat(){
   activeContact=null;renderContacts(document.getElementById('search-input').value);
   const a=document.getElementById('chat-area');a.className='empty';
-  a.innerHTML='<div id="offline-toast">📡 You\'re offline — messages will send when reconnected</div><div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;"><img src="https://i.imgur.com/cg6eejI.png" alt="Winkd" style="width:80px;height:80px;object-fit:contain;"><span style="font-size:28px;color:#5a8abf;font-weight:400;text-shadow:0 1px 4px rgba(0,0,80,0.12);"><b>Winkd</b> Messenger</span></div><div class="placeholder-text">Select a contact to start chatting</div><div class="placeholder-sub">Or add someone new with + Add Contact</div><div id="dyk-wrap"><div id="dyk-label">💡 Did you know?</div><div id="dyk-tip"></div><div id="dyk-dots"></div></div>';
+  a.innerHTML='<div id="offline-toast">📡 You\'re offline. Messages will send when reconnected</div><div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;"><img src="https://i.imgur.com/cg6eejI.png" alt="Winkd" style="width:80px;height:80px;object-fit:contain;"><span style="font-size:28px;color:#5a8abf;font-weight:400;text-shadow:0 1px 4px rgba(0,0,80,0.12);"><b>Winkd</b> Messenger</span></div><div class="placeholder-text">Select a contact to start chatting</div><div class="placeholder-sub">Or add someone new with + Add Contact</div><div id="dyk-wrap"><div id="dyk-label">💡 Did you know?</div><div id="dyk-tip"></div><div id="dyk-dots"></div></div>';
   initDidYouKnow();
   closeEmoji();
 }
@@ -1844,7 +1844,7 @@ function acTab(name){['id','qr','invite'].forEach(t=>{document.getElementById('t
 
 // ── SERVICE WORKER ──
 function registerSW(){if(!('serviceWorker' in navigator))return;const proto=location.protocol;if(proto!=='https:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1')return;window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js',{scope:'/'}).then(reg=>{setInterval(()=>reg.update(),60000);reg.addEventListener('updatefound',()=>{const nw=reg.installing;nw.addEventListener('statechange',()=>{if(nw.state==='installed'&&navigator.serviceWorker.controller)showUpdateToast();});});}).catch(()=>{});let refreshing=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!refreshing){refreshing=true;window.location.reload();}});});}
-function showUpdateToast(){const toast=document.getElementById('offline-toast');toast.textContent='🔄 Update available — tap to refresh';toast.classList.add('visible');toast.style.cursor='pointer';toast.onclick=()=>window.location.reload();}
+function showUpdateToast(){const toast=document.getElementById('offline-toast');toast.textContent='🔄 Update available. Tap to refresh';toast.classList.add('visible');toast.style.cursor='pointer';toast.onclick=()=>window.location.reload();}
 
 // ── PWA INSTALL ──
 let deferredInstallPrompt=null,installDismissed=false;
@@ -1859,7 +1859,7 @@ function showIOSBanner(){if(installDismissed)return;document.getElementById('ins
 function initOfflineDetection(){
   function getToast(){return document.getElementById('offline-toast');}
   function goOffline(){const t=getToast();if(t)t.classList.add('visible');}
-  function goOnline(){const t=getToast();if(t){t.textContent='✅ Back online';t.classList.add('visible');setTimeout(()=>{t.classList.remove('visible');t.textContent='📡 You\'re offline — messages will send when reconnected';},2500);}}
+  function goOnline(){const t=getToast();if(t){t.textContent='✅ Back online';t.classList.add('visible');setTimeout(()=>{t.classList.remove('visible');t.textContent='📡 You\'re offline. Messages will send when reconnected';},2500);}}
   window.addEventListener('offline',goOffline);window.addEventListener('online',goOnline);if(!navigator.onLine)goOffline();
 }
 
@@ -1909,29 +1909,29 @@ function initDpResize(){const panel=document.getElementById('dp-panel');const ha
 
 // ── DID YOU KNOW ──
 const DYK_TIPS = [
-  "You can upload an animated .gif as your avatar — it plays live in chat!",
+  "You can upload an animated .gif as your avatar. It plays live in chat!",
   "When your avatar image has a transparent background, Avatar Colour fills it in!",
   "Long-press any emoji on mobile to pin it to your Quick React bar at the top of the picker!",
   "Right-click any emoji on desktop to pin it, favourite it, or insert it instantly!",
-  "Star ★ any emoji as a Favourite — it appears in the gold bar at the top of the picker!",
+  "Star any emoji as a Favourite and it appears in the gold bar at the top of the picker!",
   "Use the ✏️ Draw button to sketch anything freehand and send it as an image!",
-  "💥 Winkd! sends an animated full-screen effect — the other person sees it too!",
+  "💥 Winkd! sends an animated full-screen effect. The other person sees it too!",
   "🫸 Nudge physically shakes the chat window to get your contact's attention!",
-  "Change your chat background with 🖼️ BG — try Clouds, Hearts, Stars, Bubbles and more!",
+  "Change your chat background with 🖼️ BG. Try Clouds, Hearts, Stars, Bubbles and more!",
   "The A button opens text formatting: change font, colour, bold, italic and underline!",
-  "Set yourself to Invisible — you look offline to everyone but can still read and chat!",
-  "Click your mood message in the sidebar to edit it right inline — no modal needed!",
+  "Set yourself to Invisible and you look offline to everyone but can still read and chat!",
+  "Click your mood message in the sidebar to edit it right inline. No modal needed!",
   "Add a contact by scanning their QR code with your camera, or upload a QR image!",
   "Share your own QR code from your Profile so friends can add you in one scan!",
-  "Generate expiring invite links — single-use or multi-use, from the Invite Link tab!",
+  "Generate expiring invite links, single-use or multi-use, from the Invite Link tab!",
   "Drag the right edge of the profile panel to resize it to your liking!",
-  "Click any contact group label (Online, Away…) to collapse it and tidy your list!",
+  "Click any contact group label (Online, Away...) to collapse it and tidy your list!",
   "Search contacts by name or mood message using the search bar at the top of the list!",
   "Hover over any message to react to it with a quick emoji!",
-  "Your Winkd ID is saved locally — it stays the same every time you reload!",
-  "Winkd can be installed as a standalone app — look for the Install banner at the bottom!",
+  "Your Winkd ID is saved locally. It stays the same every time you reload!",
+  "Winkd can be installed as a standalone app. Look for the Install banner at the bottom!",
   "Pick a custom name colour in your Profile to stand out in conversations!",
-  "Each contact tints the chat area with their own colour — it changes as you switch!",
+  "Each contact tints the chat area with their own colour. It changes as you switch!",
   "The ✨ Winks button sends a random animated wink from a pack of themed effects!",
 ];
 let dykIndex = 0, dykTimer = null;
