@@ -315,10 +315,8 @@ async fn handle_command(
                 None => return,
             };
 
-            // Persist to DB
-            if let Err(e) =
-                db::update_user_profile(&state.db, user.id, &user.display_name, &mood).await
-            {
+            // Persist only the mood column — never touch display_name here.
+            if let Err(e) = db::update_user_mood(&state.db, user.id, &mood).await {
                 tracing::warn!("update mood for {}: {e}", user.winkd_id);
             }
 
@@ -336,16 +334,8 @@ async fn handle_command(
                 _ => return,
             };
 
-            let current_mood = state
-                .presence
-                .get(&user.id.to_string())
-                .await
-                .map(|e| e.mood)
-                .unwrap_or_default();
-
-            if let Err(e) =
-                db::update_user_profile(&state.db, user.id, &name, &current_mood).await
-            {
+            // Persist only the display_name column — never touch mood here.
+            if let Err(e) = db::update_user_display_name(&state.db, user.id, &name).await {
                 tracing::warn!("update display_name for {}: {e}", user.winkd_id);
             }
         }

@@ -15,10 +15,11 @@ export function ProfileEditModal({
   onClose,
 }: ProfileEditModalProps) {
   // Split existing mood into a leading emoji + text body.
-  // We detect a leading emoji by checking if the first character is in the emoji range.
+  // Matches Emoji_Presentation chars, text emojis + FE0F, and plain \p{Emoji}
+  // so that symbols like ♈ ☮ ✝ round-trip correctly through the picker.
   const splitMood = (full: string): { emoji: string; text: string } => {
-    const match = full.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)\s*/u)
-    if (match) {
+    const match = full.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji})\s*/u)
+    if (match && match[1] !== ' ') {
       return { emoji: match[1]!, text: full.slice(match[0].length) }
     }
     return { emoji: '', text: full }
@@ -46,9 +47,10 @@ export function ProfileEditModal({
   const handleSave = () => {
     const trimmedName = name.trim()
     if (!trimmedName) return
+    const textPart = moodText.trim()
     const fullMood = moodEmoji
-      ? `${moodEmoji} ${moodText.trim()}`
-      : moodText.trim()
+      ? textPart ? `${moodEmoji} ${textPart}` : moodEmoji
+      : textPart
     onSave(trimmedName, fullMood)
     onClose()
   }
@@ -173,15 +175,17 @@ export function ProfileEditModal({
                 {/* Emoji — tap to open picker */}
                 <button
                   type="button"
-                  title="Tap to change emoji"
+                  title="Choose emoji"
                   onClick={() => setShowPicker((v) => !v)}
                   style={{
                     flexShrink: 0,
-                    width: 30,
+                    width: 32,
                     height: '100%',
                     border: 'none',
-                    borderRight: '1px solid rgba(100,150,220,0.18)',
-                    background: showPicker ? 'rgba(26,90,204,0.08)' : 'transparent',
+                    borderRight: '1px solid rgba(100,150,220,0.35)',
+                    background: showPicker
+                      ? 'rgba(26,90,204,0.14)'
+                      : 'rgba(200,220,255,0.45)',
                     cursor: 'pointer',
                     fontSize: 14,
                     display: 'flex',
@@ -189,9 +193,11 @@ export function ProfileEditModal({
                     justifyContent: 'center',
                     padding: 0,
                     transition: 'background 0.1s',
+                    gap: 1,
                   }}
                 >
                   {moodEmoji || '🙂'}
+                  <span style={{ fontSize: 7, color: 'rgba(30,70,160,0.55)', lineHeight: 1, marginTop: 1 }}>▼</span>
                 </button>
 
                 {/* Mood text — starts right after the emoji */}
