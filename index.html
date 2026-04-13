@@ -643,7 +643,6 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
       <b>Winkd</b> Messenger
     </div>
     <div class="tb-right" style="display:flex;align-items:center;gap:8px;z-index:1;">
-      <a href="winkd_website.html" style="font-size:10px;color:rgba(200,220,255,0.75);text-decoration:none;font-family:'Segoe UI',sans-serif;padding:2px 7px;border-radius:3px;border:1px solid rgba(255,255,255,0.2);transition:all 0.1s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background=''">← winkd.net</a>
       <span id="tb-status-text">You are Online</span>
     </div>
   </div>
@@ -1897,6 +1896,11 @@ function applyContactTint(c){const area=document.getElementById('chat-area');con
 // ── AUDIO ──
 let audioCtx=null;
 async function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')await audioCtx.resume();return audioCtx;}
+// Mobile browsers (iOS/Android) keep AudioContext suspended until a user gesture.
+// Pre-warm it on the first touch or click so incoming sounds work too.
+function _unlockAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();}
+document.addEventListener('touchstart',_unlockAudio,{once:true,passive:true});
+document.addEventListener('click',_unlockAudio,{once:true});
 async function playWinkdSound(){try{const ctx=await getAudioCtx();const osc1=ctx.createOscillator();const g1=ctx.createGain();osc1.type='sine';osc1.frequency.setValueAtTime(80,ctx.currentTime);osc1.frequency.exponentialRampToValueAtTime(35,ctx.currentTime+0.25);g1.gain.setValueAtTime(0.5,ctx.currentTime);g1.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.28);osc1.connect(g1);g1.connect(ctx.destination);osc1.start(ctx.currentTime);osc1.stop(ctx.currentTime+0.28);const osc2=ctx.createOscillator();const g2=ctx.createGain();osc2.type='sine';osc2.frequency.setValueAtTime(400,ctx.currentTime+0.05);osc2.frequency.exponentialRampToValueAtTime(1200,ctx.currentTime+0.22);g2.gain.setValueAtTime(0,ctx.currentTime+0.05);g2.gain.linearRampToValueAtTime(0.25,ctx.currentTime+0.1);g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.32);osc2.connect(g2);g2.connect(ctx.destination);osc2.start(ctx.currentTime+0.05);osc2.stop(ctx.currentTime+0.35);}catch(e){}}
 async function playNudgeSound(){try{const ctx=await getAudioCtx();[0,0.12].forEach(delay=>{const osc=ctx.createOscillator();const g=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(880,ctx.currentTime+delay);osc.frequency.exponentialRampToValueAtTime(660,ctx.currentTime+delay+0.08);g.gain.setValueAtTime(0.18,ctx.currentTime+delay);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+delay+0.1);osc.connect(g);g.connect(ctx.destination);osc.start(ctx.currentTime+delay);osc.stop(ctx.currentTime+delay+0.12);});}catch(e){}}
 async function playMsgSentSound(){try{const ctx=await getAudioCtx();const osc=ctx.createOscillator();const g=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(600,ctx.currentTime);osc.frequency.exponentialRampToValueAtTime(900,ctx.currentTime+0.07);g.gain.setValueAtTime(0.1,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.1);osc.connect(g);g.connect(ctx.destination);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.12);}catch(e){}}
