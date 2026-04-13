@@ -36,6 +36,11 @@ pub struct LoginResponse {
     pub winkd_id: String,
 }
 
+#[derive(Serialize)]
+pub struct OAuthProvidersResponse {
+    pub providers: Vec<&'static str>,
+}
+
 pub async fn login(
     State(_state): State<AppState>,
     Json(body): Json<LoginRequest>,
@@ -85,6 +90,17 @@ pub async fn register(
         session_token: token,
         winkd_id,
     }))
+}
+
+pub async fn oauth_providers() -> Json<OAuthProvidersResponse> {
+    let providers = OAuthProvider::all()
+        .iter()
+        .copied()
+        .filter(|provider| provider.is_configured())
+        .map(OAuthProvider::slug)
+        .collect();
+
+    Json(OAuthProvidersResponse { providers })
 }
 
 #[derive(Deserialize)]
@@ -215,6 +231,23 @@ enum OAuthProvider {
 }
 
 impl OAuthProvider {
+    fn all() -> &'static [Self] {
+        &[
+            Self::Discord,
+            Self::Google,
+            Self::Apple,
+            Self::Microsoft,
+            Self::Facebook,
+            Self::Github,
+            Self::Twitter,
+            Self::Twitch,
+            Self::Reddit,
+            Self::Steam,
+            Self::Spotify,
+            Self::Linkedin,
+        ]
+    }
+
     fn from_slug(slug: &str) -> Option<Self> {
         match slug {
             "discord" => Some(Self::Discord),
@@ -310,6 +343,12 @@ impl OAuthProvider {
             client_secret,
             redirect_url,
         })
+    }
+
+    fn is_configured(self) -> bool {
+        let upper = self.slug().to_ascii_uppercase();
+        env::var(format!("WINKD_OAUTH_{}_CLIENT_ID", upper)).is_ok()
+            && env::var(format!("WINKD_OAUTH_{}_CLIENT_SECRET", upper)).is_ok()
     }
 
     fn client(self, cfg: &OAuthProviderConfig) -> Result<BasicClient, AppError> {

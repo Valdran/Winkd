@@ -34,6 +34,7 @@ pub async fn build_router(config: Config) -> Router {
         // Auth
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/register", post(auth::register))
+        .route("/api/auth/oauth/providers", get(auth::oauth_providers))
         .route("/api/auth/oauth/:provider/start", get(auth::oauth_start))
         .route(
             "/api/auth/oauth/:provider/callback",
