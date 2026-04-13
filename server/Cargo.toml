@@ -47,5 +47,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Time
 chrono = { version = "0.4", features = ["serde"] }
 
+# OAuth
+oauth2 = "4.4"
+urlencoding = "2.1"
+
 [dev-dependencies]
 tokio-test = "0.4"

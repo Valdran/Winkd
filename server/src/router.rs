@@ -34,18 +34,26 @@ pub async fn build_router(config: Config) -> Router {
         // Auth
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/register", post(auth::register))
+        .route("/api/auth/oauth/:provider/start", get(auth::oauth_start))
+        .route(
+            "/api/auth/oauth/:provider/callback",
+            get(auth::oauth_callback),
+        )
         // WebSocket messaging endpoint
         .route("/ws", get(ws_handler))
         // Frontend static files (SPA)
         .nest_service(
             "/",
             get_service(
-                ServeDir::new("web-dist")
-                    .not_found_service(ServeFile::new("web-dist/index.html")),
+                ServeDir::new("web-dist").not_found_service(ServeFile::new("web-dist/index.html")),
             ),
         )
         .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive())
+        .layer(
+            CorsLayer::new()
+                .allow_origin(tower_http::cors::Any)
+                .allow_methods([axum::http::Method::GET, axum::http::Method::POST]),
+        )
         .with_state(state)
 }
 
@@ -58,17 +66,11 @@ async fn health(State(state): State<AppState>) -> Json<serde_json::Value> {
     }))
 }
 
-async fn ws_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<AppState>,
-) -> Response {
+async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
     ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
-async fn handle_socket(
-    socket: axum::extract::ws::WebSocket,
-    _state: AppState,
-) {
+async fn handle_socket(socket: axum::extract::ws::WebSocket, _state: AppState) {
     // Phase 0 stub: echo messages back so the connection can be tested
     use axum::extract::ws::Message;
     use futures_util::{SinkExt, StreamExt};
@@ -86,7 +88,11 @@ async fn handle_socket(
                     "event": "echo",
                     "payload": { "text": text }
                 });
-                if sender.send(Message::Text(echo.to_string().into())).await.is_err() {
+                if sender
+                    .send(Message::Text(echo.to_string().into()))
+                    .await
+                    .is_err()
+                {
                     break;
                 }
             }

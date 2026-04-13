@@ -33,6 +33,8 @@ async fn main() {
     let app = router::build_router(cfg).await;
 
     info!("Winkd server listening on {addr}");
-    let listener = tokio::net::TcpListener::bind(addr).await.expect("bind failed");
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("bind failed");
     axum::serve(listener, app).await.expect("server error");
 }

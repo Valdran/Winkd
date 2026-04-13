@@ -17,8 +17,7 @@ impl Config {
             database_url: env::var("DATABASE_URL")
                 .unwrap_or_else(|_| "postgres://winkd:winkd@localhost:5432/winkd".into()),
             redis_url: env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".into()),
-            jwt_secret: env::var("JWT_SECRET")
-                .unwrap_or_else(|_| "change-me-in-production".into()),
+            jwt_secret: env::var("JWT_SECRET").unwrap_or_else(|_| "change-me-in-production".into()),
         }
     }
 }
