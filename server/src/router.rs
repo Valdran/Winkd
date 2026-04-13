@@ -46,13 +46,12 @@ pub async fn build_router(config: Config, db: DbPool) -> Router {
         .route("/ws", get(ws_handler))
         // Root: serve landing page
         .route_service("/", get_service(ServeFile::new("web-dist/winkd_website.html")))
-        // Frontend static files
-        .nest_service(
-            "/",
-            get_service(
-                ServeDir::new("web-dist").not_found_service(ServeFile::new("web-dist/winkd_website.html")),
-            ),
-        )
+        // Frontend static files — fallback_service avoids the route conflict that
+        // nest_service("/", …) causes in Axum 0.7 when "/" is already registered above.
+        .fallback_service(get_service(
+            ServeDir::new("web-dist")
+                .not_found_service(ServeFile::new("web-dist/winkd_website.html")),
+        ))
         .layer(TraceLayer::new_for_http())
         .layer(
             CorsLayer::new()
