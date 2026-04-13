@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import type { OwnProfile } from '@winkd/types'
 
@@ -9,7 +8,6 @@ type Mode = 'login' | 'register'
 
 export function LoginPage() {
   const login = useAuthStore((s) => s.login)
-  const navigate = useNavigate()
 
   const [mode, setMode] = useState<Mode>('login')
   const [username, setUsername] = useState('')
@@ -62,7 +60,6 @@ export function LoginPage() {
       }
 
       login(data.session_token, profile)
-      navigate('/')
     } catch {
       setError('Could not connect to server. Is it running?')
     } finally {

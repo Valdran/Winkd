@@ -323,20 +323,21 @@ impl OAuthProvider {
 
     fn load_env(self) -> Result<OAuthProviderConfig, AppError> {
         let upper = self.slug().to_ascii_uppercase();
-        let client_id = env::var(format!("WINKD_OAUTH_{}_CLIENT_ID", upper)).map_err(|_| {
-            AppError::Internal(format!("OAuth provider {} is not configured", self.slug()))
-        })?;
-        let client_secret =
-            env::var(format!("WINKD_OAUTH_{}_CLIENT_SECRET", upper)).map_err(|_| {
-                AppError::Internal(format!("OAuth provider {} is not configured", self.slug()))
-            })?;
-        let redirect_url =
-            env::var(format!("WINKD_OAUTH_{}_REDIRECT_URL", upper)).unwrap_or_else(|_| {
-                format!(
-                    "http://localhost:8080/api/auth/oauth/{}/callback",
-                    self.slug()
-                )
-            });
+        let client_id = env_var_first(&[
+            &format!("WINKD_OAUTH_{}_CLIENT_ID", upper),
+            &format!("OAUTH_{}_CLIENT_ID", upper),
+        ])
+        .ok_or_else(|| AppError::Internal(format!("OAuth provider {} is not configured", self.slug())))?;
+        let client_secret = env_var_first(&[
+            &format!("WINKD_OAUTH_{}_CLIENT_SECRET", upper),
+            &format!("OAUTH_{}_CLIENT_SECRET", upper),
+        ])
+        .ok_or_else(|| AppError::Internal(format!("OAuth provider {} is not configured", self.slug())))?;
+        let redirect_url = env_var_first(&[
+            &format!("WINKD_OAUTH_{}_REDIRECT_URL", upper),
+            &format!("OAUTH_{}_REDIRECT_URL", upper),
+        ])
+        .unwrap_or_else(|| format!("http://localhost:8080/api/auth/oauth/{}/callback", self.slug()));
 
         Ok(OAuthProviderConfig {
             client_id,
@@ -347,8 +348,16 @@ impl OAuthProvider {
 
     fn is_configured(self) -> bool {
         let upper = self.slug().to_ascii_uppercase();
-        env::var(format!("WINKD_OAUTH_{}_CLIENT_ID", upper)).is_ok()
-            && env::var(format!("WINKD_OAUTH_{}_CLIENT_SECRET", upper)).is_ok()
+        env_var_first(&[
+            &format!("WINKD_OAUTH_{}_CLIENT_ID", upper),
+            &format!("OAUTH_{}_CLIENT_ID", upper),
+        ])
+        .is_some()
+            && env_var_first(&[
+                &format!("WINKD_OAUTH_{}_CLIENT_SECRET", upper),
+                &format!("OAUTH_{}_CLIENT_SECRET", upper),
+            ])
+            .is_some()
     }
 
     fn client(self, cfg: &OAuthProviderConfig) -> Result<BasicClient, AppError> {
@@ -406,4 +415,8 @@ fn sanitize_id_part(input: &str) -> String {
     } else {
         filtered
     }
+}
+
+fn env_var_first(keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| env::var(key).ok())
 }
