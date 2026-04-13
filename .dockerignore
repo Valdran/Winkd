@@ -1,0 +1,14 @@
+.git
+node_modules
+apps
+packages
+docs
+*.md
+pnpm-workspace.yaml
+pnpm-lock.yaml
+turbo.json
+tsconfig.base.json
+package.json
+.gitignore
+Dockerfile
+railway.toml

@@ -2,12 +2,29 @@
   "name": "@winkd/web",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
   "description": "Winkd Messenger — PWA",
   "scripts": {
-    "dev": "npx serve . -l 8080",
-    "build": "echo 'Static PWA — no build step yet. React migration happens in Phase 1.'",
-    "typecheck": "echo 'No TS sources yet'",
-    "lint": "echo 'No sources yet'",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --open",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'linter not configured'",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@winkd/types": "workspace:*",
+    "@winkd/ui": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.1",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.8.3",
+    "vite": "^6.0.5"
   }
 }
