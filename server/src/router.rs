@@ -14,17 +14,19 @@ use tower_http::{
     trace::TraceLayer,
 };
 
-use crate::{auth, config::Config, presence::PresenceStore};
+use crate::{auth, config::Config, db::DbPool, presence::PresenceStore};
 
 #[derive(Clone)]
 pub struct AppState {
     pub config: Config,
+    pub db: DbPool,
     pub presence: PresenceStore,
 }
 
-pub async fn build_router(config: Config) -> Router {
+pub async fn build_router(config: Config, db: DbPool) -> Router {
     let state = AppState {
         config: config.clone(),
+        db,
         presence: PresenceStore::default(),
     };
 

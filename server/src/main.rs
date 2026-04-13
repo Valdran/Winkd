@@ -1,9 +1,9 @@
 // ── Winkd Server ──
-// Phase 0 skeleton. Boots an Axum server with a WebSocket upgrade endpoint,
-// a health-check route, and stubs for auth + message relay.
+// Phase 1: Axum server with PostgreSQL auth, WebSocket relay, and OAuth.
 
 mod auth;
 mod config;
+mod db;
 mod error;
 mod presence;
 mod protocol;
@@ -28,9 +28,20 @@ async fn main() {
         .init();
 
     let cfg = config::Config::from_env();
-    let addr: SocketAddr = cfg.listen_addr.parse().expect("Invalid LISTEN_ADDR");
 
-    let app = router::build_router(cfg).await;
+    // Connect to PostgreSQL and run pending migrations
+    let pool = db::connect(&cfg.database_url)
+        .await
+        .expect("Failed to connect to PostgreSQL — is DATABASE_URL set correctly?");
+
+    db::run_migrations(&pool)
+        .await
+        .expect("Database migration failed");
+
+    info!("Database connected and migrations applied");
+
+    let addr: SocketAddr = cfg.listen_addr.parse().expect("Invalid LISTEN_ADDR");
+    let app = router::build_router(cfg, pool).await;
 
     info!("Winkd server listening on {addr}");
     let listener = tokio::net::TcpListener::bind(addr)

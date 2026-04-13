@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuthStore } from '../stores/authStore'
 import type { OwnProfile } from '@winkd/types'
 
@@ -6,15 +6,39 @@ const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
 type Mode = 'login' | 'register'
 
+const PROVIDER_LABELS: Record<string, string> = {
+  discord: 'Discord',
+  google: 'Google',
+  github: 'GitHub',
+  microsoft: 'Microsoft',
+  facebook: 'Facebook',
+  twitter: 'X / Twitter',
+  twitch: 'Twitch',
+  reddit: 'Reddit',
+  spotify: 'Spotify',
+  linkedin: 'LinkedIn',
+  apple: 'Apple',
+  steam: 'Steam',
+}
+
 export function LoginPage() {
   const login = useAuthStore((s) => s.login)
 
   const [mode, setMode] = useState<Mode>('login')
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [oauthProviders, setOauthProviders] = useState<string[]>([])
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/auth/oauth/providers`)
+      .then((r) => r.json())
+      .then((d) => setOauthProviders(Array.isArray(d.providers) ? d.providers : []))
+      .catch(() => {})
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,10 +49,14 @@ export function LoginPage() {
       const endpoint =
         mode === 'login' ? '/api/auth/login' : '/api/auth/register'
 
-      const body =
+      const body: Record<string, string> =
         mode === 'login'
           ? { username, password }
           : { username, password, display_name: displayName || username }
+
+      if (mode === 'register' && email.trim()) {
+        body.email = email.trim()
+      }
 
       const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
@@ -37,22 +65,28 @@ export function LoginPage() {
       })
 
       if (!res.ok) {
-        setError(
-          mode === 'login'
-            ? 'Invalid username or password.'
-            : 'Registration failed. Try a different username.',
-        )
+        const data = await res.json().catch(() => ({})) as { error?: string }
+        if (data.error?.includes('taken') || data.error?.includes('registered')) {
+          setError(data.error)
+        } else {
+          setError(
+            mode === 'login'
+              ? 'Invalid username or password.'
+              : 'Registration failed. Try a different username.',
+          )
+        }
         return
       }
 
       const data = (await res.json()) as {
         session_token: string
         winkd_id: string
+        display_name: string
       }
 
       const profile: OwnProfile = {
         winkdId: data.winkd_id as `${string}#${string}`,
-        displayName: displayName || username,
+        displayName: data.display_name || displayName || username,
         moodMessage: '',
         status: 'online',
         avatarData: null,
@@ -78,6 +112,14 @@ export function LoginPage() {
     color: '#1a2a40',
     outline: 'none',
     boxShadow: 'inset 0 1px 3px rgba(0,0,60,0.1)',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#1a2a40',
+    display: 'block',
+    marginBottom: 3,
   }
 
   return (
@@ -203,17 +245,7 @@ export function LoginPage() {
             style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
           >
             <div>
-              <label
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: '#1a2a40',
-                  display: 'block',
-                  marginBottom: 3,
-                }}
-              >
-                Username
-              </label>
+              <label style={labelStyle}>Username</label>
               <input
                 type="text"
                 required
@@ -225,53 +257,49 @@ export function LoginPage() {
             </div>
 
             {mode === 'register' && (
-              <div>
-                <label
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: '#1a2a40',
-                    display: 'block',
-                    marginBottom: 3,
-                  }}
-                >
-                  Display Name
-                </label>
-                <input
-                  type="text"
-                  autoComplete="name"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="How contacts see you"
-                  style={inputStyle}
-                />
-              </div>
+              <>
+                <div>
+                  <label style={labelStyle}>Display Name</label>
+                  <input
+                    type="text"
+                    autoComplete="name"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="How contacts see you"
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>
+                    Email{' '}
+                    <span style={{ fontWeight: 400, color: '#7a9ab0' }}>(optional)</span>
+                  </label>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    style={inputStyle}
+                  />
+                </div>
+              </>
             )}
 
             <div>
-              <label
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: '#1a2a40',
-                  display: 'block',
-                  marginBottom: 3,
-                }}
-              >
-                Password
-              </label>
+              <label style={labelStyle}>Password</label>
               <input
                 type="password"
                 required
                 autoComplete="current-password"
-                minLength={mode === 'register' ? 8 : 1}
+                minLength={mode === 'register' ? 10 : 1}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={inputStyle}
               />
               {mode === 'register' && (
                 <div style={{ fontSize: 9, color: '#5a7a9a', marginTop: 3 }}>
-                  Minimum 8 characters
+                  Minimum 10 characters
                 </div>
               )}
             </div>
@@ -315,6 +343,71 @@ export function LoginPage() {
                   : 'Create Account'}
             </button>
           </form>
+
+          {/* OAuth buttons — shown only if providers are configured */}
+          {oauthProviders.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginBottom: 10,
+                }}
+              >
+                <div
+                  style={{ flex: 1, height: 1, background: 'rgba(100,150,220,0.25)' }}
+                />
+                <span style={{ fontSize: 10, color: '#7a9ab0' }}>or continue with</span>
+                <div
+                  style={{ flex: 1, height: 1, background: 'rgba(100,150,220,0.25)' }}
+                />
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 6,
+                  justifyContent: 'center',
+                }}
+              >
+                {oauthProviders.map((slug) => (
+                  <a
+                    key={slug}
+                    href={`${API_URL}/api/auth/oauth/${slug}/start`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      height: 26,
+                      padding: '0 10px',
+                      borderRadius: 4,
+                      border: '1px solid rgba(100,150,220,0.45)',
+                      background:
+                        'linear-gradient(180deg, rgba(220,232,255,0.9) 0%, rgba(195,215,250,0.9) 100%)',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: '#1a3a6a',
+                      textDecoration: 'none',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {PROVIDER_LABELS[slug] ?? slug}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Full login page link */}
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <a
+              href="/login.html"
+              style={{ fontSize: 10, color: '#5a7a9a', textDecoration: 'underline' }}
+            >
+              More sign-in options →
+            </a>
+          </div>
         </div>
       </div>
     </div>

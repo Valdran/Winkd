@@ -647,6 +647,34 @@ function showLogin(){
   document.getElementById('footer-register-prompt').style.display='';
 }
 
+// ── SESSION PERSISTENCE ──
+// Writes the session in the same format Zustand's persist middleware uses
+// (key: 'winkd-auth') so the React app picks it up automatically.
+function saveSession(token, winkdId, displayName) {
+  const username = winkdId ? winkdId.split('#')[0] : 'user';
+  const name = displayName || username;
+  const state = {
+    state: {
+      session: {
+        token,
+        profile: {
+          winkdId,
+          displayName: name,
+          moodMessage: '',
+          status: 'online',
+          avatarData: null,
+          sessionToken: token,
+        }
+      }
+    },
+    version: 0
+  };
+  localStorage.setItem('winkd-auth', JSON.stringify(state));
+  // Also keep the legacy keys for any code that still reads them
+  localStorage.setItem('winkd_session_token', token);
+  localStorage.setItem('winkd_winkd_id', winkdId);
+}
+
 // ── OAUTH ──
 const OAUTH_PROVIDER_SLUG = {
   'Discord':'discord',
@@ -747,8 +775,7 @@ async function authenticateWithPassword(username, password, err, suc){
       return;
     }
     const data = await res.json();
-    localStorage.setItem('winkd_session_token', data.session_token);
-    localStorage.setItem('winkd_winkd_id', data.winkd_id);
+    saveSession(data.session_token, data.winkd_id, data.display_name);
     suc.textContent='Signed in successfully. Opening Winkd…';
     suc.classList.add('show');
     setTimeout(()=>window.location.href='index.html', 900);
@@ -886,6 +913,7 @@ function doRegister(){
   const first=document.getElementById('reg-first').value.trim();
   const last=document.getElementById('reg-last').value.trim();
   const user=document.getElementById('reg-username').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
   const pw=document.getElementById('reg-password').value;
   const confirm=document.getElementById('reg-confirm').value;
   const err=document.getElementById('reg-error');
@@ -894,28 +922,33 @@ function doRegister(){
   if(!user||user.length<3){err.textContent='Username must be at least 3 characters.';err.classList.add('show');return;}
   if(!pw||pw.length<10){err.textContent='Password must be at least 10 characters.';err.classList.add('show');return;}
   if(pw!==confirm){err.textContent='Passwords do not match.';err.classList.add('show');return;}
-  registerWithPassword(user, pw, `${first} ${last}`.trim(), err);
+  registerWithPassword(user, pw, `${first} ${last}`.trim(), email, err);
 }
 
-async function registerWithPassword(username, password, displayName, err){
+async function registerWithPassword(username, password, displayName, email, err){
   try{
+    const body = {
+      username,
+      password,
+      display_name: displayName || username,
+    };
+    if(email) body.email = email;
     const res = await fetch('/api/auth/register', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        username,
-        password,
-        display_name: displayName || username,
-      }),
+      body: JSON.stringify(body),
     });
     if(!res.ok){
-      err.textContent='Could not create account. Please try another username/password.';
+      const data = await res.json().catch(()=>({}));
+      const msg = data.error || 'Could not create account. Try a different username.';
+      err.textContent = msg.includes('taken') || msg.includes('registered')
+        ? msg
+        : 'Could not create account. Please try another username.';
       err.classList.add('show');
       return;
     }
     const data = await res.json();
-    localStorage.setItem('winkd_session_token', data.session_token);
-    localStorage.setItem('winkd_winkd_id', data.winkd_id);
+    saveSession(data.session_token, data.winkd_id, data.display_name);
     simulateSuccess('Account created. Opening Winkd…');
   }catch{
     err.textContent='Could not connect to the server.';
@@ -956,11 +989,10 @@ function handleOAuthCallback(){
 
   const token = params.get('session_token');
   const winkdId = params.get('winkd_id');
+  const displayName = params.get('display_name') || '';
   if(!token || !winkdId) return;
 
-  localStorage.setItem('winkd_session_token', token);
-  localStorage.setItem('winkd_winkd_id', winkdId);
-
+  saveSession(token, winkdId, displayName);
   window.history.replaceState({}, document.title, window.location.pathname);
   simulateSuccess('OAuth sign-in complete. Opening Winkd…');
 }
