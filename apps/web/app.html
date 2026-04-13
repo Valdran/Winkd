@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>(function(){try{var r=localStorage.getItem('winkd-auth');if(!r)throw 0;var s=JSON.parse(r);if(!(s&&s.state&&s.state.session&&s.state.session.token))throw 0;}catch(e){window.location.replace('login.html');}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#1a3a5c">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1335,23 +1336,24 @@ const NAME_COLORS=[null,'#ffffff','#a8d4ff','#ffd8a8','#b8ffb8','#ffa8d0','#d8b8
 const REACT_EMOJIS=['👍','❤️','😂','😮','😢','🔥','🎉','💀','✨','😍','🤯','👏'];
 const REPLIES=["lol yeah exactly","wait seriously??","ok that's actually really good","brb two secs","no way 😂","this whole thing is so good","ok i'm obsessed","the winkd feature is carrying","you're so right tbh","💀💀💀"];
 
-// Load identity from the session written by login.html
+// Load identity and full profile from the session written by login.html
 let myName='You';
 let myWinkdId='';
+let myAvColor='#5a5acc';
+let myNameColor=null;
+let myAvatarSrc=null;
+let myStatus='online';
 (function(){
   try{
     const raw=localStorage.getItem('winkd-auth');
-    if(raw){const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(p){if(p.winkdId)myWinkdId=p.winkdId;if(p.displayName)myName=p.displayName;return;}}
+    if(raw){const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(p){if(p.winkdId)myWinkdId=p.winkdId;if(p.displayName)myName=p.displayName;if(p.avColor)myAvColor=p.avColor;if(p.nameColor!==undefined)myNameColor=p.nameColor;if(p.avatarData)myAvatarSrc=p.avatarData;if(p.status)myStatus=p.status;return;}}
   }catch(e){}
   // Legacy key fallback
   const legacyId=localStorage.getItem('winkd_winkd_id');if(legacyId)myWinkdId=legacyId;
 })();
-// Last-resort: generate a temporary ID (user should log in for a real one)
 if(!myWinkdId)myWinkdId='user#'+String(Math.floor(Math.random()*9000)+1000);
-let myAvColor='#5a5acc',selAvColor='#5a5acc';
-let myNameColor=null,selNameColor=null;
-let myAvatarSrc=null;
-let myStatus='online';
+let selAvColor=myAvColor;
+let selNameColor=myNameColor;
 let activeContact=null,msgColor=null,boldOn=false,italicOn=false,underlineOn=false,emojiOpen=false;
 // FIX: declare formatBarOpen at top level (was missing — caused ReferenceError in buildChat)
 let formatBarOpen=false;
@@ -1637,6 +1639,7 @@ function setStatus(s){
   const labels={online:'You are Online',away:'You are Away',busy:'You are Busy',invisible:'You appear Offline'};
   document.getElementById('tb-status-text').textContent=labels[s]||'';
   applyAvatarToSidebar();
+  _saveProfileToStorage();
 }
 
 let pendingAvatarSrc=null;
@@ -1679,7 +1682,7 @@ function toggleMoodEdit(){
   if(w.classList.contains('open')){w.classList.remove('open');el.style.display='';}
   else{document.getElementById('mood-input').value=el.textContent;w.classList.add('open');el.style.display='none';document.getElementById('mood-input').focus();}
 }
-function saveMood(){const v=document.getElementById('mood-input').value.trim(),el=document.getElementById('my-mood');if(v)el.textContent=v;el.style.display='';document.getElementById('mood-edit-wrap').classList.remove('open');}
+function saveMood(){const v=document.getElementById('mood-input').value.trim(),el=document.getElementById('my-mood');if(v)el.textContent=v;el.style.display='';document.getElementById('mood-edit-wrap').classList.remove('open');_saveProfileToStorage();}
 document.getElementById('mood-input').addEventListener('keydown',e=>{if(e.key==='Enter')saveMood();if(e.key==='Escape')toggleMoodEdit();});
 
 function toggleEmoji(){
@@ -1795,11 +1798,11 @@ function saveProfile(){
   myAvColor=selAvColor;myNameColor=selNameColor;
   const nameEl=document.getElementById('my-name');if(nameEl)nameEl.style.color=myNameColor||'';
   if(pendingAvatarSrc==='**remove**'){myAvatarSrc=null;}else if(pendingAvatarSrc){myAvatarSrc=pendingAvatarSrc;}
-  // Persist name change back to session so it survives reload
-  try{const raw=localStorage.getItem('winkd-auth');if(raw){const auth=JSON.parse(raw);if(auth&&auth.state&&auth.state.session&&auth.state.session.profile){auth.state.session.profile.displayName=myName;localStorage.setItem('winkd-auth',JSON.stringify(auth));}}}catch(e){}
+  _saveProfileToStorage();
   applyAvatarToSidebar();closeModal('profile-modal');
 }
 function copyWinkdId(){navigator.clipboard.writeText(myWinkdId).then(()=>{const b=document.querySelector('.copy-btn'),o=b.textContent;b.textContent='✅ Copied!';setTimeout(()=>b.textContent=o,1800);}).catch(()=>{});}
+function _saveProfileToStorage(){try{const raw=localStorage.getItem('winkd-auth');if(!raw)return;const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(!p)return;p.displayName=myName;p.avColor=myAvColor;p.nameColor=myNameColor;p.avatarData=myAvatarSrc||null;p.status=myStatus;p.moodMessage=document.getElementById('my-mood')?.textContent||'';localStorage.setItem('winkd-auth',JSON.stringify(auth));}catch(e){}}
 function drawQR(text){
   const canvas=document.getElementById('qr-canvas');if(!canvas)return;
   const ctx=canvas.getContext('2d'),sz=140,cells=21,cell=Math.floor(sz/cells);
@@ -1984,8 +1987,18 @@ function initDidYouKnow(){
 }
 
 // ── INIT ──
-// Apply session identity to the sidebar immediately
-(function(){const el=document.getElementById('my-name');if(el&&myName!=='You')el.textContent=myName;})();
+// Restore full profile from session to DOM before first render
+(function(){
+  const nameEl=document.getElementById('my-name');
+  if(nameEl){if(myName!=='You')nameEl.textContent=myName;if(myNameColor)nameEl.style.color=myNameColor;}
+  try{const raw=localStorage.getItem('winkd-auth');if(raw){const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(p&&p.moodMessage){const mEl=document.getElementById('my-mood');if(mEl)mEl.textContent=p.moodMessage;}}}catch(e){}
+  // Apply status pills and dot without triggering a storage write
+  const s=myStatus;['online','away','busy','invisible'].forEach(x=>{const pill=document.getElementById('pill-'+x);if(pill)pill.classList.toggle('active',x===s);});
+  const dot=document.getElementById('my-status-dot');
+  if(dot){dot.style.background=s==='invisible'?'transparent':SC[s];dot.style.border=s==='invisible'?'2px dashed rgba(180,200,230,0.7)':'2px solid rgba(160,200,255,0.5)';}
+  const labels={online:'You are Online',away:'You are Away',busy:'You are Busy',invisible:'You appear Offline'};
+  const tbStatus=document.getElementById('tb-status-text');if(tbStatus)tbStatus.textContent=labels[s]||'';
+})();
 epInit();
 buildReactionPopover();
 applyAvatarToSidebar();
