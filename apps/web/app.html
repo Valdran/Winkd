@@ -1335,10 +1335,19 @@ const NAME_COLORS=[null,'#ffffff','#a8d4ff','#ffd8a8','#b8ffb8','#ffa8d0','#d8b8
 const REACT_EMOJIS=['👍','❤️','😂','😮','😢','🔥','🎉','💀','✨','😍','🤯','👏'];
 const REPLIES=["lol yeah exactly","wait seriously??","ok that's actually really good","brb two secs","no way 😂","this whole thing is so good","ok i'm obsessed","the winkd feature is carrying","you're so right tbh","💀💀💀"];
 
-// FIX: Persist myWinkdId so it doesn't regenerate on every page load
+// Load identity from the session written by login.html
 let myName='You';
-let myWinkdId = localStorage.getItem('winkd-id') || ('you#'+String(Math.floor(Math.random()*9000)+1000));
-localStorage.setItem('winkd-id', myWinkdId);
+let myWinkdId='';
+(function(){
+  try{
+    const raw=localStorage.getItem('winkd-auth');
+    if(raw){const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(p){if(p.winkdId)myWinkdId=p.winkdId;if(p.displayName)myName=p.displayName;return;}}
+  }catch(e){}
+  // Legacy key fallback
+  const legacyId=localStorage.getItem('winkd_winkd_id');if(legacyId)myWinkdId=legacyId;
+})();
+// Last-resort: generate a temporary ID (user should log in for a real one)
+if(!myWinkdId)myWinkdId='user#'+String(Math.floor(Math.random()*9000)+1000);
 let myAvColor='#5a5acc',selAvColor='#5a5acc';
 let myNameColor=null,selNameColor=null;
 let myAvatarSrc=null;
@@ -1786,6 +1795,8 @@ function saveProfile(){
   myAvColor=selAvColor;myNameColor=selNameColor;
   const nameEl=document.getElementById('my-name');if(nameEl)nameEl.style.color=myNameColor||'';
   if(pendingAvatarSrc==='**remove**'){myAvatarSrc=null;}else if(pendingAvatarSrc){myAvatarSrc=pendingAvatarSrc;}
+  // Persist name change back to session so it survives reload
+  try{const raw=localStorage.getItem('winkd-auth');if(raw){const auth=JSON.parse(raw);if(auth&&auth.state&&auth.state.session&&auth.state.session.profile){auth.state.session.profile.displayName=myName;localStorage.setItem('winkd-auth',JSON.stringify(auth));}}}catch(e){}
   applyAvatarToSidebar();closeModal('profile-modal');
 }
 function copyWinkdId(){navigator.clipboard.writeText(myWinkdId).then(()=>{const b=document.querySelector('.copy-btn'),o=b.textContent;b.textContent='✅ Copied!';setTimeout(()=>b.textContent=o,1800);}).catch(()=>{});}
@@ -1973,6 +1984,8 @@ function initDidYouKnow(){
 }
 
 // ── INIT ──
+// Apply session identity to the sidebar immediately
+(function(){const el=document.getElementById('my-name');if(el&&myName!=='You')el.textContent=myName;})();
 epInit();
 buildReactionPopover();
 applyAvatarToSidebar();
