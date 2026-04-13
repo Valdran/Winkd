@@ -1,28 +1,20 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { LoginPage } from './pages/LoginPage'
-import { BuddyListPage } from './pages/BuddyListPage'
-import { useAuthStore } from './stores/authStore'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react'
 
-function RequireAuth({ children }: { children: React.ReactNode }) {
-  const session = useAuthStore((s) => s.session)
-  if (!session) return <Navigate to="/login" replace />
-  return <>{children}</>
+function LegacyPageRedirect({ to }: { to: string }) {
+  useEffect(() => {
+    window.location.replace(to)
+  }, [to])
+
+  return null
 }
 
 export function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <BuddyListPage />
-            </RequireAuth>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/login" element={<LegacyPageRedirect to="/login.html" />} />
+        <Route path="*" element={<LegacyPageRedirect to="/winkd_website.html" />} />
       </Routes>
     </BrowserRouter>
   )

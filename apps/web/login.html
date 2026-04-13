@@ -638,18 +638,43 @@ function showLogin(){
 }
 
 // ── OAUTH ──
+const OAUTH_PROVIDER_SLUG = {
+  'Discord':'discord',
+  'Google':'google',
+  'Apple':'apple',
+  'Microsoft':'microsoft',
+  'Facebook':'facebook',
+  'GitHub':'github',
+  'X / Twitter':'twitter',
+  'Twitch':'twitch',
+  'Reddit':'reddit',
+  'Steam':'steam',
+  'Spotify':'spotify',
+  'LinkedIn':'linkedin',
+};
+
 function doOAuth(provider){
+  const slug = OAUTH_PROVIDER_SLUG[provider];
+  const err = document.getElementById('email-error');
+  err.classList.remove('show');
+
+  if(!slug){
+    err.textContent='Unsupported OAuth provider.';
+    err.classList.add('show');
+    return;
+  }
+
   const btn = event.currentTarget;
   const orig = btn.innerHTML;
-  btn.innerHTML = `<span class="spinner"></span> Connecting to ${provider}…`;
+  btn.innerHTML = `<span class="spinner"></span> Redirecting to ${provider}…`;
   btn.style.pointerEvents='none';
-  // Simulate OAuth redirect
+
+  window.location.href = `/api/auth/oauth/${slug}/start`;
+
   setTimeout(()=>{
     btn.innerHTML = orig;
     btn.style.pointerEvents='';
-    // In production: window.location.href = `/auth/${provider.toLowerCase()}`
-    simulateSuccess(`Redirecting to ${provider} login…`);
-  }, 1800);
+  }, 5000);
 }
 
 // ── EMAIL LOGIN ──
@@ -834,6 +859,25 @@ function simulateSuccess(msg){
   document.body.appendChild(overlay);
   setTimeout(function(){ window.location.href='index.html'; }, 1800);
 }
+
+
+function handleOAuthCallback(){
+  if(!window.location.hash) return;
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  if(params.get('oauth') !== 'success') return;
+
+  const token = params.get('session_token');
+  const winkdId = params.get('winkd_id');
+  if(!token || !winkdId) return;
+
+  localStorage.setItem('winkd_session_token', token);
+  localStorage.setItem('winkd_winkd_id', winkdId);
+
+  window.history.replaceState({}, document.title, window.location.pathname);
+  simulateSuccess('OAuth sign-in complete. Opening Winkd…');
+}
+
+handleOAuthCallback();
 
 // ── KEYBOARD ──
 document.addEventListener('keydown',e=>{
