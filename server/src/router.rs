@@ -44,11 +44,13 @@ pub async fn build_router(config: Config, db: DbPool) -> Router {
         )
         // WebSocket messaging endpoint
         .route("/ws", get(ws_handler))
-        // Frontend static files (SPA)
+        // Root: serve landing page
+        .route_service("/", get_service(ServeFile::new("web-dist/winkd_website.html")))
+        // Frontend static files
         .nest_service(
             "/",
             get_service(
-                ServeDir::new("web-dist").not_found_service(ServeFile::new("web-dist/index.html")),
+                ServeDir::new("web-dist").not_found_service(ServeFile::new("web-dist/winkd_website.html")),
             ),
         )
         .layer(TraceLayer::new_for_http())
@@ -107,3 +109,4 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, _state: AppState) {
         }
     }
 }
+
