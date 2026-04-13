@@ -1,0 +1,13 @@
+{
+  "name": "@winkd/web",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Winkd Messenger — PWA",
+  "scripts": {
+    "dev": "npx serve . -l 8080",
+    "build": "echo 'Static PWA — no build step yet. React migration happens in Phase 1.'",
+    "typecheck": "echo 'No TS sources yet'",
+    "lint": "echo 'No sources yet'",
+    "clean": "rm -rf dist"
+  }
+}
