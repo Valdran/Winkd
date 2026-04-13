@@ -30,8 +30,9 @@ RUN mkdir -p src && echo 'fn main() {}' > src/main.rs
 RUN cargo build --release
 RUN rm -f src/main.rs target/release/deps/winkd_server*
 
-# Copy real source and build
+# Copy real source and migrations, then build
 COPY server/src ./src
+COPY server/migrations ./migrations
 RUN touch src/main.rs
 RUN cargo build --release
 
