@@ -30,6 +30,7 @@ pub enum ClientCommandType {
     SendMessage,
     SetStatus,
     SetMood,
+    SetDisplayName,
     AddContact,
     AcceptContact,
     BlockContact,

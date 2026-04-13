@@ -16,6 +16,7 @@ pub struct User {
     pub username: String,
     pub winkd_id: String,
     pub display_name: String,
+    pub mood_message: String,
     pub email: Option<String>,
     pub password_hash: Option<String>,
     pub created_at: DateTime<Utc>,
@@ -59,6 +60,27 @@ pub async fn create_user(
     .bind(display_name)
     .bind(email)
     .bind(password_hash)
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn update_user_profile(
+    pool: &DbPool,
+    user_id: Uuid,
+    display_name: &str,
+    mood_message: &str,
+) -> Result<User, sqlx::Error> {
+    sqlx::query_as::<_, User>(
+        r#"UPDATE users
+           SET display_name = $2,
+               mood_message  = $3,
+               updated_at    = NOW()
+           WHERE id = $1
+           RETURNING *"#,
+    )
+    .bind(user_id)
+    .bind(display_name)
+    .bind(mood_message)
     .fetch_one(pool)
     .await
 }

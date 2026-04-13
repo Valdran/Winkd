@@ -121,14 +121,14 @@ async fn handle_socket(
     // Register the live sender so other handlers can push events to this user.
     state.clients.write().await.insert(user.id, chan_tx.clone());
 
-    // Mark online in presence store.
+    // Mark online in presence store, seeding mood from the DB so it survives restarts.
     state
         .presence
         .set(
             &user.id.to_string(),
             crate::presence::PresenceEntry {
                 status: crate::presence::UserStatus::Online,
-                mood: String::new(),
+                mood: user.mood_message.clone(),
             },
         )
         .await;
@@ -305,6 +305,66 @@ async fn handle_command(
                     tracing::warn!("accept_contact_request error: {e}");
                     send_err(tx, "Could not accept contact request.");
                 }
+            }
+        }
+
+        // ── Set mood ───────────────────────────────────────────────────────
+        ClientCommandType::SetMood => {
+            let mood = match cmd.payload.get("mood").and_then(|v| v.as_str()) {
+                Some(m) => m.chars().take(100).collect::<String>(),
+                None => return,
+            };
+
+            // Persist to DB
+            if let Err(e) =
+                db::update_user_profile(&state.db, user.id, &user.display_name, &mood).await
+            {
+                tracing::warn!("update mood for {}: {e}", user.winkd_id);
+            }
+
+            // Update live presence
+            if let Some(mut entry) = state.presence.get(&user.id.to_string()).await {
+                entry.mood = mood;
+                state.presence.set(&user.id.to_string(), entry).await;
+            }
+        }
+
+        // ── Set display name ───────────────────────────────────────────────
+        ClientCommandType::SetDisplayName => {
+            let name = match cmd.payload.get("display_name").and_then(|v| v.as_str()) {
+                Some(n) if !n.trim().is_empty() => n.trim().chars().take(64).collect::<String>(),
+                _ => return,
+            };
+
+            let current_mood = state
+                .presence
+                .get(&user.id.to_string())
+                .await
+                .map(|e| e.mood)
+                .unwrap_or_default();
+
+            if let Err(e) =
+                db::update_user_profile(&state.db, user.id, &name, &current_mood).await
+            {
+                tracing::warn!("update display_name for {}: {e}", user.winkd_id);
+            }
+        }
+
+        // ── Set status ─────────────────────────────────────────────────────
+        ClientCommandType::SetStatus => {
+            let status_str = match cmd.payload.get("status").and_then(|v| v.as_str()) {
+                Some(s) => s.to_string(),
+                None => return,
+            };
+            let status = match status_str.as_str() {
+                "away" => crate::presence::UserStatus::Away,
+                "busy" => crate::presence::UserStatus::Busy,
+                "invisible" => crate::presence::UserStatus::Invisible,
+                _ => crate::presence::UserStatus::Online,
+            };
+            if let Some(mut entry) = state.presence.get(&user.id.to_string()).await {
+                entry.status = status;
+                state.presence.set(&user.id.to_string(), entry).await;
             }
         }
 

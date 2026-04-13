@@ -6,6 +6,7 @@ import { useChatStore } from '../stores/chatStore'
 import { MessageBubble } from './MessageBubble'
 import { WinkdToolbar } from './WinkdToolbar'
 import { StatusBar } from './StatusBar'
+import { EmojiPicker } from './EmojiPicker'
 
 interface ChatWindowProps {
   send: (payload: object) => void
@@ -18,7 +19,10 @@ export function ChatWindow({ send }: ChatWindowProps) {
     useChatStore()
 
   const [inputValue, setInputValue] = useState('')
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const conversation = activeConversationId ? conversations[activeConversationId] : null
   const contact = conversation
@@ -28,6 +32,17 @@ export function ChatWindow({ send }: ChatWindowProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [conversation?.messages.length])
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false)
+      }
+    }
+    if (showEmojiPicker) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showEmojiPicker])
 
   // Clear shake flag after animation completes
   useEffect(() => {
@@ -123,7 +138,7 @@ export function ChatWindow({ send }: ChatWindowProps) {
         onWinkd={() => sendWinkd(conversation.id, session.profile.winkdId, send)}
         onNudge={() => sendNudge(conversation.id, session.profile.winkdId, send)}
         onWinks={() => { /* Phase 4 */ }}
-        onEmoticons={() => { /* Phase 4 */ }}
+        onEmoticons={() => setShowEmojiPicker((v) => !v)}
       />
 
       {/* Message history */}
@@ -170,9 +185,27 @@ export function ChatWindow({ send }: ChatWindowProps) {
           alignItems: 'flex-end',
           background: 'rgba(255,255,255,0.025)',
           flexShrink: 0,
+          position: 'relative',
         }}
       >
+        {/* Emoji picker popup */}
+        {showEmojiPicker && (
+          <div
+            ref={emojiPickerRef}
+            style={{ position: 'absolute', bottom: '100%', left: 10, zIndex: 50, marginBottom: 4 }}
+          >
+            <EmojiPicker
+              onSelect={(emoji) => {
+                setInputValue((v) => v + emoji)
+                inputRef.current?.focus()
+              }}
+              onClose={() => setShowEmojiPicker(false)}
+            />
+          </div>
+        )}
+
         <textarea
+          ref={inputRef}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}

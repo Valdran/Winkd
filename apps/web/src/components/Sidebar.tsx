@@ -4,8 +4,10 @@ import type { Contact, UserStatus } from '@winkd/types'
 import { useAuthStore } from '../stores/authStore'
 import { useContactsStore } from '../stores/contactsStore'
 import { useChatStore } from '../stores/chatStore'
+import { useSocket } from '../hooks/useSocket'
 import { ContactItem } from './ContactItem'
 import { StatusBar } from './StatusBar'
+import { ProfileEditModal } from './ProfileEditModal'
 
 const STATUS_LABELS: Record<UserStatus, string> = {
   online: '● Online',
@@ -43,6 +45,7 @@ export function Sidebar() {
   const clearUnread = useContactsStore((s) => s.clearUnread)
   const openConversation = useChatStore((s) => s.openConversation)
   const activeConversationId = useChatStore((s) => s.activeConversationId)
+  const { send } = useSocket()
 
   const [collapsed, setCollapsed] = useState<Record<UIGroup, boolean>>({
     online: false,
@@ -50,6 +53,7 @@ export function Sidebar() {
     offline: true,
   })
   const [searchQuery, setSearchQuery] = useState('')
+  const [showProfileEdit, setShowProfileEdit] = useState(false)
 
   if (!session) return null
   const { profile } = session
@@ -58,6 +62,13 @@ export function Sidebar() {
     const idx = STATUS_CYCLE.indexOf(profile.status)
     const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length]!
     updateProfile({ status: next })
+    send({ command: 'set_status', payload: { status: next } })
+  }
+
+  const handleProfileSave = (displayName: string, moodMessage: string) => {
+    updateProfile({ displayName, moodMessage })
+    send({ command: 'set_display_name', payload: { display_name: displayName } })
+    send({ command: 'set_mood', payload: { mood: moodMessage } })
   }
 
   const handleContactClick = (contact: Contact) => {
@@ -105,6 +116,8 @@ export function Sidebar() {
         />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
+            onClick={() => setShowProfileEdit(true)}
+            title="Click to edit display name and mood"
             style={{
               fontWeight: 700,
               fontSize: 12,
@@ -113,6 +126,7 @@ export function Sidebar() {
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              cursor: 'pointer',
             }}
           >
             {profile.displayName}
@@ -130,6 +144,8 @@ export function Sidebar() {
             {STATUS_LABELS[profile.status]}
           </div>
           <div
+            onClick={() => setShowProfileEdit(true)}
+            title="Click to edit mood"
             style={{
               fontSize: 10,
               color: 'rgba(195,220,255,0.5)',
@@ -138,6 +154,7 @@ export function Sidebar() {
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
               fontStyle: profile.moodMessage ? 'normal' : 'italic',
+              cursor: 'pointer',
             }}
           >
             {profile.moodMessage || 'Set a mood…'}
@@ -223,6 +240,15 @@ export function Sidebar() {
         isEncrypted={false}
         extra={profile.winkdId}
       />
+
+      {showProfileEdit && (
+        <ProfileEditModal
+          displayName={profile.displayName}
+          moodMessage={profile.moodMessage}
+          onSave={handleProfileSave}
+          onClose={() => setShowProfileEdit(false)}
+        />
+      )}
     </div>
   )
 }
