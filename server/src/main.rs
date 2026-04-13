@@ -29,23 +29,43 @@ async fn main() {
 
     let cfg = config::Config::from_env();
 
-    // Connect to PostgreSQL and run pending migrations
-    let pool = db::connect(&cfg.database_url)
-        .await
-        .expect("Failed to connect to PostgreSQL — is DATABASE_URL set correctly?");
-
-    db::run_migrations(&pool)
-        .await
-        .expect("Database migration failed");
-
-    info!("Database connected and migrations applied");
+    // Build the pool lazily — no connection is opened yet, so the server can
+    // bind and answer /health immediately even if the database isn't ready.
+    let pool = db::connect_lazy(&cfg.database_url)
+        .expect("Invalid DATABASE_URL — check the connection string format");
 
     let addr: SocketAddr = cfg.listen_addr.parse().expect("Invalid LISTEN_ADDR");
-    let app = router::build_router(cfg, pool).await;
+    let app = router::build_router(cfg, pool.clone()).await;
 
-    info!("Winkd server listening on {addr}");
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .expect("bind failed");
+
+    info!("Winkd server listening on {addr}");
+
+    // Run migrations in the background with exponential-backoff retries.
+    // The HTTP server (including /health) is already accepting requests by
+    // the time this task tries to reach the database.
+    tokio::spawn(async move {
+        for attempt in 1u32..=10 {
+            match db::run_migrations(&pool).await {
+                Ok(()) => {
+                    info!("Database connected and migrations applied");
+                    return;
+                }
+                Err(e) => {
+                    let secs = 2u64.pow(attempt.min(6));
+                    tracing::warn!(
+                        "Migration attempt {attempt}/10 failed: {e}. Retrying in {secs}s"
+                    );
+                    tokio::time::sleep(std::time::Duration::from_secs(secs)).await;
+                }
+            }
+        }
+        tracing::error!(
+            "Database migrations failed after 10 attempts — auth endpoints will be unavailable"
+        );
+    });
+
     axum::serve(listener, app).await.expect("server error");
 }

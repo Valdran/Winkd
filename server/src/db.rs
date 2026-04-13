@@ -28,6 +28,13 @@ pub async fn connect(url: &str) -> Result<DbPool, sqlx::Error> {
     PgPool::connect(url).await
 }
 
+/// Create a pool without establishing a connection immediately.
+/// Connections are opened on first use, so the server can bind and serve
+/// /health before the database is ready.
+pub fn connect_lazy(url: &str) -> Result<DbPool, sqlx::Error> {
+    PgPool::connect_lazy(url)
+}
+
 pub async fn run_migrations(pool: &DbPool) -> Result<(), sqlx::migrate::MigrateError> {
     sqlx::migrate!("./migrations").run(pool).await
 }
