@@ -632,6 +632,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
 .msg-body{max-width:80%;}
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -675,6 +676,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
       <div id="search-wrap">
         <input id="search-input" type="text" placeholder="🔍  Search contacts…" oninput="filterContacts(this.value)">
       </div>
+      <div id="inbound-requests"></div>
       <div id="contact-list"></div>
       <div id="sidebar-statusbar">
         <div id="add-contact-btn" onclick="openModal('add-contact-modal')">+ Add Contact</div>
@@ -1355,6 +1357,7 @@ let myStatus='online';
 if(!myWinkdId)myWinkdId='user#'+String(Math.floor(Math.random()*9000)+1000);
 let selAvColor=myAvColor;
 let selNameColor=myNameColor;
+let inboundRequests=[];
 let activeContact=null,msgColor=null,boldOn=false,italicOn=false,underlineOn=false,emojiOpen=false;
 // FIX: declare formatBarOpen at top level (was missing — caused ReferenceError in buildChat)
 let formatBarOpen=false;
@@ -1753,6 +1756,111 @@ function renderReactions(msgId){
   });
 }
 
+// ── WEBSOCKET ──
+let ws=null,wsReconnectDelay=2000;
+
+function wsGetToken(){
+  try{const auth=JSON.parse(localStorage.getItem('winkd-auth')||'{}');return auth?.state?.session?.token||'';}
+  catch{return '';}
+}
+
+function wsConnect(){
+  const token=wsGetToken();if(!token)return;
+  const proto=location.protocol==='https:'?'wss':'ws';
+  ws=new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
+  ws.onopen=()=>{wsReconnectDelay=2000;};
+  ws.onmessage=e=>{try{const m=JSON.parse(e.data);handleServerEvent(m.event,m.payload);}catch{}};
+  ws.onclose=()=>{ws=null;setTimeout(wsConnect,wsReconnectDelay);wsReconnectDelay=Math.min(wsReconnectDelay*2,30000);};
+  ws.onerror=()=>{if(ws)ws.close();};
+}
+
+function wsSend(command,payload){
+  if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({command,payload}));
+}
+
+function handleServerEvent(event,payload){
+  switch(event){
+    case 'contact_request_sent': handleContactRequestSent(payload);break;
+    case 'contact_request':      handleInboundContactRequest(payload);break;
+    case 'contact_accepted':     handleContactAccepted(payload);break;
+    case 'error':                showToast(payload?.message||'Something went wrong.','error');break;
+  }
+}
+
+function handleContactRequestSent(payload){
+  // Server confirmed the request — add the contact in a pending state.
+  const wid=payload.to_winkd_id;if(!wid)return;
+  if(contacts.find(x=>x.id===wid))return;
+  const name=payload.to_display_name||wid.split('#')[0];
+  const nc={id:wid,initials:name.slice(0,2).toUpperCase(),name,mood:'Pending acceptance\u2026',status:'offline',color:'#406080',unread:0};
+  contacts.push(nc);
+  convos[wid]=[{type:'system',text:`Contact request sent to ${wid}. Waiting for them to accept.`}];
+  renderContacts();
+}
+
+function handleInboundContactRequest(payload){
+  if(!payload.request_id)return;
+  if(inboundRequests.find(r=>r.request_id===payload.request_id))return;
+  inboundRequests.push(payload);
+  renderInboundRequests();
+}
+
+function handleContactAccepted(payload){
+  const wid=payload.winkd_id,name=payload.display_name||wid.split('#')[0];
+  // Case A: we sent the request and they accepted — update the pending contact.
+  const existing=contacts.find(x=>x.id===wid);
+  if(existing){
+    existing.name=name;existing.initials=name.slice(0,2).toUpperCase();
+    existing.mood='';existing.status='online';
+    if(convos[wid])convos[wid].push({type:'system',text:`${name} accepted your contact request!`});
+    renderContacts();return;
+  }
+  // Case B: we accepted their inbound request — clear the notification, add contact.
+  const idx=inboundRequests.findIndex(r=>r.from_winkd_id===wid);
+  if(idx>=0){inboundRequests.splice(idx,1);renderInboundRequests();}
+  if(!contacts.find(x=>x.id===wid)){
+    const nc={id:wid,initials:name.slice(0,2).toUpperCase(),name,mood:'',status:'online',color:'#406080',unread:0};
+    contacts.push(nc);
+    convos[wid]=[{type:'system',text:`You are now connected with ${name}!`}];
+  }
+  renderContacts();
+}
+
+function renderInboundRequests(){
+  const wrap=document.getElementById('inbound-requests');if(!wrap)return;
+  wrap.innerHTML='';
+  inboundRequests.forEach(req=>{
+    const div=document.createElement('div');
+    div.style.cssText='background:rgba(255,240,170,0.97);border:1px solid rgba(200,160,40,0.55);border-radius:5px;padding:7px 10px;margin:4px 8px;font-size:11px;font-family:var(--font);';
+    const rid=req.request_id.replace(/'/g,'');
+    div.innerHTML=`<div style="font-weight:600;color:#5a3800;margin-bottom:3px;">📨 Contact request</div>`
+      +`<div style="color:#7a5010;margin-bottom:6px;"><strong>${req.from_display_name}</strong> <span style="opacity:0.7;">(${req.from_winkd_id})</span></div>`
+      +`<div style="display:flex;gap:5px;">`
+      +`<div onclick="acceptInboundRequest('${rid}')" style="background:linear-gradient(to bottom,#5090e8,#2060c0);color:#fff;border-radius:3px;padding:3px 10px;cursor:pointer;font-size:11px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,0.3);">Accept</div>`
+      +`<div onclick="dismissInboundRequest('${rid}')" style="background:rgba(220,210,190,0.9);border:1px solid rgba(160,140,100,0.4);border-radius:3px;padding:3px 8px;cursor:pointer;font-size:11px;color:#5a4a20;">Dismiss</div>`
+      +`</div>`;
+    wrap.appendChild(div);
+  });
+}
+
+function acceptInboundRequest(requestId){
+  if(!ws||ws.readyState!==WebSocket.OPEN){showToast('Not connected. Please try again.','error');return;}
+  wsSend('accept_contact',{request_id:requestId});
+}
+
+function dismissInboundRequest(requestId){
+  inboundRequests=inboundRequests.filter(r=>r.request_id!==requestId);
+  renderInboundRequests();
+}
+
+function showToast(message,type='info'){
+  const t=document.createElement('div');
+  const bg=type==='error'?'rgba(210,50,50,0.95)':'rgba(26,80,200,0.95)';
+  t.style.cssText=`position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:${bg};color:#fff;padding:8px 20px;border-radius:20px;font-size:12px;font-weight:600;font-family:var(--font);z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.35);pointer-events:none;white-space:nowrap;animation:fadeInUp 0.2s ease;`;
+  t.textContent=message;document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),300);},2800);
+}
+
 // ── MODALS ──
 function openModal(id){document.getElementById(id).classList.add('open');if(id==='profile-modal')initProfile();}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
@@ -1763,10 +1871,11 @@ function addContact(){
   const errEl=document.getElementById('add-id-error');
   if(!/^[^#\s]+#\d{4}$/.test(v)){if(errEl)errEl.style.display='block';return;}
   if(errEl)errEl.style.display='none';
-  const name=v.split('#')[0];
-  const nc={id:Date.now(),initials:name.slice(0,2).toUpperCase(),name,mood:'New contact',status:'offline',color:'#406080',unread:0};
-  contacts.push(nc);convos[nc.id]=[{type:'system',text:`Contact request sent to ${v}. Waiting for them to accept.`}];
-  renderContacts();closeModal('add-contact-modal');document.getElementById('add-id-input').value='';
+  if(!ws||ws.readyState!==WebSocket.OPEN){showToast('Not connected to server. Please try again.','error');return;}
+  wsSend('add_contact',{winkd_id:v});
+  closeModal('add-contact-modal');
+  document.getElementById('add-id-input').value='';
+  showToast('Contact request sent!','info');
 }
 
 function initProfile(){
@@ -1809,15 +1918,9 @@ function copyWinkdId(){navigator.clipboard.writeText(myWinkdId).then(()=>{const 
 function _saveProfileToStorage(){try{const raw=localStorage.getItem('winkd-auth');if(!raw)return;const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(!p)return;p.displayName=myName;p.avColor=myAvColor;p.nameColor=myNameColor;p.avatarData=myAvatarSrc||null;p.status=myStatus;p.moodMessage=document.getElementById('my-mood')?.textContent||'';localStorage.setItem('winkd-auth',JSON.stringify(auth));}catch(e){}}
 function drawQR(text){
   const canvas=document.getElementById('qr-canvas');if(!canvas)return;
-  const ctx=canvas.getContext('2d'),sz=140,cells=21,cell=Math.floor(sz/cells);
-  ctx.fillStyle='#fff';ctx.fillRect(0,0,sz,sz);
-  let hash=0;for(let i=0;i<text.length;i++)hash=(hash*31+text.charCodeAt(i))>>>0;
-  const bits=[];
-  for(let r=0;r<cells;r++){bits[r]=[];for(let c=0;c<cells;c++)bits[r][c]=((hash>>>(r*cells+c)%32)&1)^(((r*7+c*13+hash)%5===0)?1:0);}
-  [[0,0],[0,cells-7],[cells-7,0]].forEach(([sr,sc])=>{for(let r=sr;r<sr+7;r++)for(let c=sc;c<sc+7;c++){const dr=r-sr,dc=c-sc;bits[r][c]=(dr===0||dr===6||dc===0||dc===6||(dr>=2&&dr<=4&&dc>=2&&dc<=4))?1:0;}});
-  ctx.fillStyle='#1a2a40';
-  for(let r=0;r<cells;r++)for(let c=0;c<cells;c++)if(bits[r][c])ctx.fillRect(c*cell+1,r*cell+1,cell-1,cell-1);
-  ctx.strokeStyle='rgba(0,0,0,0.06)';ctx.lineWidth=1;ctx.strokeRect(0.5,0.5,sz-1,sz-1);
+  if(typeof QRCode==='undefined'){setTimeout(()=>drawQR(text),150);return;}
+  QRCode.toCanvas(canvas,text,{width:140,margin:1,color:{dark:'#1a2a40',light:'#ffffff'}})
+    .catch(err=>console.error('QR generation failed:',err));
 }
 
 // ── QR SCANNER ──
@@ -1850,10 +1953,11 @@ async function handleQRFile(input){const file=input.files[0];if(!file)return;con
 function clearQRResult(){detectedQRValue=null;document.getElementById('qr-result-box').style.display='none';}
 function addFromQR(){
   if(!detectedQRValue)return;
-  const name=detectedQRValue.split('#')[0];
-  const nc={id:Date.now(),initials:name.slice(0,2).toUpperCase(),name,mood:'New contact',status:'offline',color:'#406080',unread:0};
-  contacts.push(nc);convos[nc.id]=[{type:'system',text:`Contact request sent to ${detectedQRValue}. Waiting for them to accept.`}];
-  renderContacts();closeModal('add-contact-modal');detectedQRValue=null;
+  if(!ws||ws.readyState!==WebSocket.OPEN){showToast('Not connected to server. Please try again.','error');return;}
+  wsSend('add_contact',{winkd_id:detectedQRValue});
+  closeModal('add-contact-modal');
+  detectedQRValue=null;
+  showToast('Contact request sent!','info');
 }
 
 // ── INVITE LINKS ──
@@ -2031,6 +2135,7 @@ initDidYouKnow();
 registerSW();
 initInstallPrompt();
 initOfflineDetection();
+wsConnect();
 </script>
 </body>
 </html>

@@ -145,6 +145,99 @@ pub async fn find_user_by_session(
     .await
 }
 
+// ── Contact requests ───────────────────────────────────────────────────────
+
+#[derive(sqlx::FromRow, Clone, Debug)]
+pub struct ContactRequest {
+    pub id: Uuid,
+    pub from_id: Uuid,
+    pub to_id: Uuid,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Flattened result of the pending-inbound join query.
+#[derive(sqlx::FromRow, Clone, Debug)]
+pub struct PendingContactRequest {
+    pub request_id: Uuid,
+    pub from_winkd_id: String,
+    pub from_display_name: String,
+}
+
+pub async fn find_user_by_id(pool: &DbPool, id: Uuid) -> Result<Option<User>, sqlx::Error> {
+    sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
+        .bind(id)
+        .fetch_optional(pool)
+        .await
+}
+
+pub async fn find_user_by_winkd_id(
+    pool: &DbPool,
+    winkd_id: &str,
+) -> Result<Option<User>, sqlx::Error> {
+    sqlx::query_as::<_, User>("SELECT * FROM users WHERE winkd_id = $1")
+        .bind(winkd_id)
+        .fetch_optional(pool)
+        .await
+}
+
+/// Insert a new contact request. If one already exists (same from/to), reset
+/// it to 'pending' so a re-send works after a previous decline.
+pub async fn create_contact_request(
+    pool: &DbPool,
+    from_id: Uuid,
+    to_id: Uuid,
+) -> Result<ContactRequest, sqlx::Error> {
+    sqlx::query_as::<_, ContactRequest>(
+        r#"INSERT INTO contact_requests (from_id, to_id)
+           VALUES ($1, $2)
+           ON CONFLICT (from_id, to_id) DO UPDATE SET status = 'pending'
+           RETURNING *"#,
+    )
+    .bind(from_id)
+    .bind(to_id)
+    .fetch_one(pool)
+    .await
+}
+
+/// Return all pending inbound contact requests for a user, joined to sender info.
+pub async fn list_pending_inbound(
+    pool: &DbPool,
+    to_id: Uuid,
+) -> Result<Vec<PendingContactRequest>, sqlx::Error> {
+    sqlx::query_as::<_, PendingContactRequest>(
+        r#"SELECT cr.id       AS request_id,
+                  u.winkd_id  AS from_winkd_id,
+                  u.display_name AS from_display_name
+           FROM contact_requests cr
+           JOIN users u ON u.id = cr.from_id
+           WHERE cr.to_id = $1 AND cr.status = 'pending'
+           ORDER BY cr.created_at ASC"#,
+    )
+    .bind(to_id)
+    .fetch_all(pool)
+    .await
+}
+
+/// Mark a contact request as accepted. Only succeeds if the request is
+/// addressed to `to_id` and is still pending.
+pub async fn accept_contact_request(
+    pool: &DbPool,
+    request_id: Uuid,
+    to_id: Uuid,
+) -> Result<ContactRequest, sqlx::Error> {
+    sqlx::query_as::<_, ContactRequest>(
+        r#"UPDATE contact_requests
+           SET status = 'accepted'
+           WHERE id = $1 AND to_id = $2 AND status = 'pending'
+           RETURNING *"#,
+    )
+    .bind(request_id)
+    .bind(to_id)
+    .fetch_one(pool)
+    .await
+}
+
 // ── ID generation ──────────────────────────────────────────────────────────
 
 /// Generate a Winkd ID (`username#XXXX`) that is not already in the DB.
