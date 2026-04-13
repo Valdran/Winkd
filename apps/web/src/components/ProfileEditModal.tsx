@@ -156,82 +156,104 @@ export function ProfileEditModal({
             <label style={{ fontSize: 11, fontWeight: 600, color: '#1a2a40', display: 'block', marginBottom: 3 }}>
               Mood Message
             </label>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'relative' }}>
-              {/* Emoji prefix button */}
-              <div ref={pickerRef} style={{ position: 'relative', flexShrink: 0 }}>
+            {/* Unified input: tap the emoji to change it, type the mood text right after */}
+            <div ref={pickerRef} style={{ position: 'relative' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: 26,
+                  borderRadius: 3,
+                  border: '1px solid rgba(100,150,220,0.5)',
+                  background: 'rgba(255,255,255,0.92)',
+                  boxShadow: 'inset 0 1px 3px rgba(0,0,60,0.08)',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Emoji — tap to open picker */}
                 <button
                   type="button"
-                  title="Pick an emoji"
+                  title="Tap to change emoji"
                   onClick={() => setShowPicker((v) => !v)}
                   style={{
-                    width: 28, height: 26,
-                    borderRadius: 3,
-                    border: '1px solid rgba(100,150,220,0.5)',
-                    background: showPicker
-                      ? 'rgba(26,90,204,0.15)'
-                      : 'rgba(255,255,255,0.85)',
+                    flexShrink: 0,
+                    width: 30,
+                    height: '100%',
+                    border: 'none',
+                    borderRight: '1px solid rgba(100,150,220,0.18)',
+                    background: showPicker ? 'rgba(26,90,204,0.08)' : 'transparent',
                     cursor: 'pointer',
-                    fontSize: moodEmoji ? 15 : 13,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: moodEmoji ? undefined : 'rgba(100,140,190,0.7)',
+                    fontSize: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0,
+                    transition: 'background 0.1s',
                   }}
                 >
-                  {moodEmoji || '😊'}
+                  {moodEmoji || '🙂'}
                 </button>
 
-                {/* Floating emoji picker */}
-                {showPicker && (
-                  <div
+                {/* Mood text — starts right after the emoji */}
+                <input
+                  type="text"
+                  value={moodText}
+                  maxLength={98}
+                  placeholder="What's on your mind…"
+                  onChange={(e) => setMoodText(e.target.value)}
+                  style={{
+                    flex: 1,
+                    height: '100%',
+                    border: 'none',
+                    background: 'transparent',
+                    padding: '0 8px',
+                    fontSize: 12,
+                    color: '#1a2a40',
+                    outline: 'none',
+                    fontFamily: 'Segoe UI, Tahoma, Geneva, sans-serif',
+                    minWidth: 0,
+                  }}
+                />
+
+                {/* Clear emoji — only when one is set */}
+                {moodEmoji && (
+                  <button
+                    type="button"
+                    title="Remove emoji"
+                    onClick={() => setMoodEmoji('')}
                     style={{
-                      position: 'absolute',
-                      top: 30, left: 0,
-                      zIndex: 10,
+                      flexShrink: 0,
+                      width: 20,
+                      height: '100%',
+                      border: 'none',
+                      borderLeft: '1px solid rgba(100,150,220,0.12)',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      fontSize: 9,
+                      color: 'rgba(100,130,180,0.6)',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                   >
-                    <EmojiPicker
-                      onSelect={(emoji) => {
-                        setMoodEmoji(emoji)
-                        setShowPicker(false)
-                      }}
-                      onClose={() => setShowPicker(false)}
-                    />
-                  </div>
+                    ✕
+                  </button>
                 )}
               </div>
 
-              {/* Mood text */}
-              <input
-                type="text"
-                value={moodText}
-                maxLength={98}
-                placeholder="What's on your mind…"
-                onChange={(e) => setMoodText(e.target.value)}
-                style={{ ...inputStyle, flex: 1, minWidth: 0 }}
-              />
-
-              {/* Clear emoji button */}
-              {moodEmoji && (
-                <button
-                  type="button"
-                  title="Remove emoji"
-                  onClick={() => setMoodEmoji('')}
-                  style={{
-                    flexShrink: 0, width: 18, height: 18, borderRadius: 3,
-                    border: '1px solid rgba(100,150,220,0.35)',
-                    background: 'rgba(200,215,240,0.6)',
-                    cursor: 'pointer', fontSize: 9,
-                    color: '#1a3a6a', padding: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  ✕
-                </button>
+              {/* Floating emoji picker */}
+              {showPicker && (
+                <div style={{ position: 'absolute', top: 30, left: 0, zIndex: 10 }}>
+                  <EmojiPicker
+                    onSelect={(emoji) => {
+                      setMoodEmoji(emoji)
+                      setShowPicker(false)
+                    }}
+                    onClose={() => setShowPicker(false)}
+                  />
+                </div>
               )}
-            </div>
-
-            {/* Preview */}
-            <div style={{ marginTop: 5, fontSize: 10, color: 'rgba(30,60,120,0.55)', fontStyle: 'italic' }}>
-              Preview: {moodEmoji ? `${moodEmoji} ${moodText.trim() || '…'}` : moodText.trim() || '(no mood)'}
             </div>
           </div>
 

@@ -179,15 +179,44 @@ export function ChatWindow({ send }: ChatWindowProps) {
       <div
         style={{
           borderTop: '1px solid rgba(255,255,255,0.09)',
-          padding: '7px 10px',
-          display: 'flex',
-          gap: 8,
-          alignItems: 'flex-end',
           background: 'rgba(255,255,255,0.025)',
           flexShrink: 0,
           position: 'relative',
         }}
       >
+        {/* Current user's own mood — updates live from authStore */}
+        <div
+          style={{
+            padding: '4px 12px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <Avatar
+            displayName={session.profile.displayName}
+            avatarData={session.profile.avatarData}
+            status={session.profile.status}
+            size={18}
+          />
+          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(200,220,255,0.55)' }}>
+            {session.profile.displayName}
+          </span>
+          {session.profile.moodMessage && (
+            <span style={{ fontSize: 10, color: 'rgba(170,200,255,0.35)', fontStyle: 'italic' }}>
+              — {session.profile.moodMessage}
+            </span>
+          )}
+        </div>
+
+        <div
+          style={{
+            padding: '5px 10px 7px',
+            display: 'flex',
+            gap: 8,
+            alignItems: 'flex-end',
+          }}
+        >
         {/* Emoji picker popup */}
         {showEmojiPicker && (
           <div
@@ -245,6 +274,7 @@ export function ChatWindow({ send }: ChatWindowProps) {
         >
           Send
         </button>
+        </div>
       </div>
 
       <StatusBar isEncrypted />
