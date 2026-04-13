@@ -20,7 +20,7 @@ futures-util = "0.3"
 # HTTP (healthcheck + REST auth endpoints)
 axum = { version = "0.7", features = ["ws"] }
 tower = "0.4"
-tower-http = { version = "0.5", features = ["cors", "trace"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
 
 # Serialisation
 serde = { version = "1", features = ["derive"] }

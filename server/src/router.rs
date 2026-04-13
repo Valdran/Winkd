@@ -4,11 +4,15 @@
 use axum::{
     extract::{State, WebSocketUpgrade},
     response::Response,
-    routing::{get, post},
+    routing::{get, get_service, post},
     Json, Router,
 };
 use serde_json::json;
-use tower_http::cors::CorsLayer;
+use tower_http::{
+    cors::CorsLayer,
+    services::{ServeDir, ServeFile},
+    trace::TraceLayer,
+};
 
 use crate::{auth, config::Config, presence::PresenceStore};
 
@@ -32,6 +36,15 @@ pub async fn build_router(config: Config) -> Router {
         .route("/api/auth/register", post(auth::register))
         // WebSocket messaging endpoint
         .route("/ws", get(ws_handler))
+        // Frontend static files (SPA)
+        .nest_service(
+            "/",
+            get_service(
+                ServeDir::new("web-dist")
+                    .not_found_service(ServeFile::new("web-dist/index.html")),
+            ),
+        )
+        .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
