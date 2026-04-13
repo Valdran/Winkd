@@ -751,8 +751,9 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
       </div>
       <div id="ac-panel-id">
         <label class="modal-label">Enter a Winkd ID</label>
-        <input class="modal-input" type="text" id="add-id-input" placeholder="e.g. cryptofox#4821">
-        <div style="font-size:10px;color:#6688aa;margin-top:-8px;margin-bottom:14px;">Ask your friend for their Winkd ID. Format is <strong>name#XXXX</strong>.</div>
+        <input class="modal-input" type="text" id="add-id-input" placeholder="e.g. cryptofox#4821" oninput="document.getElementById('add-id-error').style.display='none'">
+        <div id="add-id-error" style="display:none;font-size:10px;color:#cc3333;margin-top:-8px;margin-bottom:6px;">Please enter a valid Winkd ID in the format <strong>name#XXXX</strong> (4 digits).</div>
+        <div style="font-size:10px;color:#6688aa;margin-top:-4px;margin-bottom:14px;">Ask your friend for their Winkd ID. Format is <strong>name#XXXX</strong>.</div>
         <div class="modal-btn-row">
           <div class="modal-btn-cancel" onclick="closeModal('add-contact-modal')">Cancel</div>
           <div class="modal-btn" onclick="addContact()">Send Request</div>
@@ -1759,7 +1760,10 @@ document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('cli
 
 function addContact(){
   const v=document.getElementById('add-id-input').value.trim();if(!v)return;
-  const name=v.split('#')[0]||v;
+  const errEl=document.getElementById('add-id-error');
+  if(!/^[^#\s]+#\d{4}$/.test(v)){if(errEl)errEl.style.display='block';return;}
+  if(errEl)errEl.style.display='none';
+  const name=v.split('#')[0];
   const nc={id:Date.now(),initials:name.slice(0,2).toUpperCase(),name,mood:'New contact',status:'offline',color:'#406080',unread:0};
   contacts.push(nc);convos[nc.id]=[{type:'system',text:`Contact request sent to ${v}. Waiting for them to accept.`}];
   renderContacts();closeModal('add-contact-modal');document.getElementById('add-id-input').value='';
@@ -1787,7 +1791,7 @@ function initProfile(){
   const ncWrap=document.getElementById('name-color-swatches');
   if(ncWrap){ncWrap.innerHTML='';NAME_COLORS.forEach(col=>{const b=document.createElement('div');const isDefault=col===null;b.style.cssText=`width:20px;height:20px;border-radius:50%;background:${isDefault?'linear-gradient(135deg,#e0e8ff,#c8d8ff)':col};cursor:pointer;border:2px solid ${(col===selNameColor||(isDefault&&selNameColor===null))?'#1a2a40':'rgba(255,255,255,0.5)'};box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:transform 0.1s;flex-shrink:0;`;b.onclick=()=>{selNameColor=col;ncWrap.querySelectorAll('div').forEach(x=>x.style.borderColor='rgba(255,255,255,0.5)');b.style.borderColor='#1a2a40';if(ncPreview)ncPreview.style.background=col||'rgba(255,255,255,0.85)';};ncWrap.appendChild(b);});}
   document.getElementById('qr-winkd-id').textContent=myWinkdId;
-  drawQR(myWinkdId);
+  drawQR('winkd://add/'+encodeURIComponent(myWinkdId));
 }
 function toggleNameColorPicker(){const p=document.getElementById('name-color-picker');if(p)p.style.display=p.style.display==='none'?'block':'none';}
 function saveProfile(){
@@ -1823,14 +1827,34 @@ async function startQRScan(){
   const video=document.getElementById('qr-video'),idle=document.getElementById('qr-idle-state'),status=document.getElementById('qr-scanner-status'),startBtn=document.getElementById('qr-start-btn'),stopBtn=document.getElementById('qr-stop-btn'),scanline=document.getElementById('qr-scanline');
   try{qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});video.srcObject=qrStream;await video.play();video.style.display='block';idle.style.display='none';scanline.style.display='block';startBtn.style.display='none';stopBtn.style.display='';status.textContent='Scanning\u2026 hold steady';
     if('BarcodeDetector' in window){const bd=new BarcodeDetector({formats:['qr_code']});qrScanInterval=setInterval(async()=>{try{const codes=await bd.detect(video);if(codes.length>0){handleQRDetect(codes[0].rawValue);}}catch(e){}},400);}
-    else{qrScanInterval=setTimeout(()=>handleQRDetect('winkdfriend#7821'),3500);status.textContent='Scanning\u2026 (demo mode)';}
+    else{stopQRScan();status.textContent='QR scanning is not supported in this browser. Try uploading an image instead.';}
   }catch(err){if(err.name==='NotAllowedError'){status.textContent='Camera access denied.';}else{status.textContent='Camera not available.';}stopQRScan();}
 }
 function stopQRScan(){if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null;}if(qrScanInterval){clearInterval(qrScanInterval);clearTimeout(qrScanInterval);qrScanInterval=null;}const video=document.getElementById('qr-video');video.style.display='none';video.srcObject=null;document.getElementById('qr-idle-state').style.display='flex';document.getElementById('qr-scanline').style.display='none';document.getElementById('qr-start-btn').style.display='';document.getElementById('qr-stop-btn').style.display='none';}
-function handleQRDetect(value){stopQRScan();detectedQRValue=value;document.getElementById('qr-detected-id').textContent=value;document.getElementById('qr-result-box').style.display='block';document.getElementById('qr-scanner-status').textContent='';}
-async function handleQRFile(input){const file=input.files[0];if(!file)return;const status=document.getElementById('qr-scanner-status');if('BarcodeDetector' in window){try{const bmp=await createImageBitmap(await file.arrayBuffer().then(b=>new Blob([b],{type:file.type})));const bd=new BarcodeDetector({formats:['qr_code']});const codes=await bd.detect(bmp);if(codes.length>0){handleQRDetect(codes[0].rawValue);}else{status.textContent='No QR code found.';}}catch(e){status.textContent='Could not read image.';}}else{handleQRDetect('imagefriend#3344');}input.value='';}
+function parseWinkdQR(raw){
+  let id=raw;
+  if(id.startsWith('winkd://add/')){try{id=decodeURIComponent(id.slice('winkd://add/'.length));}catch(e){}}
+  return /^[^#\s]+#\d{4}$/.test(id)?id:null;
+}
+function handleQRDetect(value){
+  stopQRScan();
+  const winkdId=parseWinkdQR(value);
+  const status=document.getElementById('qr-scanner-status');
+  if(!winkdId){status.textContent='Invalid QR code — not a Winkd contact QR.';return;}
+  detectedQRValue=winkdId;
+  document.getElementById('qr-detected-id').textContent=winkdId;
+  document.getElementById('qr-result-box').style.display='block';
+  status.textContent='';
+}
+async function handleQRFile(input){const file=input.files[0];if(!file)return;const status=document.getElementById('qr-scanner-status');if('BarcodeDetector' in window){try{const bmp=await createImageBitmap(await file.arrayBuffer().then(b=>new Blob([b],{type:file.type})));const bd=new BarcodeDetector({formats:['qr_code']});const codes=await bd.detect(bmp);if(codes.length>0){handleQRDetect(codes[0].rawValue);}else{status.textContent='No QR code found in image.';}}catch(e){status.textContent='Could not read image.';}}else{status.textContent='QR code scanning is not supported in this browser.';}input.value='';}
 function clearQRResult(){detectedQRValue=null;document.getElementById('qr-result-box').style.display='none';}
-function addFromQR(){if(!detectedQRValue)return;const name=detectedQRValue.split('#')[0]||detectedQRValue;const nc={id:Date.now(),initials:name.slice(0,2).toUpperCase(),name,mood:'New contact',status:'offline',color:'#406080',unread:0};contacts.push(nc);convos[nc.id]=[{type:'system',text:`Contact request sent to ${detectedQRValue}.`}];renderContacts();closeModal('add-contact-modal');detectedQRValue=null;}
+function addFromQR(){
+  if(!detectedQRValue)return;
+  const name=detectedQRValue.split('#')[0];
+  const nc={id:Date.now(),initials:name.slice(0,2).toUpperCase(),name,mood:'New contact',status:'offline',color:'#406080',unread:0};
+  contacts.push(nc);convos[nc.id]=[{type:'system',text:`Contact request sent to ${detectedQRValue}. Waiting for them to accept.`}];
+  renderContacts();closeModal('add-contact-modal');detectedQRValue=null;
+}
 
 // ── INVITE LINKS ──
 let activeInviteLinks=[];
