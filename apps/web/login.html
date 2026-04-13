@@ -532,16 +532,6 @@ html,body{
     <div id="register-view" style="display:none;">
       <div class="back-link" onclick="showLogin()">← Back to sign in</div>
       <div id="reg-error" class="form-error"></div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">First name</label>
-          <input class="form-input" type="text" id="reg-first" placeholder="Charles" autocomplete="given-name">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Last name</label>
-          <input class="form-input" type="text" id="reg-last" placeholder="Optional" autocomplete="family-name">
-        </div>
-      </div>
       <div class="form-group">
         <label class="form-label">Winkd username</label>
         <div class="input-with-icon">
@@ -650,19 +640,83 @@ function showLogin(){
 // ── SESSION PERSISTENCE ──
 // Writes the session in the same format Zustand's persist middleware uses
 // (key: 'winkd-auth') so the React app picks it up automatically.
+const MOODS_2000S = [
+  "☕ brb, getting a frappuccino",
+  "🎵 avril lavigne on repeat rn",
+  "💿 sk8er boi is stuck in my head",
+  "🌟 complicated feelings rn",
+  "🍭 sugar we're going down",
+  "💔 my chemical romance era",
+  "🎮 addicted to sims 2",
+  "✨ like omg it's so fetch",
+  "🌙 sparkling like edward cullen",
+  "🎸 boulevard of broken dreams",
+  "💫 chasing pavements",
+  "🍕 pizza hut friday night!!",
+  "💾 downloading songs on emule",
+  "📼 rewatching lord of the rings again",
+  "🧟 team edward or team jacob?",
+  "🌹 twilight saga is my life",
+  "👾 my tamagotchi is judging me",
+  "📀 burning cds for the car",
+  "🎀 wearing my von dutch hat",
+  "💻 zoning out on myspace",
+  "🌺 nelly furtado vibes",
+  "⚡ wake me up when september ends",
+  "🦄 crazy in love (beyoncé forever)",
+  "🎙️ kelly clarkson was robbed",
+  "🌊 surfing the web lol",
+  "🏴‍☠️ the pirate bay was peak",
+  "📱 brt, sending a text",
+  "🧲 one step at a time",
+  "🌀 the veronicas understood me",
+  "🐱 still thinking about my tamagotchi",
+];
+
 function saveSession(token, winkdId, displayName) {
   const username = winkdId ? winkdId.split('#')[0] : 'user';
-  const name = displayName || username;
+
+  // Preserve existing profile data when the same user logs back in
+  let mood = '';
+  let avatar = null;
+  let avColor = null;
+  let nameColor = null;
+  let status = 'online';
+  let isNewAccount = true;
+
+  try {
+    const raw = localStorage.getItem('winkd-auth');
+    if (raw) {
+      const existing = JSON.parse(raw);
+      const p = existing && existing.state && existing.state.session && existing.state.session.profile;
+      if (p && p.winkdId === winkdId) {
+        mood = p.moodMessage || '';
+        avatar = p.avatarData || null;
+        avColor = p.avColor || null;
+        nameColor = p.nameColor || null;
+        status = p.status || 'online';
+        isNewAccount = false;
+      }
+    }
+  } catch(e) {}
+
+  // New accounts get a random 2000s mood
+  if (isNewAccount && !mood) {
+    mood = MOODS_2000S[Math.floor(Math.random() * MOODS_2000S.length)];
+  }
+
   const state = {
     state: {
       session: {
         token,
         profile: {
           winkdId,
-          displayName: name,
-          moodMessage: '',
-          status: 'online',
-          avatarData: null,
+          displayName: username,
+          moodMessage: mood,
+          status,
+          avatarData: avatar,
+          avColor,
+          nameColor,
           sessionToken: token,
         }
       }
@@ -910,19 +964,16 @@ function checkPasswordStrength(pw){
 }
 
 function doRegister(){
-  const first=document.getElementById('reg-first').value.trim();
-  const last=document.getElementById('reg-last').value.trim();
   const user=document.getElementById('reg-username').value.trim();
   const email=document.getElementById('reg-email').value.trim();
   const pw=document.getElementById('reg-password').value;
   const confirm=document.getElementById('reg-confirm').value;
   const err=document.getElementById('reg-error');
   err.classList.remove('show');
-  if(!first){err.textContent='Please enter your first name.';err.classList.add('show');return;}
   if(!user||user.length<3){err.textContent='Username must be at least 3 characters.';err.classList.add('show');return;}
   if(!pw||pw.length<10){err.textContent='Password must be at least 10 characters.';err.classList.add('show');return;}
   if(pw!==confirm){err.textContent='Passwords do not match.';err.classList.add('show');return;}
-  registerWithPassword(user, pw, `${first} ${last}`.trim(), email, err);
+  registerWithPassword(user, pw, user, email, err);
 }
 
 async function registerWithPassword(username, password, displayName, email, err){

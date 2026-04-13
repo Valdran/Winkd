@@ -633,6 +633,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
 <div id="app">
@@ -1686,7 +1687,7 @@ function toggleMoodEdit(){
   if(w.classList.contains('open')){w.classList.remove('open');el.style.display='';}
   else{document.getElementById('mood-input').value=el.textContent;w.classList.add('open');el.style.display='none';document.getElementById('mood-input').focus();}
 }
-function saveMood(){const v=document.getElementById('mood-input').value.trim(),el=document.getElementById('my-mood');if(v)el.textContent=v;el.style.display='';document.getElementById('mood-edit-wrap').classList.remove('open');_saveProfileToStorage();}
+function saveMood(){const v=document.getElementById('mood-input').value.trim(),el=document.getElementById('my-mood');el.textContent=v;el.style.display='';document.getElementById('mood-edit-wrap').classList.remove('open');_saveProfileToStorage(v);}
 document.getElementById('mood-input').addEventListener('keydown',e=>{if(e.key==='Enter')saveMood();if(e.key==='Escape')toggleMoodEdit();});
 
 function toggleEmoji(){
@@ -1907,33 +1908,78 @@ function saveProfile(){
   const n=document.getElementById('profile-name-input').value.trim();
   const m=document.getElementById('profile-mood-input').value.trim();
   if(n){myName=n;document.getElementById('my-name').textContent=n;}
-  if(m)document.getElementById('my-mood').textContent=m;
+  // Always update mood, including when user clears it
+  const moodEl=document.getElementById('my-mood');
+  if(moodEl)moodEl.textContent=m||'';
   myAvColor=selAvColor;myNameColor=selNameColor;
   const nameEl=document.getElementById('my-name');if(nameEl)nameEl.style.color=myNameColor||'';
   if(pendingAvatarSrc==='**remove**'){myAvatarSrc=null;}else if(pendingAvatarSrc){myAvatarSrc=pendingAvatarSrc;}
-  _saveProfileToStorage();
+  _saveProfileToStorage(m);
   applyAvatarToSidebar();closeModal('profile-modal');
 }
 function copyWinkdId(){navigator.clipboard.writeText(myWinkdId).then(()=>{const b=document.querySelector('.copy-btn'),o=b.textContent;b.textContent='✅ Copied!';setTimeout(()=>b.textContent=o,1800);}).catch(()=>{});}
-function _saveProfileToStorage(){try{const raw=localStorage.getItem('winkd-auth');if(!raw)return;const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(!p)return;p.displayName=myName;p.avColor=myAvColor;p.nameColor=myNameColor;p.avatarData=myAvatarSrc||null;p.status=myStatus;p.moodMessage=document.getElementById('my-mood')?.textContent||'';localStorage.setItem('winkd-auth',JSON.stringify(auth));}catch(e){}}
-function drawQR(text){
+function _saveProfileToStorage(moodOverride){try{const raw=localStorage.getItem('winkd-auth');if(!raw)return;const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(!p)return;p.displayName=myName;p.avColor=myAvColor;p.nameColor=myNameColor;p.avatarData=myAvatarSrc||null;p.status=myStatus;p.moodMessage=moodOverride!==undefined?moodOverride:(document.getElementById('my-mood')?.textContent||'');localStorage.setItem('winkd-auth',JSON.stringify(auth));}catch(e){}}
+function drawQR(text,_retries){
+  const retries=_retries||0;
   const canvas=document.getElementById('qr-canvas');if(!canvas)return;
-  if(typeof QRCode==='undefined'){setTimeout(()=>drawQR(text),150);return;}
-  QRCode.toCanvas(canvas,text,{width:140,margin:1,color:{dark:'#1a2a40',light:'#ffffff'}})
-    .catch(err=>console.error('QR generation failed:',err));
+  if(typeof QRCode==='undefined'){
+    if(retries<30){setTimeout(()=>drawQR(text,retries+1),200);}
+    else{const ctx=canvas.getContext('2d');if(ctx){ctx.fillStyle='#f0f4ff';ctx.fillRect(0,0,140,140);ctx.fillStyle='#8aabcc';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText('QR unavailable',70,70);ctx.fillText('Copy your ID below',70,85);}}
+    return;
+  }
+  requestAnimationFrame(()=>{
+    QRCode.toCanvas(canvas,text,{width:140,margin:1,color:{dark:'#1a2a40',light:'#ffffff'}})
+      .catch(err=>{console.error('QR generation failed:',err);const ctx=canvas.getContext('2d');if(ctx){ctx.fillStyle='#f0f4ff';ctx.fillRect(0,0,140,140);ctx.fillStyle='#8aabcc';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText('QR unavailable',70,70);}});
+  });
 }
 
 // ── QR SCANNER ──
 let qrStream=null,qrScanInterval=null,detectedQRValue=null;
+let _qrScanCanvas=null,_qrScanCtx=null;
 function initQRPanel(){document.getElementById('qr-result-box').style.display='none';document.getElementById('qr-scanner-status').textContent='Point your camera at a contact\u2019s QR code';}
 async function startQRScan(){
   const video=document.getElementById('qr-video'),idle=document.getElementById('qr-idle-state'),status=document.getElementById('qr-scanner-status'),startBtn=document.getElementById('qr-start-btn'),stopBtn=document.getElementById('qr-stop-btn'),scanline=document.getElementById('qr-scanline');
-  try{qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});video.srcObject=qrStream;await video.play();video.style.display='block';idle.style.display='none';scanline.style.display='block';startBtn.style.display='none';stopBtn.style.display='';status.textContent='Scanning\u2026 hold steady';
-    if('BarcodeDetector' in window){const bd=new BarcodeDetector({formats:['qr_code']});qrScanInterval=setInterval(async()=>{try{const codes=await bd.detect(video);if(codes.length>0){handleQRDetect(codes[0].rawValue);}}catch(e){}},400);}
-    else{stopQRScan();status.textContent='QR scanning is not supported in this browser. Try uploading an image instead.';}
-  }catch(err){if(err.name==='NotAllowedError'){status.textContent='Camera access denied.';}else{status.textContent='Camera not available.';}stopQRScan();}
+  try{
+    qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false});
+    video.srcObject=qrStream;
+    await video.play();
+    video.style.display='block';
+    idle.style.display='none';
+    scanline.style.display='block';
+    startBtn.style.display='none';
+    stopBtn.style.display='';
+    status.textContent='Scanning\u2026 hold steady';
+    // Create offscreen canvas for frame analysis
+    _qrScanCanvas=document.createElement('canvas');
+    _qrScanCtx=_qrScanCanvas.getContext('2d',{willReadFrequently:true});
+    // Primary: jsQR (works in all browsers including Safari)
+    if(typeof jsQR!=='undefined'){
+      qrScanInterval=setInterval(()=>{
+        if(video.readyState<2||video.videoWidth===0)return;
+        _qrScanCanvas.width=video.videoWidth;_qrScanCanvas.height=video.videoHeight;
+        _qrScanCtx.drawImage(video,0,0);
+        const imgData=_qrScanCtx.getImageData(0,0,_qrScanCanvas.width,_qrScanCanvas.height);
+        const result=jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'dontInvert'});
+        if(result)handleQRDetect(result.data);
+      },250);
+    }
+    // Fallback: BarcodeDetector (Chromium-only)
+    else if('BarcodeDetector' in window){
+      const bd=new BarcodeDetector({formats:['qr_code']});
+      qrScanInterval=setInterval(async()=>{try{const codes=await bd.detect(video);if(codes.length>0)handleQRDetect(codes[0].rawValue);}catch(e){}},400);
+    }
+    else{
+      // No QR decoding available but keep the camera live for the user
+      status.textContent='Live preview active. Use \u201cUpload Image\u201d to scan a QR code.';
+    }
+  }catch(err){
+    if(err.name==='NotAllowedError'){status.textContent='Camera access denied. Please allow camera access in your browser settings.';}
+    else if(err.name==='NotFoundError'){status.textContent='No camera found on this device.';}
+    else{status.textContent='Camera not available.';}
+    stopQRScan();
+  }
 }
-function stopQRScan(){if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null;}if(qrScanInterval){clearInterval(qrScanInterval);clearTimeout(qrScanInterval);qrScanInterval=null;}const video=document.getElementById('qr-video');video.style.display='none';video.srcObject=null;document.getElementById('qr-idle-state').style.display='flex';document.getElementById('qr-scanline').style.display='none';document.getElementById('qr-start-btn').style.display='';document.getElementById('qr-stop-btn').style.display='none';}
+function stopQRScan(){if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null;}if(qrScanInterval){clearInterval(qrScanInterval);qrScanInterval=null;}_qrScanCanvas=null;_qrScanCtx=null;const video=document.getElementById('qr-video');video.style.display='none';video.srcObject=null;document.getElementById('qr-idle-state').style.display='flex';document.getElementById('qr-scanline').style.display='none';document.getElementById('qr-start-btn').style.display='';document.getElementById('qr-stop-btn').style.display='none';}
 function parseWinkdQR(raw){
   let id=raw;
   if(id.startsWith('winkd://add/')){try{id=decodeURIComponent(id.slice('winkd://add/'.length));}catch(e){}}
@@ -1949,7 +1995,29 @@ function handleQRDetect(value){
   document.getElementById('qr-result-box').style.display='block';
   status.textContent='';
 }
-async function handleQRFile(input){const file=input.files[0];if(!file)return;const status=document.getElementById('qr-scanner-status');if('BarcodeDetector' in window){try{const bmp=await createImageBitmap(await file.arrayBuffer().then(b=>new Blob([b],{type:file.type})));const bd=new BarcodeDetector({formats:['qr_code']});const codes=await bd.detect(bmp);if(codes.length>0){handleQRDetect(codes[0].rawValue);}else{status.textContent='No QR code found in image.';}}catch(e){status.textContent='Could not read image.';}}else{status.textContent='QR code scanning is not supported in this browser.';}input.value='';}
+async function handleQRFile(input){
+  const file=input.files[0];if(!file)return;
+  const status=document.getElementById('qr-scanner-status');
+  status.textContent='Reading image\u2026';
+  try{
+    const bmp=await createImageBitmap(file);
+    const c=document.createElement('canvas');c.width=bmp.width;c.height=bmp.height;
+    const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(bmp,0,0);
+    const imgData=ctx.getImageData(0,0,c.width,c.height);
+    // Try jsQR first (cross-browser)
+    if(typeof jsQR!=='undefined'){
+      const result=jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'attemptBoth'});
+      if(result){handleQRDetect(result.data);}else{status.textContent='No QR code found in image.';}
+    }else if('BarcodeDetector' in window){
+      const bd=new BarcodeDetector({formats:['qr_code']});
+      const codes=await bd.detect(bmp);
+      if(codes.length>0){handleQRDetect(codes[0].rawValue);}else{status.textContent='No QR code found in image.';}
+    }else{
+      status.textContent='QR scanning not supported in this browser.';
+    }
+  }catch(e){status.textContent='Could not read image.';}
+  input.value='';
+}
 function clearQRResult(){detectedQRValue=null;document.getElementById('qr-result-box').style.display='none';}
 function addFromQR(){
   if(!detectedQRValue)return;
