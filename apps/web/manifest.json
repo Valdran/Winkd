@@ -2,7 +2,7 @@
   "name": "Winkd Messenger",
   "short_name": "Winkd",
   "description": "The messaging app with actual personality. Buddy lists, away messages, Winks, Nudges — rebuilt with end-to-end encryption.",
-  "start_url": "/index.html",
+  "start_url": "/app.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -81,7 +81,7 @@
       "name": "Open Winkd",
       "short_name": "Open",
       "description": "Open Winkd Messenger",
-      "url": "/index.html",
+      "url": "/app.html",
       "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
     }
   ],

@@ -50,6 +50,9 @@ pub struct LoginResponse {
     pub winkd_id: String,
     pub display_name: String,
     pub mood_message: String,
+    pub avatar_data: Option<String>,
+    pub display_name_color: Option<String>,
+    pub av_color: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -99,6 +102,9 @@ pub async fn login(
         winkd_id: user.winkd_id,
         display_name: user.display_name,
         mood_message: user.mood_message,
+        avatar_data: user.avatar_data,
+        display_name_color: user.display_name_color,
+        av_color: user.av_color,
     }))
 }
 
@@ -181,6 +187,9 @@ pub async fn register(
         winkd_id: user.winkd_id,
         display_name: user.display_name,
         mood_message: user.mood_message,
+        avatar_data: user.avatar_data,
+        display_name_color: user.display_name_color,
+        av_color: user.av_color,
     }))
 }
 
@@ -311,11 +320,14 @@ pub async fn oauth_callback(
 
     // Redirect to login.html which handles the hash and persists the session
     let location = format!(
-        "/login.html#oauth=success&session_token={}&winkd_id={}&display_name={}&mood_message={}",
+        "/login.html#oauth=success&session_token={}&winkd_id={}&display_name={}&mood_message={}&avatar_data={}&display_name_color={}&av_color={}",
         urlencoding::encode(&session_token),
         urlencoding::encode(&user.winkd_id),
         urlencoding::encode(&user.display_name),
         urlencoding::encode(&user.mood_message),
+        urlencoding::encode(user.avatar_data.as_deref().unwrap_or("")),
+        urlencoding::encode(user.display_name_color.as_deref().unwrap_or("")),
+        urlencoding::encode(user.av_color.as_deref().unwrap_or("")),
     );
 
     let clear_cookie = "winkd_oauth_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";

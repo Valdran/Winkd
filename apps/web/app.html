@@ -1382,6 +1382,39 @@ const MOOD_EP_CATS=[
 if(!myWinkdId)myWinkdId='user#'+String(Math.floor(Math.random()*9000)+1000);
 let selAvColor=myAvColor;
 let selNameColor=myNameColor;
+
+// ── Cross-tab profile sync ──────────────────────────────────────────────────
+// BroadcastChannel propagates profile changes to other open tabs immediately.
+// Falls back to localStorage 'storage' event for Safari < 15.4.
+let _winkdChannel=null;
+try{_winkdChannel=new BroadcastChannel('winkd-profile');}catch(e){}
+function _broadcastProfile(mood){
+  const msg={type:'profile',name:myName,mood:mood!==undefined?mood:(document.getElementById('my-mood')?.textContent||''),nameColor:myNameColor,avColor:myAvColor,avatarSrc:myAvatarSrc,status:myStatus};
+  if(_winkdChannel)try{_winkdChannel.postMessage(msg);}catch(e){}
+}
+function _applyProfileBroadcast(d){
+  if(!d||d.type!=='profile')return;
+  if(d.name!==undefined&&d.name!==myName){myName=d.name;const el=document.getElementById('my-name');if(el){el.textContent=d.name;el.style.color=d.nameColor||'';}}
+  if(d.nameColor!==undefined)myNameColor=d.nameColor;
+  if(d.avColor!==undefined)myAvColor=d.avColor;
+  if(d.avatarSrc!==undefined)myAvatarSrc=d.avatarSrc;
+  if(d.mood!==undefined){const el=document.getElementById('my-mood');if(el)el.textContent=d.mood;}
+  if(d.status!==undefined&&d.status!==myStatus){
+    myStatus=d.status;
+    ['online','away','busy','invisible'].forEach(x=>{const p=document.getElementById('pill-'+x);if(p)p.classList.toggle('active',x===d.status);});
+    const dot=document.getElementById('my-status-dot');
+    if(dot){dot.style.background=d.status==='invisible'?'transparent':SC[d.status];dot.style.border=d.status==='invisible'?'2px dashed rgba(180,200,230,0.7)':'2px solid rgba(160,200,255,0.5)';}
+    const tb=document.getElementById('tb-status-text');if(tb){const labels={online:'You are Online',away:'You are Away',busy:'You are Busy',invisible:'You appear Offline'};tb.textContent=labels[d.status]||'';}
+  }
+  applyAvatarToSidebar();
+}
+if(_winkdChannel)_winkdChannel.onmessage=function(ev){_applyProfileBroadcast(ev.data);};
+// Also listen for storage events so tabs that don't support BroadcastChannel stay in sync
+window.addEventListener('storage',function(ev){
+  if(ev.key!=='winkd-auth'||!ev.newValue)return;
+  try{const auth=JSON.parse(ev.newValue);const p=auth?.state?.session?.profile;if(p&&p.winkdId===myWinkdId)_applyProfileBroadcast({type:'profile',name:p.displayName,mood:p.moodMessage,nameColor:p.nameColor||null,avColor:p.avColor||null,avatarSrc:p.avatarData||null,status:p.status||'online'});}catch(e){}
+});
+
 let inboundRequests=[];
 let activeContact=null,msgColor=null,boldOn=false,italicOn=false,underlineOn=false,emojiOpen=false;
 // FIX: declare formatBarOpen at top level (was missing — caused ReferenceError in buildChat)
@@ -1668,7 +1701,9 @@ function setStatus(s){
   const labels={online:'You are Online',away:'You are Away',busy:'You are Busy',invisible:'You appear Offline'};
   document.getElementById('tb-status-text').textContent=labels[s]||'';
   applyAvatarToSidebar();
+  wsSend('set_status',{status:s});
   _saveProfileToStorage();
+  _broadcastProfile();
 }
 
 let pendingAvatarSrc=null;
@@ -1711,7 +1746,7 @@ function toggleMoodEdit(){
   if(w.classList.contains('open')){w.classList.remove('open');el.style.display='';}
   else{document.getElementById('mood-input').value=el.textContent;w.classList.add('open');el.style.display='none';document.getElementById('mood-input').focus();}
 }
-function saveMood(){const v=document.getElementById('mood-input').value.trim(),el=document.getElementById('my-mood');el.textContent=v;el.style.display='';document.getElementById('mood-edit-wrap').classList.remove('open');_saveProfileToStorage(v);}
+function saveMood(){const v=document.getElementById('mood-input').value.trim(),el=document.getElementById('my-mood');el.textContent=v;el.style.display='';document.getElementById('mood-edit-wrap').classList.remove('open');wsSend('set_mood',{mood:v});_saveProfileToStorage(v);_broadcastProfile(v);}
 document.getElementById('mood-input').addEventListener('keydown',e=>{if(e.key==='Enter')saveMood();if(e.key==='Escape')toggleMoodEdit();});
 
 function toggleEmoji(){
@@ -1999,7 +2034,14 @@ function saveProfile(){
   myAvColor=selAvColor;myNameColor=selNameColor;
   const nameEl=document.getElementById('my-name');if(nameEl)nameEl.style.color=myNameColor||'';
   if(pendingAvatarSrc==='**remove**'){myAvatarSrc=null;}else if(pendingAvatarSrc){myAvatarSrc=pendingAvatarSrc;}
+  // ── Persist to server ───────────────────────────────────────────────────
+  if(n)wsSend('set_display_name',{display_name:n,name_color:myNameColor||null,av_color:myAvColor||null});
+  wsSend('set_mood',{mood:m});
+  if(pendingAvatarSrc==='**remove**')wsSend('set_avatar',{avatar_data:null});
+  else if(pendingAvatarSrc)wsSend('set_avatar',{avatar_data:pendingAvatarSrc});
+  // ── Persist locally + broadcast to other tabs ────────────────────────────
   _saveProfileToStorage(m);
+  _broadcastProfile(m);
   applyAvatarToSidebar();closeModal('profile-modal');
 }
 function copyWinkdId(){navigator.clipboard.writeText(myWinkdId).then(()=>{const b=document.querySelector('.copy-btn'),o=b.textContent;b.textContent='✅ Copied!';setTimeout(()=>b.textContent=o,1800);}).catch(()=>{});}

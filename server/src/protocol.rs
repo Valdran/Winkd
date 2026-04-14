@@ -31,6 +31,8 @@ pub enum ClientCommandType {
     SetStatus,
     SetMood,
     SetDisplayName,
+    SetAvatar,
+    SetProfileStyle,
     AddContact,
     AcceptContact,
     BlockContact,

@@ -333,10 +333,35 @@ async fn handle_command(
                 Some(n) if !n.trim().is_empty() => n.trim().chars().take(64).collect::<String>(),
                 _ => return,
             };
+            let name_color = cmd.payload.get("name_color").and_then(|v| v.as_str());
+            let av_color = cmd.payload.get("av_color").and_then(|v| v.as_str());
 
-            // Persist only the display_name column — never touch mood here.
-            if let Err(e) = db::update_user_display_name(&state.db, user.id, &name).await {
+            if let Err(e) = db::update_user_display_name(
+                &state.db, user.id, &name, name_color, av_color,
+            )
+            .await
+            {
                 tracing::warn!("update display_name for {}: {e}", user.winkd_id);
+            }
+        }
+
+        // ── Set avatar ─────────────────────────────────────────────────────
+        ClientCommandType::SetAvatar => {
+            // avatar_data may be null (to remove the avatar)
+            let avatar_data = cmd.payload.get("avatar_data").and_then(|v| v.as_str());
+            if let Err(e) = db::update_user_avatar(&state.db, user.id, avatar_data).await {
+                tracing::warn!("update avatar for {}: {e}", user.winkd_id);
+            }
+        }
+
+        // ── Set profile style (colours only) ───────────────────────────────
+        ClientCommandType::SetProfileStyle => {
+            let name_color = cmd.payload.get("name_color").and_then(|v| v.as_str());
+            let av_color = cmd.payload.get("av_color").and_then(|v| v.as_str());
+            if let Err(e) =
+                db::update_user_profile_style(&state.db, user.id, name_color, av_color).await
+            {
+                tracing::warn!("update profile style for {}: {e}", user.winkd_id);
             }
         }
 

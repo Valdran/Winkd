@@ -17,6 +17,9 @@ pub struct User {
     pub winkd_id: String,
     pub display_name: String,
     pub mood_message: String,
+    pub avatar_data: Option<String>,
+    pub display_name_color: Option<String>,
+    pub av_color: Option<String>,
     pub email: Option<String>,
     pub password_hash: Option<String>,
     pub created_at: DateTime<Utc>,
@@ -89,15 +92,21 @@ pub async fn update_user_display_name(
     pool: &DbPool,
     user_id: Uuid,
     display_name: &str,
+    display_name_color: Option<&str>,
+    av_color: Option<&str>,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"UPDATE users
-           SET display_name = $2,
-               updated_at   = NOW()
+           SET display_name       = $2,
+               display_name_color = COALESCE($3, display_name_color),
+               av_color           = COALESCE($4, av_color),
+               updated_at         = NOW()
            WHERE id = $1"#,
     )
     .bind(user_id)
     .bind(display_name)
+    .bind(display_name_color)
+    .bind(av_color)
     .execute(pool)
     .await?;
     Ok(())
@@ -116,6 +125,45 @@ pub async fn update_user_mood(
     )
     .bind(user_id)
     .bind(mood_message)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn update_user_avatar(
+    pool: &DbPool,
+    user_id: Uuid,
+    avatar_data: Option<&str>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET avatar_data = $2,
+               updated_at  = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .bind(avatar_data)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn update_user_profile_style(
+    pool: &DbPool,
+    user_id: Uuid,
+    display_name_color: Option<&str>,
+    av_color: Option<&str>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET display_name_color = $2,
+               av_color           = $3,
+               updated_at         = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .bind(display_name_color)
+    .bind(av_color)
     .execute(pool)
     .await?;
     Ok(())

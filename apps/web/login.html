@@ -673,10 +673,10 @@ const MOODS_2000S = [
   "🐱 still thinking about my tamagotchi",
 ];
 
-function saveSession(token, winkdId, displayName) {
+function saveSession(token, winkdId, displayName, serverMood, serverAvatar, serverNameColor, serverAvColor) {
   const username = winkdId ? winkdId.split('#')[0] : 'user';
 
-  // Preserve existing profile data when the same user logs back in
+  // Preserve local data that the server doesn't know yet (status, colours if none stored in DB)
   let mood = '';
   let avatar = null;
   let avColor = null;
@@ -700,7 +700,13 @@ function saveSession(token, winkdId, displayName) {
     }
   } catch(e) {}
 
-  // New accounts get a random 2000s mood
+  // Server values are ground truth — override local copies when the DB has something
+  if (serverMood && serverMood.trim()) mood = serverMood;
+  if (serverAvatar && serverAvatar.trim()) avatar = serverAvatar;
+  if (serverNameColor && serverNameColor.trim()) nameColor = serverNameColor;
+  if (serverAvColor && serverAvColor.trim()) avColor = serverAvColor;
+
+  // New accounts with no server mood get a random 2000s mood
   if (isNewAccount && !mood) {
     mood = MOODS_2000S[Math.floor(Math.random() * MOODS_2000S.length)];
   }
@@ -711,7 +717,7 @@ function saveSession(token, winkdId, displayName) {
         token,
         profile: {
           winkdId,
-          displayName: username,
+          displayName,
           moodMessage: mood,
           status,
           avatarData: avatar,
@@ -829,7 +835,7 @@ async function authenticateWithPassword(username, password, err, suc){
       return;
     }
     const data = await res.json();
-    saveSession(data.session_token, data.winkd_id, data.display_name);
+    saveSession(data.session_token, data.winkd_id, data.display_name, data.mood_message, data.avatar_data, data.display_name_color, data.av_color);
     suc.textContent='Signed in successfully. Opening Winkd…';
     suc.classList.add('show');
     setTimeout(()=>window.location.href='app.html', 900);
@@ -999,7 +1005,7 @@ async function registerWithPassword(username, password, displayName, email, err)
       return;
     }
     const data = await res.json();
-    saveSession(data.session_token, data.winkd_id, data.display_name);
+    saveSession(data.session_token, data.winkd_id, data.display_name, data.mood_message, data.avatar_data, data.display_name_color, data.av_color);
     simulateSuccess('Account created. Opening Winkd…');
   }catch{
     err.textContent='Could not connect to the server.';
@@ -1043,7 +1049,13 @@ function handleOAuthCallback(){
   const displayName = params.get('display_name') || '';
   if(!token || !winkdId) return;
 
-  saveSession(token, winkdId, displayName);
+  saveSession(
+    token, winkdId, displayName,
+    params.get('mood_message') || '',
+    params.get('avatar_data') || '',
+    params.get('display_name_color') || '',
+    params.get('av_color') || ''
+  );
   window.history.replaceState({}, document.title, window.location.pathname);
   simulateSuccess('OAuth sign-in complete. Opening Winkd…');
 }
