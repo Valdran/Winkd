@@ -1,40 +1,5 @@
 # Winkd Messenger — PWA
 
-This folder is the complete Winkd Messenger Progressive Web App.
-
-## Files
-
-| File | Purpose |
-|---|---|
-| `index.html` | The entire app — all HTML, CSS, and JS in one file |
-| `manifest.json` | PWA manifest — name, icons, theme colour, display mode |
-| `sw.js` | Service worker — offline caching, push notifications, background sync |
-| `generate-icons.js` | Script to generate all icon sizes from a source PNG |
-| `icons/` | Generated icon PNGs (create with generate-icons.js) |
-
-## Getting icons
-
-1. Download the Winkd icon: `https://i.imgur.com/kmVfSzn.png`
-2. Save it as `icon-source.png` in this folder
-3. Run: `npm install sharp && node generate-icons.js`
-4. The `icons/` folder will be created with all 8 sizes
-
-## Running locally
-
-Any static file server works:
-
-```bash
-# Python
-python3 -m http.server 8080
-
-# Node (npx)
-npx serve .
-
-# VS Code
-# Install the "Live Server" extension, right-click index.html → Open with Live Server
-```
-
-Then open `http://localhost:8080` in Chrome or Edge.
 
 ## Installing as a PWA
 
