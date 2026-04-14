@@ -7,6 +7,7 @@ import { useChatStore } from '../stores/chatStore'
 import { useSocket } from '../hooks/useSocket'
 import { ContactItem } from './ContactItem'
 import { StatusBar } from './StatusBar'
+import { SecuritySettings } from './SecuritySettings'
 
 const STATUS_LABELS: Record<UserStatus, string> = {
   online: '● Online',
@@ -53,6 +54,7 @@ export function Sidebar() {
   })
   const [searchQuery, setSearchQuery] = useState('')
   const [showProfileEdit, setShowProfileEdit] = useState(false)
+  const [showSecurity, setShowSecurity] = useState(false)
 
   if (!session) return null
   const { profile } = session
@@ -93,6 +95,7 @@ export function Sidebar() {
         backdropFilter: 'blur(12px)',
         borderRight: '1px solid rgba(255,255,255,0.11)',
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
       {/* Profile area */}
@@ -235,12 +238,40 @@ export function Sidebar() {
       </div>
 
       {/* Footer */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '5px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <button
+          onClick={() => setShowSecurity(true)}
+          title="Security Settings"
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: 10,
+            color: 'rgba(180,210,255,0.7)',
+            padding: '2px 4px',
+            borderRadius: 3,
+          }}
+        >
+          🛡 Security
+        </button>
+      </div>
       <StatusBar
         isEncrypted={false}
         extra={profile.winkdId}
       />
 
-
+      {/* Security settings overlay */}
+      {showSecurity && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 100,
+          overflowY: 'auto',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+        }}>
+          <SecuritySettings onClose={() => setShowSecurity(false)} />
+        </div>
+      )}
     </div>
   )
 }

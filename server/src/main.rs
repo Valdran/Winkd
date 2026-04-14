@@ -1,6 +1,7 @@
 // ── Winkd Server ──
 // Phase 1: Axum server with PostgreSQL auth, WebSocket relay, and OAuth.
 
+mod audit;
 mod auth;
 mod config;
 mod db;
@@ -9,6 +10,7 @@ mod presence;
 mod protocol;
 mod ratelimit;
 mod router;
+mod totp;
 
 use std::net::SocketAddr;
 use tracing::info;

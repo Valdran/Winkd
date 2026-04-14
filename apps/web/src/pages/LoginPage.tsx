@@ -41,7 +41,7 @@ function pickRandomMood() {
   return MOODS_2000S[Math.floor(Math.random() * MOODS_2000S.length)]
 }
 
-type Mode = 'login' | 'register'
+type Mode = 'login' | 'register' | 'totp'
 
 const PROVIDER_LABELS: Record<string, string> = {
   discord: 'Discord',
@@ -68,6 +68,9 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [oauthProviders, setOauthProviders] = useState<string[]>([])
+  // 2FA state
+  const [challengeToken, setChallengeToken] = useState('')
+  const [totpCode, setTotpCode] = useState('')
 
   useEffect(() => {
     fetch(`${API_URL}/api/auth/oauth/providers`)
@@ -115,43 +118,76 @@ export function LoginPage() {
       }
 
       const data = (await res.json()) as {
-        session_token: string
-        winkd_id: string
-        display_name: string
-        mood_message: string
+        session_token?: string
+        totp_required?: boolean
+        challenge_token?: string
+        winkd_id?: string
+        display_name?: string
+        mood_message?: string
       }
 
-      // Preserve avatar and status from local storage when the same user logs back in.
-      // Mood and display name are now the server's ground truth.
-      let avatarData: string | null = null
-      let status: OwnProfile['status'] = 'online'
-      try {
-        const raw = localStorage.getItem('winkd-auth')
-        if (raw) {
-          const existing = JSON.parse(raw) as { state?: { session?: { profile?: OwnProfile } } }
-          const p = existing?.state?.session?.profile
-          if (p && p.winkdId === data.winkd_id) {
-            avatarData = p.avatarData ?? null
-            status = p.status ?? 'online'
-          }
-        }
-      } catch { /* ignore */ }
-
-      // Use server mood if present, otherwise fall back to a random 2000s mood for new accounts
-      const mood = data.mood_message || pickRandomMood()
-
-      const profile: OwnProfile = {
-        winkdId: data.winkd_id as `${string}#${string}`,
-        displayName: data.display_name,
-        moodMessage: mood,
-        status,
-        avatarData,
-        sessionToken: data.session_token,
+      // 2FA required — switch to TOTP entry step
+      if (data.totp_required && data.challenge_token) {
+        setChallengeToken(data.challenge_token)
+        setMode('totp')
+        setTotpCode('')
+        return
       }
 
-      login(data.session_token, profile)
+      completeLogin(data as { session_token: string; winkd_id: string; display_name: string; mood_message: string })
     } catch {
       setError('Could not connect to server. Is it running?')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const completeLogin = (data: { session_token: string; winkd_id: string; display_name: string; mood_message: string }) => {
+    let avatarData: string | null = null
+    let status: OwnProfile['status'] = 'online'
+    try {
+      const raw = localStorage.getItem('winkd-auth')
+      if (raw) {
+        const existing = JSON.parse(raw) as { state?: { session?: { profile?: OwnProfile } } }
+        const p = existing?.state?.session?.profile
+        if (p && p.winkdId === data.winkd_id) {
+          avatarData = p.avatarData ?? null
+          status = p.status ?? 'online'
+        }
+      }
+    } catch { /* ignore */ }
+
+    const mood = data.mood_message || pickRandomMood()
+    const profile: OwnProfile = {
+      winkdId: data.winkd_id as `${string}#${string}`,
+      displayName: data.display_name,
+      moodMessage: mood,
+      status,
+      avatarData,
+      sessionToken: data.session_token,
+    }
+    login(data.session_token, profile)
+  }
+
+  const handleTotpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/api/auth/totp/challenge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge_token: challengeToken, code: totpCode }),
+      })
+      if (!res.ok) {
+        setError('Invalid code. Try again or use a backup code.')
+        setTotpCode('')
+        return
+      }
+      const data = await res.json() as { session_token: string; winkd_id: string; display_name: string; mood_message: string }
+      completeLogin(data)
+    } catch {
+      setError('Could not connect to server.')
     } finally {
       setLoading(false)
     }
@@ -262,41 +298,129 @@ export function LoginPage() {
             </div>
           </div>
 
-          {/* Mode tabs */}
-          <div
-            style={{
-              display: 'flex',
-              marginBottom: 16,
-              borderBottom: '1px solid rgba(100,150,220,0.3)',
-            }}
-          >
-            {(['login', 'register'] as const).map((m) => (
+          {/* Mode tabs — hidden during TOTP step */}
+          {mode !== 'totp' && (
+            <div
+              style={{
+                display: 'flex',
+                marginBottom: 16,
+                borderBottom: '1px solid rgba(100,150,220,0.3)',
+              }}
+            >
+              {(['login', 'register'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => {
+                    setMode(m)
+                    setError('')
+                  }}
+                  style={{
+                    flex: 1,
+                    height: 28,
+                    border: 'none',
+                    background: mode === m ? 'rgba(26,90,204,0.1)' : 'transparent',
+                    borderBottom:
+                      mode === m ? '2px solid #1a5acc' : '2px solid transparent',
+                    fontWeight: mode === m ? 600 : 400,
+                    color: mode === m ? '#0a3a8a' : '#5a7a9a',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {m === 'login' ? 'Sign In' : 'Create Account'}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* ── TOTP challenge step ── */}
+          {mode === 'totp' && (
+            <form
+              onSubmit={handleTotpSubmit}
+              style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+            >
+              <div style={{ textAlign: 'center', marginBottom: 4 }}>
+                <div style={{ fontSize: 22, marginBottom: 4 }}>🔐</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0a3a8a' }}>
+                  Two-Factor Authentication
+                </div>
+                <div style={{ fontSize: 10, color: '#5a7a9a', marginTop: 3 }}>
+                  Enter the 6-digit code from your authenticator app,<br />
+                  or paste one of your backup codes.
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Code</label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  maxLength={36}
+                  placeholder="000000 or backup-code"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.replace(/\s/g, ''))}
+                  style={{ ...inputStyle, letterSpacing: '0.12em', textAlign: 'center' }}
+                />
+              </div>
+
+              {error && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: '#b03030',
+                    background: 'rgba(180,40,40,0.07)',
+                    padding: '5px 8px',
+                    borderRadius: 3,
+                    border: '1px solid rgba(180,40,40,0.2)',
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
               <button
-                key={m}
-                type="button"
-                onClick={() => {
-                  setMode(m)
-                  setError('')
-                }}
+                type="submit"
+                disabled={loading}
                 style={{
-                  flex: 1,
-                  height: 28,
-                  border: 'none',
-                  background: mode === m ? 'rgba(26,90,204,0.1)' : 'transparent',
-                  borderBottom:
-                    mode === m ? '2px solid #1a5acc' : '2px solid transparent',
-                  fontWeight: mode === m ? 600 : 400,
-                  color: mode === m ? '#0a3a8a' : '#5a7a9a',
+                  height: 30,
+                  marginTop: 2,
+                  borderRadius: 4,
+                  border: '1px solid #0a3a8a',
+                  background: loading
+                    ? 'rgba(100,140,200,0.4)'
+                    : 'linear-gradient(180deg, #2060c0 0%, #1450a0 100%)',
+                  color: loading ? 'rgba(200,220,255,0.6)' : '#fff',
+                  fontWeight: 700,
                   fontSize: 12,
-                  cursor: 'pointer',
+                  cursor: loading ? 'wait' : 'pointer',
                 }}
               >
-                {m === 'login' ? 'Sign In' : 'Create Account'}
+                {loading ? 'Verifying…' : 'Verify'}
               </button>
-            ))}
-          </div>
 
-          <form
+              <button
+                type="button"
+                onClick={() => { setMode('login'); setError(''); setChallengeToken('') }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 10,
+                  color: '#5a7a9a',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}
+              >
+                ← Back to Sign In
+              </button>
+            </form>
+          )}
+
+          {/* ── Password login / register form ── */}
+          {mode !== 'totp' && <form
             onSubmit={handleSubmit}
             style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
           >
@@ -385,10 +509,10 @@ export function LoginPage() {
                   ? 'Sign In'
                   : 'Create Account'}
             </button>
-          </form>
+          </form>}
 
           {/* OAuth buttons — shown only if providers are configured */}
-          {oauthProviders.length > 0 && (
+          {mode !== 'totp' && oauthProviders.length > 0 && (
             <div style={{ marginTop: 14 }}>
               <div
                 style={{
@@ -443,14 +567,16 @@ export function LoginPage() {
           )}
 
           {/* Full login page link */}
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <a
-              href="/login.html"
-              style={{ fontSize: 10, color: '#5a7a9a', textDecoration: 'underline' }}
-            >
-              More sign-in options →
-            </a>
-          </div>
+          {mode !== 'totp' && (
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <a
+                href="/login.html"
+                style={{ fontSize: 10, color: '#5a7a9a', textDecoration: 'underline' }}
+              >
+                More sign-in options →
+              </a>
+            </div>
+          )}
         </div>
       </div>
     </div>

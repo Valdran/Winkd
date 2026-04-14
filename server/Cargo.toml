@@ -31,8 +31,15 @@ argon2 = "0.5"
 rand = "0.8"
 uuid = { version = "1", features = ["v4", "serde"] }
 
+# TOTP (2FA) — RFC 6238 / RFC 4226
+hmac = "0.12"
+sha1 = "0.10"
+sha2 = "0.10"
+data-encoding = "2"
+hex = "0.4"
+
 # Database
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate", "json"] }
 
 # Redis (presence, ephemeral sessions)
 redis = { version = "0.26", features = ["tokio-comp"] }

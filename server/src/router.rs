@@ -59,15 +59,28 @@ pub async fn build_router(config: Config, db: DbPool) -> Router {
     Router::new()
         // Health
         .route("/health", get(health))
-        // Auth
+        // Auth — password + OAuth
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/register", post(auth::register))
         .route("/api/auth/oauth/providers", get(auth::oauth_providers))
         .route("/api/auth/oauth/:provider/start", get(auth::oauth_start))
-        .route(
-            "/api/auth/oauth/:provider/callback",
-            get(auth::oauth_callback),
-        )
+        .route("/api/auth/oauth/:provider/callback", get(auth::oauth_callback))
+        // Auth — 2FA / TOTP
+        .route("/api/auth/totp/challenge", post(auth::totp_challenge))
+        .route("/api/auth/totp/setup", post(auth::totp_setup))
+        .route("/api/auth/totp/confirm", post(auth::totp_confirm))
+        .route("/api/auth/totp/disable", post(auth::totp_disable))
+        // Auth — recovery codes
+        .route("/api/auth/recovery-codes", get(auth::recovery_codes_status))
+        .route("/api/auth/recovery-codes/generate", post(auth::recovery_codes_generate))
+        // Devices
+        .route("/api/devices", get(auth::list_devices))
+        .route("/api/devices/:device_id", axum::routing::delete(auth::revoke_device))
+        // Pre-key bundles (Signal Protocol X3DH)
+        .route("/api/keys/bundle", post(auth::upload_pre_key_bundle))
+        .route("/api/keys/bundle/:winkd_id", get(auth::fetch_pre_key_bundle))
+        // Audit log (authenticated user's own events)
+        .route("/api/security/audit-log", get(auth::get_audit_log))
         // WebSocket messaging endpoint (token sent as first message, NOT in URL)
         .route("/ws", get(ws_handler))
         // Root: serve landing page
