@@ -13,6 +13,7 @@ pub enum AppError {
     Conflict(String),
     NotFound(String),
     Internal(String),
+    TooManyRequests,
 }
 
 impl IntoResponse for AppError {
@@ -22,6 +23,7 @@ impl IntoResponse for AppError {
             AppError::Conflict(msg) => (StatusCode::CONFLICT, msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::TooManyRequests => (StatusCode::TOO_MANY_REQUESTS, "Too many requests — please slow down".into()),
         };
         (status, Json(json!({ "error": message }))).into_response()
     }

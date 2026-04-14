@@ -7,6 +7,7 @@ mod db;
 mod error;
 mod presence;
 mod protocol;
+mod ratelimit;
 mod router;
 
 use std::net::SocketAddr;

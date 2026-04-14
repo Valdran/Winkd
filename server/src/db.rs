@@ -225,15 +225,51 @@ pub async fn link_oauth_account(
 
 // ── Sessions ───────────────────────────────────────────────────────────────
 
+/// Generate a cryptographically random 256-bit (32-byte) session token as lowercase hex.
+/// This is significantly stronger than UUID v4 (122-bit) and avoids any UUID library RNG concerns.
+fn new_session_token() -> String {
+    use rand::RngCore;
+    let mut bytes = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
 /// Create a session and return its opaque token.
 pub async fn create_session(pool: &DbPool, user_id: Uuid) -> Result<String, sqlx::Error> {
-    let token = Uuid::new_v4().to_string();
+    let token = new_session_token();
     sqlx::query("INSERT INTO sessions (user_id, token) VALUES ($1, $2)")
         .bind(user_id)
         .bind(&token)
         .execute(pool)
         .await?;
     Ok(token)
+}
+
+/// Invalidate a specific session token (logout / forced expiry).
+pub async fn delete_session(pool: &DbPool, token: &str) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM sessions WHERE token = $1")
+        .bind(token)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+/// Rotate a session: atomically delete the old token and create a fresh one.
+/// Returns the new token on success.
+pub async fn rotate_session(pool: &DbPool, old_token: &str, user_id: Uuid) -> Result<String, sqlx::Error> {
+    let new_token = new_session_token();
+    let mut tx = pool.begin().await?;
+    sqlx::query("DELETE FROM sessions WHERE token = $1")
+        .bind(old_token)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("INSERT INTO sessions (user_id, token) VALUES ($1, $2)")
+        .bind(user_id)
+        .bind(&new_token)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(new_token)
 }
 
 /// Validate a session token and return the associated user (None if expired/missing).

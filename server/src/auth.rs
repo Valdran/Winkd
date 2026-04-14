@@ -11,7 +11,7 @@ use std::{
 
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
-    Argon2,
+    Algorithm, Argon2, Params, Version,
 };
 use axum::{
     extract::{Path, Query, State},
@@ -26,7 +26,7 @@ use oauth2::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{db, error::AppError, router::AppState};
+use crate::{db, error::AppError, ratelimit::extract_ip, router::AppState};
 
 // ── Request / Response types ───────────────────────────────────────────────
 
@@ -63,9 +63,15 @@ pub struct OAuthProvidersResponse {
 // ── Login ──────────────────────────────────────────────────────────────────
 
 pub async fn login(
+    headers: HeaderMap,
     State(state): State<AppState>,
     Json(body): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, AppError> {
+    // Rate-limit by client IP: 10 attempts per minute.
+    if !state.login_limiter.check(extract_ip(&headers)).await {
+        return Err(AppError::TooManyRequests);
+    }
+
     let input = body.username.trim();
     if input.is_empty() || body.password.is_empty() {
         return Err(AppError::Unauthorized);
@@ -89,7 +95,8 @@ pub async fn login(
     // OAuth-only accounts have no password hash — reject password login attempts.
     let hash = user.password_hash.as_deref().ok_or(AppError::Unauthorized)?;
     let parsed = PasswordHash::new(hash).map_err(|_| AppError::Unauthorized)?;
-    Argon2::default()
+    make_argon2()
+        .map_err(|e| AppError::Internal(format!("Argon2 init: {e}")))?
         .verify_password(body.password.as_bytes(), &parsed)
         .map_err(|_| AppError::Unauthorized)?;
 
@@ -111,9 +118,15 @@ pub async fn login(
 // ── Register ───────────────────────────────────────────────────────────────
 
 pub async fn register(
+    headers: HeaderMap,
     State(state): State<AppState>,
     Json(body): Json<RegisterRequest>,
 ) -> Result<Json<LoginResponse>, AppError> {
+    // Rate-limit by client IP: 5 registrations per minute.
+    if !state.register_limiter.check(extract_ip(&headers)).await {
+        return Err(AppError::TooManyRequests);
+    }
+
     let username = sanitize_id_part(body.username.trim());
 
     if username.len() < 3 {
@@ -121,11 +134,8 @@ pub async fn register(
             "Username must be at least 3 characters".into(),
         ));
     }
-    if body.password.len() < 10 {
-        return Err(AppError::Internal(
-            "Password must be at least 10 characters".into(),
-        ));
-    }
+
+    validate_password(&body.password)?;
 
     let pool = &state.db;
 
@@ -154,9 +164,10 @@ pub async fn register(
         }
     }
 
-    // Hash password with Argon2
+    // Hash password with Argon2id (128 MB memory, 4 iterations)
     let salt = SaltString::generate(&mut OsRng);
-    let hash = Argon2::default()
+    let hash = make_argon2()
+        .map_err(|e| AppError::Internal(format!("Argon2 init: {e}")))?
         .hash_password(body.password.as_bytes(), &salt)
         .map_err(|e| AppError::Internal(format!("Password hashing failed: {e}")))?
         .to_string();
@@ -244,7 +255,7 @@ pub async fn oauth_start(Path(provider): Path<String>) -> Result<Response, AppEr
     );
 
     let set_cookie = format!(
-        "winkd_oauth_state={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600",
+        "winkd_oauth_state={}; Path=/; HttpOnly; SameSite=Strict; Max-Age=600",
         urlencoding::encode(&cookie_val)
     );
 
@@ -330,7 +341,7 @@ pub async fn oauth_callback(
         urlencoding::encode(user.av_color.as_deref().unwrap_or("")),
     );
 
-    let clear_cookie = "winkd_oauth_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
+    let clear_cookie = "winkd_oauth_state=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0";
     let mut response = Redirect::to(&location).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
@@ -905,4 +916,35 @@ pub fn sanitize_id_part(input: &str) -> String {
 
 fn env_var_first(keys: &[&str]) -> Option<String> {
     keys.iter().find_map(|key| env::var(key).ok())
+}
+
+// ── Argon2 factory ─────────────────────────────────────────────────────────
+// 128 MB memory (m=131072), 4 iterations (t=4), 4 parallel lanes (p=4).
+// Substantially stronger than the library defaults (64 MB / 3 iterations).
+
+fn make_argon2() -> Result<Argon2<'static>, argon2::password_hash::Error> {
+    let params = Params::new(131_072, 4, 4, None)
+        .map_err(|_| argon2::password_hash::Error::Algorithm)?;
+    Ok(Argon2::new(Algorithm::Argon2id, Version::V0x13, params))
+}
+
+// ── Password policy ────────────────────────────────────────────────────────
+// Minimum 12 characters, must include uppercase, lowercase, and a digit.
+// This keeps the check fast and dependency-free while enforcing meaningful entropy.
+
+fn validate_password(password: &str) -> Result<(), AppError> {
+    if password.len() < 12 {
+        return Err(AppError::Internal(
+            "Password must be at least 12 characters".into(),
+        ));
+    }
+    let has_upper = password.chars().any(|c| c.is_uppercase());
+    let has_lower = password.chars().any(|c| c.is_lowercase());
+    let has_digit = password.chars().any(|c| c.is_ascii_digit());
+    if !has_upper || !has_lower || !has_digit {
+        return Err(AppError::Internal(
+            "Password must contain at least one uppercase letter, one lowercase letter, and one digit".into(),
+        ));
+    }
+    Ok(())
 }
