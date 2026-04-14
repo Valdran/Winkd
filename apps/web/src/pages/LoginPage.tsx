@@ -4,43 +4,6 @@ import type { OwnProfile } from '@winkd/types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
-const MOODS_2000S = [
-  "☕ brb, getting a frappuccino",
-  "🎵 avril lavigne on repeat rn",
-  "💿 sk8er boi is stuck in my head",
-  "🌟 complicated feelings rn",
-  "🍭 sugar we're going down",
-  "💔 my chemical romance era",
-  "🎮 addicted to sims 2",
-  "✨ like omg it's so fetch",
-  "🌙 sparkling like edward cullen",
-  "🎸 boulevard of broken dreams",
-  "💫 chasing pavements",
-  "🍕 pizza hut friday night!!",
-  "💾 downloading songs on emule",
-  "📼 rewatching lord of the rings again",
-  "🧟 team edward or team jacob?",
-  "🌹 twilight saga is my life",
-  "👾 my tamagotchi is judging me",
-  "📀 burning cds for the car",
-  "🎀 wearing my von dutch hat",
-  "💻 zoning out on myspace",
-  "🌺 nelly furtado vibes",
-  "⚡ wake me up when september ends",
-  "🦄 crazy in love (beyoncé forever)",
-  "🎙️ kelly clarkson was robbed",
-  "🌊 surfing the web lol",
-  "🏴‍☠️ the pirate bay was peak",
-  "📱 brt, sending a text",
-  "🧲 one step at a time",
-  "🌀 the veronicas understood me",
-  "🐱 still thinking about my tamagotchi",
-]
-
-function pickRandomMood() {
-  return MOODS_2000S[Math.floor(Math.random() * MOODS_2000S.length)]
-}
-
 type Mode = 'login' | 'register' | 'totp'
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -124,6 +87,7 @@ export function LoginPage() {
         winkd_id?: string
         display_name?: string
         mood_message?: string
+        avatar_data?: string | null
       }
 
       // 2FA required — switch to TOTP entry step
@@ -134,7 +98,15 @@ export function LoginPage() {
         return
       }
 
-      completeLogin(data as { session_token: string; winkd_id: string; display_name: string; mood_message: string })
+      completeLogin(
+        data as {
+          session_token: string
+          winkd_id: string
+          display_name: string
+          mood_message: string
+          avatar_data?: string | null
+        },
+      )
     } catch {
       setError('Could not connect to server. Is it running?')
     } finally {
@@ -142,7 +114,13 @@ export function LoginPage() {
     }
   }
 
-  const completeLogin = (data: { session_token: string; winkd_id: string; display_name: string; mood_message: string }) => {
+  const completeLogin = (data: {
+    session_token: string
+    winkd_id: string
+    display_name: string
+    mood_message: string
+    avatar_data?: string | null
+  }) => {
     let avatarData: string | null = null
     let status: OwnProfile['status'] = 'online'
     try {
@@ -157,7 +135,8 @@ export function LoginPage() {
       }
     } catch { /* ignore */ }
 
-    const mood = data.mood_message || pickRandomMood()
+    const mood = data.mood_message || ''
+    avatarData = data.avatar_data ?? avatarData
     const profile: OwnProfile = {
       winkdId: data.winkd_id as `${string}#${string}`,
       displayName: data.display_name,
@@ -184,7 +163,13 @@ export function LoginPage() {
         setTotpCode('')
         return
       }
-      const data = await res.json() as { session_token: string; winkd_id: string; display_name: string; mood_message: string }
+      const data = await res.json() as {
+        session_token: string
+        winkd_id: string
+        display_name: string
+        mood_message: string
+        avatar_data?: string | null
+      }
       completeLogin(data)
     } catch {
       setError('Could not connect to server.')

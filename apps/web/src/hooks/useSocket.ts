@@ -61,7 +61,18 @@ export function useSocket() {
         }
 
         if (envelope.event === 'message') {
-          const msg = envelope.payload as Message
+          const raw = (envelope.payload ?? {}) as Record<string, unknown>
+          const msg = {
+            id: String(raw.id ?? ''),
+            conversationId: String(raw.conversationId ?? raw.conversation_id ?? ''),
+            senderId: String(raw.senderId ?? raw.sender_id ?? ''),
+            type: String(raw.type ?? ''),
+            body: typeof raw.body === 'string' ? raw.body : undefined,
+            sentAt: String(raw.sentAt ?? raw.sent_at ?? new Date().toISOString()),
+            delivered: Boolean(raw.delivered),
+            read: Boolean(raw.read),
+          } as Message
+          if (!msg.id || !msg.conversationId || !msg.senderId) return
           receiveMessage(msg)
           if (
             msg.senderId !== session.profile.winkdId &&
