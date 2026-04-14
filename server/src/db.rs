@@ -566,7 +566,7 @@ pub async fn consume_recovery_code(
 
 // ── Devices ────────────────────────────────────────────────────────────────
 
-#[derive(sqlx::FromRow, Clone, Debug)]
+#[derive(sqlx::FromRow, Clone, Debug, serde::Serialize)]
 pub struct Device {
     pub id: Uuid,
     pub user_id: Uuid,
