@@ -144,6 +144,8 @@ export function useSocket() {
         } else if (envelope.event === 'contact_unblocked') {
           const payload = envelope.payload as { user_id: string }
           removeBlockedUser(payload.user_id)
+        } else if (envelope.event === 'contact_request_sent') {
+          // server confirmed the outgoing request was recorded; UI updated optimistically
         }
       } catch {
         // ignore malformed server messages
