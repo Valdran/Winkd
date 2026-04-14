@@ -551,7 +551,7 @@ html,body{
         <label class="form-label">Password</label>
         <div class="input-with-icon">
           <span class="input-icon">🔑</span>
-          <input class="form-input" type="password" id="reg-password" placeholder="At least 10 characters" oninput="checkPasswordStrength(this.value)">
+          <input class="form-input" type="password" id="reg-password" placeholder="At least 12 characters (Aa1…)" oninput="checkPasswordStrength(this.value)">
         </div>
         <div id="pw-strength-bar" style="height:3px;border-radius:2px;margin-top:5px;background:#e0e8f0;overflow:hidden;">
           <div id="pw-strength-fill" style="height:100%;width:0%;transition:width 0.3s,background 0.3s;border-radius:2px;"></div>
@@ -977,7 +977,12 @@ function doRegister(){
   const err=document.getElementById('reg-error');
   err.classList.remove('show');
   if(!user||user.length<3){err.textContent='Username must be at least 3 characters.';err.classList.add('show');return;}
-  if(!pw||pw.length<10){err.textContent='Password must be at least 10 characters.';err.classList.add('show');return;}
+  if(!pw||pw.length<12){err.textContent='Password must be at least 12 characters.';err.classList.add('show');return;}
+  if(!/[A-Z]/.test(pw) || !/[a-z]/.test(pw) || !/[0-9]/.test(pw)){
+    err.textContent='Password must include uppercase, lowercase, and a number.';
+    err.classList.add('show');
+    return;
+  }
   if(pw!==confirm){err.textContent='Passwords do not match.';err.classList.add('show');return;}
   registerWithPassword(user, pw, user, email, err);
 }
@@ -1014,13 +1019,30 @@ async function registerWithPassword(username, password, displayName, email, err)
 }
 
 // ── FORGOT PASSWORD ──
-function doForgot(){
+async function doForgot(){
   const email=document.getElementById('forgot-email').value.trim();
   const err=document.getElementById('forgot-error');
   const suc=document.getElementById('forgot-success');
   err.classList.remove('show');suc.classList.remove('show');
   if(!email||!email.includes('@')){err.textContent='Please enter a valid email address.';err.classList.add('show');return;}
-  suc.textContent=`Reset link sent to ${email}. Check your inbox.`;suc.classList.add('show');
+  try{
+    const res = await fetch('/api/auth/password-reset/request', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email }),
+    });
+    if(!res.ok){
+      const data = await res.json().catch(()=>({}));
+      err.textContent = data.error || 'Could not send reset email. Please try again.';
+      err.classList.add('show');
+      return;
+    }
+    suc.textContent=`If an account exists for ${email}, a reset link has been sent.`;
+    suc.classList.add('show');
+  }catch{
+    err.textContent='Could not connect to the server.';
+    err.classList.add('show');
+  }
 }
 
 // ── SIMULATE SUCCESS (demo) ──

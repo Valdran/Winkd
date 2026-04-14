@@ -46,6 +46,11 @@ pub struct RegisterRequest {
     pub email: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub struct PasswordResetRequest {
+    pub email: String,
+}
+
 #[derive(Serialize)]
 pub struct LoginResponse {
     pub session_token: String,
@@ -248,6 +253,36 @@ pub async fn register(
         display_name_color: user.display_name_color,
         av_color: user.av_color,
     }))
+}
+
+// ── Password reset request ────────────────────────────────────────────────
+
+pub async fn password_reset_request(
+    State(state): State<AppState>,
+    Json(body): Json<PasswordResetRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let email = body.email.trim();
+    if email.is_empty() || !email.contains('@') {
+        return Err(AppError::Internal("Please enter a valid email address".into()));
+    }
+
+    let normalized = email.to_lowercase();
+    let user = db::find_user_by_email(&state.db, &normalized)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    if let Some(u) = user {
+        // TODO: wire SMTP / provider-backed transactional email delivery.
+        tracing::info!("Password reset requested for {} ({})", u.winkd_id, normalized);
+    } else {
+        tracing::info!("Password reset requested for unknown email {}", normalized);
+    }
+
+    // Always return success to avoid account enumeration.
+    Ok(Json(serde_json::json!({
+        "ok": true,
+        "message": "If the account exists, a reset email will be sent."
+    })))
 }
 
 // ── OAuth providers list ───────────────────────────────────────────────────

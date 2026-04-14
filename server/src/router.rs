@@ -62,6 +62,7 @@ pub async fn build_router(config: Config, db: DbPool) -> Router {
         // Auth — password + OAuth
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/register", post(auth::register))
+        .route("/api/auth/password-reset/request", post(auth::password_reset_request))
         .route("/api/auth/oauth/providers", get(auth::oauth_providers))
         .route("/api/auth/oauth/:provider/start", get(auth::oauth_start))
         .route("/api/auth/oauth/:provider/callback", get(auth::oauth_callback))
