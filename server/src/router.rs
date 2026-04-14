@@ -275,9 +275,22 @@ async fn handle_command(
     match cmd.command {
         // ── Add contact ────────────────────────────────────────────────────
         ClientCommandType::AddContact => {
-            let target_id = match cmd.payload.get("winkd_id").and_then(|v| v.as_str()) {
-                Some(id) if !id.is_empty() => id.to_string(),
-                _ => return,
+            let target_id = cmd
+                .payload
+                .get("winkd_id")
+                .or_else(|| cmd.payload.get("winkdId"))
+                .or_else(|| cmd.payload.get("target_winkd_id"))
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .filter(|id| !id.is_empty())
+                .map(str::to_string);
+
+            let Some(target_id) = target_id else {
+                send_err(
+                    tx,
+                    "Missing Winkd ID. Please enter an ID like friend#1234 and try again.",
+                );
+                return;
             };
 
             if target_id == user.winkd_id {
