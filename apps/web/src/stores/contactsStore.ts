@@ -16,67 +16,12 @@ export interface BlockedUser {
   blockedAt: string
 }
 
-const DEMO_CONTACTS: Contact[] = [
-  {
-    id: 'neon#4821',
-    winkdId: 'neon#4821' as `${string}#${string}`,
-    displayName: 'neonpulse',
-    moodMessage: '☕ vibing rn',
-    status: 'online',
-    avatarData: null,
-    requestStatus: 'accepted',
-    unreadCount: 0,
-    lastMessageAt: null,
-  },
-  {
-    id: 'pixel#0042',
-    winkdId: 'pixel#0042' as `${string}#${string}`,
-    displayName: 'pixelcat',
-    moodMessage: 'working on stuff',
-    status: 'away',
-    avatarData: null,
-    requestStatus: 'accepted',
-    unreadCount: 2,
-    lastMessageAt: null,
-  },
-  {
-    id: 'void#1337',
-    winkdId: 'void#1337' as `${string}#${string}`,
-    displayName: 'voidwalker',
-    moodMessage: '😴 do not disturb',
-    status: 'busy',
-    avatarData: null,
-    requestStatus: 'accepted',
-    unreadCount: 0,
-    lastMessageAt: null,
-  },
-  {
-    id: 'echo#2222',
-    winkdId: 'echo#2222' as `${string}#${string}`,
-    displayName: 'echo_chamber',
-    moodMessage: 'back later',
-    status: 'online',
-    avatarData: null,
-    requestStatus: 'accepted',
-    unreadCount: 0,
-    lastMessageAt: null,
-  },
-  {
-    id: 'crystal#9999',
-    winkdId: 'crystal#9999' as `${string}#${string}`,
-    displayName: 'crystal_clear',
-    moodMessage: '',
-    status: 'invisible',
-    avatarData: null,
-    requestStatus: 'accepted',
-    unreadCount: 0,
-    lastMessageAt: null,
-  },
-]
+const DEMO_CONTACTS: Contact[] = []
 
 interface ContactsState {
   contacts: Contact[]
   setContacts: (contacts: Contact[]) => void
+  removeContact: (id: string) => void
   updateContact: (id: string, partial: Partial<Contact>) => void
   updateContactStatus: (id: string, status: UserStatus) => void
   addAcceptedContact: (contact: Contact) => void
@@ -97,6 +42,8 @@ export const useContactsStore = create<ContactsState>((set) => ({
   contacts: DEMO_CONTACTS,
 
   setContacts: (contacts) => set({ contacts }),
+  removeContact: (id) =>
+    set((s) => ({ contacts: s.contacts.filter((c) => c.id !== id) })),
 
   updateContact: (id, partial) =>
     set((s) => ({
@@ -121,7 +68,7 @@ export const useContactsStore = create<ContactsState>((set) => ({
       return { contacts: [...s.contacts, contact] }
     }),
 
-  unreadCounts: { 'pixel#0042': 2 },
+  unreadCounts: {},
 
   incrementUnread: (id) =>
     set((s) => ({

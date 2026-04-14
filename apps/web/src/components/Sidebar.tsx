@@ -59,6 +59,7 @@ export function Sidebar() {
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [showSecurity, setShowSecurity] = useState(false)
   const [showBlockedUsers, setShowBlockedUsers] = useState(false)
+  const [showPendingModal, setShowPendingModal] = useState(false)
   const [showAddContact, setShowAddContact] = useState(false)
   const [addContactInput, setAddContactInput] = useState('')
   const [addContactError, setAddContactError] = useState('')
@@ -395,65 +396,25 @@ export function Sidebar() {
           ⛔ Blocked
         </button>
       </div>
-      {/* Inbound contact requests — inline above +Add Contact */}
+      {/* Inbound contact requests entry point */}
       {pendingInvitations.length > 0 && (
         <div style={{ padding: '5px 8px 0', flexShrink: 0, borderTop: '1px solid rgba(255,220,150,0.2)' }}>
-          <div style={{
-            fontSize: 9,
-            fontWeight: 700,
-            color: 'rgba(255,210,120,0.75)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.6px',
-            marginBottom: 5,
-          }}>
-            Contact Requests ({pendingInvitations.length})
-          </div>
-          {pendingInvitations.map((invitation) => (
-            <div key={invitation.requestId} style={{
-              background: 'rgba(255,240,185,0.07)',
-              border: '1px solid rgba(255,220,150,0.2)',
+          <button
+            onClick={() => setShowPendingModal(true)}
+            style={{
+              width: '100%',
+              height: 24,
               borderRadius: 6,
-              padding: '6px 7px',
-              marginBottom: 5,
-            }}>
-              <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 5 }}>
-                <Avatar
-                  displayName={invitation.fromDisplayName}
-                  avatarData={invitation.fromAvatarData}
-                  status="invisible"
-                  size={26}
-                />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ color: '#f0f7ff', fontWeight: 700, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {invitation.fromDisplayName}
-                  </div>
-                  <div style={{ color: 'rgba(205,225,255,0.65)', fontSize: 9 }}>
-                    {invitation.fromWinkdId}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button
-                  onClick={() => handleApprove(invitation.requestId)}
-                  style={{ flex: 1, height: 22, borderRadius: 4, border: '1px solid rgba(120,220,140,0.65)', background: 'rgba(80,180,110,0.28)', color: '#cfffda', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Accept
-                </button>
-                <button
-                  onClick={() => handleReject(invitation.requestId)}
-                  style={{ flex: 1, height: 22, borderRadius: 4, border: '1px solid rgba(255,210,120,0.55)', background: 'rgba(200,150,60,0.22)', color: '#ffe8c0', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Reject
-                </button>
-                <button
-                  onClick={() => handleBlock(invitation.requestId)}
-                  style={{ flex: 1, height: 22, borderRadius: 4, border: '1px solid rgba(255,110,110,0.6)', background: 'rgba(180,65,65,0.28)', color: '#ffd0d0', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Block
-                </button>
-              </div>
-            </div>
-          ))}
+              border: '1px solid rgba(255,210,120,0.55)',
+              background: 'rgba(255,180,80,0.2)',
+              color: '#ffe8c0',
+              fontSize: 10,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {pendingInvitations.length} Pending Invitation{pendingInvitations.length > 1 ? 's' : ''}
+          </button>
         </div>
       )}
       <div style={{ padding: '5px 8px', flexShrink: 0 }}>
@@ -650,6 +611,84 @@ export function Sidebar() {
             <div style={{ padding: 10, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
               <button
                 onClick={() => setShowBlockedUsers(false)}
+                style={{
+                  width: '100%',
+                  height: 28,
+                  borderRadius: 6,
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: 'rgba(255,255,255,0.08)',
+                  color: '#dcecff',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPendingModal && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 120,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(0,0,0,0.45)',
+          padding: 10,
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: 360,
+            maxHeight: '80%',
+            background: 'linear-gradient(180deg, rgba(25,65,145,0.96) 0%, rgba(12,35,92,0.98) 100%)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            borderRadius: 10,
+            boxShadow: '0 12px 40px rgba(0,0,0,0.55)',
+            overflow: 'hidden',
+          }}>
+            <div style={{ padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.15)', fontSize: 12, fontWeight: 700, color: '#eef6ff' }}>
+              Pending Invitations ({pendingInvitations.length})
+            </div>
+            <div style={{ padding: 10, overflowY: 'auto', maxHeight: 320 }}>
+              {pendingInvitations.map((invitation) => (
+                <div key={invitation.requestId} style={{
+                  background: 'rgba(255,240,185,0.07)',
+                  border: '1px solid rgba(255,220,150,0.2)',
+                  borderRadius: 8,
+                  padding: 8,
+                  marginBottom: 8,
+                }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    <Avatar
+                      displayName={invitation.fromDisplayName}
+                      avatarData={invitation.fromAvatarData}
+                      status="invisible"
+                      size={30}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: '#f0f7ff', fontWeight: 700, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {invitation.fromDisplayName}
+                      </div>
+                      <div style={{ color: 'rgba(205,225,255,0.8)', fontSize: 10 }}>
+                        {invitation.fromWinkdId}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={() => handleApprove(invitation.requestId)} style={{ flex: 1, height: 24, borderRadius: 5, border: '1px solid rgba(120,220,140,0.65)', background: 'rgba(80,180,110,0.28)', color: '#cfffda', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Accept</button>
+                    <button onClick={() => handleReject(invitation.requestId)} style={{ flex: 1, height: 24, borderRadius: 5, border: '1px solid rgba(255,210,120,0.55)', background: 'rgba(200,150,60,0.22)', color: '#ffe8c0', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Deny</button>
+                    <button onClick={() => handleBlock(invitation.requestId)} style={{ flex: 1, height: 24, borderRadius: 5, border: '1px solid rgba(255,110,110,0.6)', background: 'rgba(180,65,65,0.28)', color: '#ffd0d0', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Block</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: 10, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+              <button
+                onClick={() => setShowPendingModal(false)}
                 style={{
                   width: '100%',
                   height: 28,

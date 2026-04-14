@@ -222,6 +222,29 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
         .await;
 
     // Flush any pending inbound contact requests that arrived while offline.
+    if let Ok(contacts) = db::list_contact_roster(&state.db, user.id).await {
+        let payload = contacts
+            .iter()
+            .map(|c| {
+                json!({
+                    "winkd_id": c.winkd_id,
+                    "display_name": c.display_name,
+                    "avatar_data": c.avatar_data,
+                    "mood_message": c.mood_message,
+                    "request_status": c.request_status,
+                })
+            })
+            .collect::<Vec<_>>();
+        let _ = chan_tx.send(
+            json!({
+                "event": "contacts_snapshot",
+                "payload": { "contacts": payload }
+            })
+            .to_string(),
+        );
+    }
+
+    // Flush any pending inbound contact requests that arrived while offline.
     if let Ok(pending) = db::list_pending_inbound(&state.db, user.id).await {
         for req in pending {
             let event = json!({
@@ -508,6 +531,56 @@ async fn handle_command(
                         "winkd_id": req.from_winkd_id.clone(),
                         "display_name": req.from_display_name.clone(),
                         "avatar_data": req.from_avatar_data.clone(),
+                        "blocked_at": chrono::Utc::now(),
+                    }
+                })
+                .to_string(),
+            );
+        }
+
+        // ── Block a user by Winkd ID (from an active chat/contact) ───────
+        ClientCommandType::BlockUser => {
+            let target_winkd_id = match cmd.payload.get("winkd_id").and_then(|v| v.as_str()) {
+                Some(s) => s.trim(),
+                None => return,
+            };
+
+            if target_winkd_id == user.winkd_id {
+                send_err(tx, "You cannot block yourself.");
+                return;
+            }
+
+            let target = match db::find_user_by_winkd_id(&state.db, target_winkd_id).await {
+                Ok(Some(u)) => u,
+                Ok(None) => {
+                    send_err(tx, "User not found.");
+                    return;
+                }
+                Err(e) => {
+                    tracing::warn!("find_user_by_winkd_id error on block_user: {e}");
+                    send_err(tx, "Could not block user.");
+                    return;
+                }
+            };
+
+            if let Err(e) = db::create_block(&state.db, user.id, target.id).await {
+                tracing::warn!("create_block error on block_user: {e}");
+                send_err(tx, "Could not block user.");
+                return;
+            }
+
+            if let Err(e) = db::clear_pending_contact_requests_between(&state.db, user.id, target.id).await {
+                tracing::warn!("clear_pending_contact_requests_between on block_user: {e}");
+            }
+
+            let _ = tx.send(
+                json!({
+                    "event": "contact_blocked",
+                    "payload": {
+                        "user_id": target.id,
+                        "winkd_id": target.winkd_id,
+                        "display_name": target.display_name,
+                        "avatar_data": target.avatar_data,
                         "blocked_at": chrono::Utc::now(),
                     }
                 })
