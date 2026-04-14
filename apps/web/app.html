@@ -1339,28 +1339,8 @@ function epInit(){
 // ══════════════════════════════════════════
 // APP CORE
 // ══════════════════════════════════════════
-const contacts=[
-  {id:1,initials:'CF',name:'CryptoFox', mood:'☕ vibing rn',        status:'online', color:'#5858c8',unread:2},
-  {id:2,initials:'GW',name:'ghostwitch', mood:'✨ lurking as usual', status:'online', color:'#305830',unread:0},
-  {id:3,initials:'RV',name:'ravenvoice', mood:'🎧 in the zone',      status:'online', color:'#583058',unread:0},
-  {id:4,initials:'NX',name:'n1ghtx',     mood:'🌙 moon hours',       status:'online', color:'#604828',unread:0},
-  {id:5,initials:'SK',name:'sk8r_boi99', mood:'🎮 brb dinner',       status:'away',   color:'#806020',unread:0},
-  {id:6,initials:'DM',name:'d4rkm0de',   mood:'😴 zzzzzz',           status:'away',   color:'#402080',unread:0},
-  {id:7,initials:'SH',name:'shadowhex',  mood:'Last seen 2 hrs ago', status:'offline',color:'#505050',unread:0},
-];
-const convos={
-  1:[
-    {from:'them',text:"the buddy list is sending me back to 2003. i didn't know how much i missed this",time:'9:41 PM'},
-    {from:'me',  text:"right?? and it's actually encrypted this time lol",time:'9:42 PM'},
-    {from:'them',text:'my status says "☕ vibing rn" and i have never felt more understood by software',time:'9:43 PM'},
-    {type:'winkd',from:'them',time:'9:43 PM'},
-    {from:'me',  text:'I AM RIGHT HERE. stop. 😂',time:'9:43 PM'},
-    {from:'them',text:'never',time:'9:44 PM'},
-  ],
-  2:[{from:'them',text:'✨ just vibing in the shadows',time:'8:10 PM'},{from:'me',text:'classic ghostwitch energy',time:'8:11 PM'},{from:'them',text:'you know it',time:'8:12 PM'}],
-  3:[{from:'them',text:'🎧 new track dropped, check it later',time:'7:48 PM'},{from:'me',text:'sending it now',time:'7:49 PM'},{from:'them',text:'this is actually insane',time:'7:50 PM'}],
-  4:[],5:[],6:[],7:[],
-};
+const contacts=[];
+const convos={};
 const SC={online:'#00cc00',away:'#ffaa00',busy:'#dd2020',offline:'#aaaaaa',invisible:'#aaaaaa'};
 const STATUS_GRAD={online:['#70ff90','#00aa30'],away:['#ffe060','#cc8000'],busy:['#ff7070','#cc0000'],offline:['#cccccc','#888888'],invisible:['#d8d8d8','#aaaaaa']};
 
@@ -1369,7 +1349,6 @@ function myAvBg(){return avBg(myAvColor,dk(myAvColor),myStatus||'online');}
 const AV_COLORS=['#5858c8','#305830','#583058','#604828','#806020','#402080','#2a6060','#8a3030','#305878','#6a4820','#3a6030','#6030a8'];
 const NAME_COLORS=[null,'#ffffff','#a8d4ff','#ffd8a8','#b8ffb8','#ffa8d0','#d8b8ff','#ffffa0','#ff9090','#90ffee','#ffbb70','#b0b0ff'];
 const REACT_EMOJIS=['👍','❤️','😂','😮','😢','🔥','🎉','💀','✨','😍','🤯','👏'];
-const REPLIES=["lol yeah exactly","wait seriously??","ok that's actually really good","brb two secs","no way 😂","this whole thing is so good","ok i'm obsessed","the winkd feature is carrying","you're so right tbh","💀💀💀"];
 
 // Load identity and full profile from the session written by login.html
 let myName='You';
@@ -1564,7 +1543,6 @@ function buildChat(c){
   if(formatBarOpen){const fb=document.getElementById('format-bar');if(fb)fb.classList.add('open');const ft=document.getElementById('format-tbtn');if(ft)ft.classList.add('tbtn-format-active');}
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
   inp.addEventListener('input',()=>{inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,100)+'px';});
-  if(c.status==='online'&&(convos[c.id]||[]).length>0)setTimeout(()=>fakeTyping(c),2800);
   initDpResize();
   scaleDpFrames();
   repositionEmojiPicker();
@@ -1619,16 +1597,37 @@ function doShake(){const m=document.getElementById('main');m.classList.remove('s
 function sendMsg(){
   const inp=document.getElementById('chat-input');if(!inp||!activeContact)return;
   const t=inp.value.trim();if(!t)return;
-  const m={from:'me',text:t,time:ts(),color:msgColor,bold:boldOn,italic:italicOn,underline:underlineOn,font:msgFont!=="'Segoe UI',Tahoma,sans-serif"?msgFont:null};
-  if(!convos[activeContact])convos[activeContact]=[];
-  convos[activeContact].push(m);addMsg(m,null,true);
-  inp.value='';inp.style.height='auto';sb();closeEmoji();
+  const payload={
+    conversationId:activeContact,
+    kind:'text',
+    text:t,
+    time:ts(),
+    color:msgColor,
+    bold:boldOn,
+    italic:italicOn,
+    underline:underlineOn,
+    font:msgFont!=="'Segoe UI',Tahoma,sans-serif"?msgFont:null,
+  };
+  if(!wsSend('send_message',payload)){
+    showToast('Not connected. Message not sent.','error');
+    return;
+  }
+  inp.value='';inp.style.height='auto';closeEmoji();
   playMsgSentSound();
-  const c=contacts.find(x=>x.id===activeContact);
-  if(c&&c.status==='online')setTimeout(()=>fakeReply(c),1200+Math.random()*1800);
 }
-function sendWinkd(){if(!activeContact)return;const c=contacts.find(x=>x.id===activeContact);const m={type:'winkd',from:'me',time:ts()};convos[activeContact].push(m);addMsg(m,c,true);doShake();playWinkdSound();sb();}
-function sendNudge(){if(!activeContact)return;const c=contacts.find(x=>x.id===activeContact);const m={type:'nudge',from:'me',time:ts()};convos[activeContact].push(m);addMsg(m,c,true);playNudgeSound();sb();}
+function sendWinkd(){
+  if(!activeContact)return;
+  const payload={conversationId:activeContact,kind:'winkd',time:ts()};
+  if(!wsSend('send_winkd',payload)){showToast('Not connected. Winkd not sent.','error');return;}
+  doShake();
+  playWinkdSound();
+}
+function sendNudge(){
+  if(!activeContact)return;
+  const payload={conversationId:activeContact,kind:'nudge',time:ts()};
+  if(!wsSend('send_nudge',payload)){showToast('Not connected. Nudge not sent.','error');return;}
+  playNudgeSound();
+}
 
 const WINK_PACKS=[
   {emoji:'✨',label:'Sparkle',particles:['⭐','💫','🌟','✨','⚡'],colors:['#fffbe0','#ffe080','#fff0a0']},
@@ -1645,6 +1644,7 @@ function sendWink(){
   if(!activeContact)return;
   const pack=WINK_PACKS[Math.floor(Math.random()*WINK_PACKS.length)];
   showWinkOverlay(pack,true);
+  wsSend('send_wink',{conversationId:activeContact,kind:'wink',emoji:pack.emoji,label:pack.label,time:ts()});
   const msgs=document.getElementById('chat-messages');
   if(msgs){const el=document.createElement('div');el.className='winkd-event';el.style.cssText='background:linear-gradient(to bottom,#e8d8ff,#c8b0f0);border-color:rgba(140,80,220,0.6);color:#3a0080;';el.textContent=`${pack.emoji} You sent a ${pack.label} Wink!`;msgs.appendChild(el);sb();}
 }
@@ -1700,14 +1700,8 @@ function pickColor(){
 }
 function changeFont(v){msgFont=v;const i=document.getElementById('chat-input');if(i)i.style.fontFamily=v;}
 
-function fakeTyping(c){const i=document.getElementById('typing-ind');if(!i)return;i.textContent=`${c.name} is typing…`;setTimeout(()=>{if(i)i.textContent='';},2400);}
-function fakeReply(c){
-  if(activeContact!==c.id)return;
-  const t=REPLIES[Math.floor(Math.random()*REPLIES.length)];
-  const m={from:'them',text:t,time:ts()};convos[c.id].push(m);addMsg(m,c,true);sb();
-  playMsgRecvSound();
-  if(Math.random()<0.12)setTimeout(()=>{const w={type:'winkd',from:'them',time:ts()};convos[c.id].push(w);addMsg(w,c,true);sb();},700);
-}
+function fakeTyping(){/* bots removed */}
+function fakeReply(){/* bots removed */}
 
 function setStatus(s){
   myStatus=s;
@@ -1864,7 +1858,11 @@ function wsConnect(){
 }
 
 function wsSend(command,payload){
-  if(ws?.readyState===WebSocket.OPEN&&wsAuthenticated)ws.send(JSON.stringify({command,payload}));
+  if(ws?.readyState===WebSocket.OPEN&&wsAuthenticated){
+    ws.send(JSON.stringify({command,payload}));
+    return true;
+  }
+  return false;
 }
 
 function handleServerEvent(event,payload){
@@ -1878,7 +1876,48 @@ function handleServerEvent(event,payload){
     case 'contact_blocked':      handleContactBlocked(payload);break;
     case 'blocked_list':         handleBlockedList(payload);break;
     case 'contact_unblocked':    handleContactUnblocked(payload);break;
+    case 'message':              handleRelayedMessage(payload);break;
     case 'error':                showToast(payload?.message||'Something went wrong.','error');break;
+  }
+}
+
+function handleRelayedMessage(payload){
+  const conversationId=payload?.conversationId||payload?.conversation_id;
+  const senderId=payload?.senderId||payload?.sender_id;
+  if(!conversationId||!senderId)return;
+  const contact=contacts.find(x=>x.id===conversationId);
+  if(!contact)return;
+
+  if(!convos[conversationId])convos[conversationId]=[];
+  const fromMe=senderId===myWinkdId;
+  const kind=payload?.kind||'text';
+  const msgTime=payload?.time||ts();
+
+  let message;
+  if(kind==='winkd')message={type:'winkd',from:fromMe?'me':'them',time:msgTime};
+  else if(kind==='nudge')message={type:'nudge',from:fromMe?'me':'them',time:msgTime};
+  else if(kind==='wink')message={type:'system',text:fromMe?'✨ You sent a Wink!':`✨ ${contact.name} sent you a Wink!`};
+  else message={
+    from:fromMe?'me':'them',
+    text:payload?.text||'',
+    time:msgTime,
+    color:payload?.color||null,
+    bold:!!payload?.bold,
+    italic:!!payload?.italic,
+    underline:!!payload?.underline,
+    font:payload?.font||null,
+  };
+
+  convos[conversationId].push(message);
+
+  if(activeContact===conversationId){
+    addMsg(message,contact,!fromMe);
+    sb();
+    if(!fromMe)playMsgRecvSound();
+  }else if(!fromMe){
+    contact.unread=(contact.unread||0)+1;
+    renderContacts(document.getElementById('search-input')?.value||'');
+    showToast(`New message from ${contact.name}`,'info');
   }
 }
 
