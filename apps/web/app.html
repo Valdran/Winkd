@@ -1817,7 +1817,7 @@ function renderReactions(msgId){
 }
 
 // ── WEBSOCKET ──
-let ws=null,wsReconnectDelay=2000;
+let ws=null,wsReconnectDelay=2000,wsAuthenticated=false;
 
 function wsGetToken(){
   try{const auth=JSON.parse(localStorage.getItem('winkd-auth')||'{}');return auth?.state?.session?.token||'';}
@@ -1827,15 +1827,28 @@ function wsGetToken(){
 function wsConnect(){
   const token=wsGetToken();if(!token)return;
   const proto=location.protocol==='https:'?'wss':'ws';
-  ws=new WebSocket(`${proto}://${location.host}/ws?token=${encodeURIComponent(token)}`);
-  ws.onopen=()=>{wsReconnectDelay=2000;};
-  ws.onmessage=e=>{try{const m=JSON.parse(e.data);handleServerEvent(m.event,m.payload);}catch{}};
-  ws.onclose=()=>{ws=null;setTimeout(wsConnect,wsReconnectDelay);wsReconnectDelay=Math.min(wsReconnectDelay*2,30000);};
+  wsAuthenticated=false;
+  ws=new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen=()=>{
+    wsReconnectDelay=2000;
+    ws.send(JSON.stringify({type:'auth',token}));
+  };
+  ws.onmessage=e=>{
+    try{
+      const m=JSON.parse(e.data);
+      if(!wsAuthenticated){
+        if(m.type==='auth_ok'){wsAuthenticated=true;}
+        return;
+      }
+      handleServerEvent(m.event,m.payload);
+    }catch{}
+  };
+  ws.onclose=()=>{ws=null;wsAuthenticated=false;setTimeout(wsConnect,wsReconnectDelay);wsReconnectDelay=Math.min(wsReconnectDelay*2,30000);};
   ws.onerror=()=>{if(ws)ws.close();};
 }
 
 function wsSend(command,payload){
-  if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({command,payload}));
+  if(ws?.readyState===WebSocket.OPEN&&wsAuthenticated)ws.send(JSON.stringify({command,payload}));
 }
 
 function handleServerEvent(event,payload){
