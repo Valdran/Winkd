@@ -62,10 +62,16 @@ pub async fn build_router(config: Config, db: DbPool) -> Router {
         // Auth — password + OAuth
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/register", post(auth::register))
-        .route("/api/auth/password-reset/request", post(auth::password_reset_request))
+        .route(
+            "/api/auth/password-reset/request",
+            post(auth::password_reset_request),
+        )
         .route("/api/auth/oauth/providers", get(auth::oauth_providers))
         .route("/api/auth/oauth/:provider/start", get(auth::oauth_start))
-        .route("/api/auth/oauth/:provider/callback", get(auth::oauth_callback))
+        .route(
+            "/api/auth/oauth/:provider/callback",
+            get(auth::oauth_callback),
+        )
         // Auth — 2FA / TOTP
         .route("/api/auth/totp/challenge", post(auth::totp_challenge))
         .route("/api/auth/totp/setup", post(auth::totp_setup))
@@ -73,19 +79,31 @@ pub async fn build_router(config: Config, db: DbPool) -> Router {
         .route("/api/auth/totp/disable", post(auth::totp_disable))
         // Auth — recovery codes
         .route("/api/auth/recovery-codes", get(auth::recovery_codes_status))
-        .route("/api/auth/recovery-codes/generate", post(auth::recovery_codes_generate))
+        .route(
+            "/api/auth/recovery-codes/generate",
+            post(auth::recovery_codes_generate),
+        )
         // Devices
         .route("/api/devices", get(auth::list_devices))
-        .route("/api/devices/:device_id", axum::routing::delete(auth::revoke_device))
+        .route(
+            "/api/devices/:device_id",
+            axum::routing::delete(auth::revoke_device),
+        )
         // Pre-key bundles (Signal Protocol X3DH)
         .route("/api/keys/bundle", post(auth::upload_pre_key_bundle))
-        .route("/api/keys/bundle/:winkd_id", get(auth::fetch_pre_key_bundle))
+        .route(
+            "/api/keys/bundle/:winkd_id",
+            get(auth::fetch_pre_key_bundle),
+        )
         // Audit log (authenticated user's own events)
         .route("/api/security/audit-log", get(auth::get_audit_log))
         // WebSocket messaging endpoint (token sent as first message, NOT in URL)
         .route("/ws", get(ws_handler))
         // Root: serve landing page
-        .route_service("/", get_service(ServeFile::new("web-dist/winkd_website.html")))
+        .route_service(
+            "/",
+            get_service(ServeFile::new("web-dist/winkd_website.html")),
+        )
         // Frontend static files
         .fallback_service(get_service(
             ServeDir::new("web-dist")
@@ -116,10 +134,7 @@ async fn health(State(state): State<AppState>) -> Json<serde_json::Value> {
 // The server replies with { "type": "auth_ok" } and then enters the normal
 // message loop, or closes with code 4001 if auth fails / times out.
 
-async fn ws_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<AppState>,
-) -> Response {
+async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
     ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
@@ -137,35 +152,33 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
 
     // ── Step 1: Authenticate — must receive auth message within 5 seconds ──
     let user = match timeout(Duration::from_secs(5), ws_rx.next()).await {
-        Ok(Some(Ok(Message::Text(text)))) => {
-            match serde_json::from_str::<WsAuthMessage>(&text) {
-                Ok(auth) if auth.msg_type == "auth" => {
-                    match db::find_user_by_session(&state.db, &auth.token).await {
-                        Ok(Some(u)) => u,
-                        _ => {
-                            let _ = ws_tx
-                                .send(Message::Close(Some(axum::extract::ws::CloseFrame {
-                                    code: 4001,
-                                    reason: "Unauthorized".into(),
-                                })))
-                                .await;
-                            tracing::warn!("WS rejected: invalid or expired session token");
-                            return;
-                        }
+        Ok(Some(Ok(Message::Text(text)))) => match serde_json::from_str::<WsAuthMessage>(&text) {
+            Ok(auth) if auth.msg_type == "auth" => {
+                match db::find_user_by_session(&state.db, &auth.token).await {
+                    Ok(Some(u)) => u,
+                    _ => {
+                        let _ = ws_tx
+                            .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                                code: 4001,
+                                reason: "Unauthorized".into(),
+                            })))
+                            .await;
+                        tracing::warn!("WS rejected: invalid or expired session token");
+                        return;
                     }
                 }
-                _ => {
-                    let _ = ws_tx
-                        .send(Message::Close(Some(axum::extract::ws::CloseFrame {
-                            code: 4001,
-                            reason: "Expected auth message".into(),
-                        })))
-                        .await;
-                    tracing::warn!("WS rejected: first message was not a valid auth frame");
-                    return;
-                }
             }
-        }
+            _ => {
+                let _ = ws_tx
+                    .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                        code: 4001,
+                        reason: "Expected auth message".into(),
+                    })))
+                    .await;
+                tracing::warn!("WS rejected: first message was not a valid auth frame");
+                return;
+            }
+        },
         _ => {
             let _ = ws_tx
                 .send(Message::Close(Some(axum::extract::ws::CloseFrame {
@@ -217,6 +230,7 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
                     "request_id": req.request_id,
                     "from_winkd_id": req.from_winkd_id,
                     "from_display_name": req.from_display_name,
+                    "from_avatar_data": req.from_avatar_data,
                 }
             });
             let _ = chan_tx.send(event.to_string());
@@ -273,6 +287,19 @@ async fn handle_command(
 
             match db::find_user_by_winkd_id(&state.db, &target_id).await {
                 Ok(Some(target)) => {
+                    match db::is_blocked_between(&state.db, user.id, target.id).await {
+                        Ok(true) => {
+                            send_err(tx, "Contact request could not be sent.");
+                            return;
+                        }
+                        Ok(false) => {}
+                        Err(e) => {
+                            tracing::warn!("is_blocked_between error: {e}");
+                            send_err(tx, "Server error. Please try again.");
+                            return;
+                        }
+                    }
+
                     match db::create_contact_request(&state.db, user.id, target.id).await {
                         Ok(req) => {
                             // Acknowledge the sender.
@@ -295,6 +322,7 @@ async fn handle_command(
                                     "request_id": req.id,
                                     "from_winkd_id": user.winkd_id,
                                     "from_display_name": user.display_name,
+                                    "from_avatar_data": user.avatar_data.clone(),
                                 }
                             })
                             .to_string();
@@ -383,6 +411,154 @@ async fn handle_command(
             }
         }
 
+        // ── Reject contact ─────────────────────────────────────────────────
+        ClientCommandType::RejectContact => {
+            let request_id_str = match cmd.payload.get("request_id").and_then(|v| v.as_str()) {
+                Some(s) => s.to_string(),
+                None => return,
+            };
+            let request_id = match Uuid::parse_str(&request_id_str) {
+                Ok(id) => id,
+                Err(_) => {
+                    send_err(tx, "Invalid request ID.");
+                    return;
+                }
+            };
+
+            match db::reject_contact_request(&state.db, request_id, user.id).await {
+                Ok(req) => {
+                    let _ = tx.send(
+                        json!({
+                            "event": "contact_request_rejected",
+                            "payload": { "request_id": req.id }
+                        })
+                        .to_string(),
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!("reject_contact_request error: {e}");
+                    send_err(tx, "Could not reject contact request.");
+                }
+            }
+        }
+
+        // ── Block contact ──────────────────────────────────────────────────
+        ClientCommandType::BlockContact => {
+            let request_id_str = match cmd.payload.get("request_id").and_then(|v| v.as_str()) {
+                Some(s) => s.to_string(),
+                None => return,
+            };
+            let request_id = match Uuid::parse_str(&request_id_str) {
+                Ok(id) => id,
+                Err(_) => {
+                    send_err(tx, "Invalid request ID.");
+                    return;
+                }
+            };
+
+            let pending = match db::list_pending_inbound(&state.db, user.id).await {
+                Ok(list) => list,
+                Err(e) => {
+                    tracing::warn!("list_pending_inbound error before block: {e}");
+                    send_err(tx, "Could not block user.");
+                    return;
+                }
+            };
+            let Some(req) = pending.iter().find(|r| r.request_id == request_id) else {
+                send_err(tx, "Contact request not found.");
+                return;
+            };
+
+            if let Err(e) = db::create_block(&state.db, user.id, req.from_user_id).await {
+                tracing::warn!("create_block error: {e}");
+                send_err(tx, "Could not block user.");
+                return;
+            }
+
+            if let Err(e) =
+                db::clear_pending_contact_requests_between(&state.db, user.id, req.from_user_id)
+                    .await
+            {
+                tracing::warn!("clear_pending_contact_requests_between error: {e}");
+            }
+
+            let _ = tx.send(
+                json!({
+                    "event": "contact_blocked",
+                    "payload": {
+                        "request_id": request_id,
+                        "user_id": req.from_user_id,
+                        "winkd_id": req.from_winkd_id.clone(),
+                        "display_name": req.from_display_name.clone(),
+                        "avatar_data": req.from_avatar_data.clone(),
+                        "blocked_at": chrono::Utc::now(),
+                    }
+                })
+                .to_string(),
+            );
+        }
+
+        // ── Unblock contact ────────────────────────────────────────────────
+        ClientCommandType::UnblockContact => {
+            let user_id_str = match cmd.payload.get("user_id").and_then(|v| v.as_str()) {
+                Some(s) => s.to_string(),
+                None => return,
+            };
+            let blocked_id = match Uuid::parse_str(&user_id_str) {
+                Ok(id) => id,
+                Err(_) => {
+                    send_err(tx, "Invalid user ID.");
+                    return;
+                }
+            };
+
+            match db::remove_block(&state.db, user.id, blocked_id).await {
+                Ok(()) => {
+                    let _ = tx.send(
+                        json!({
+                            "event": "contact_unblocked",
+                            "payload": { "user_id": blocked_id }
+                        })
+                        .to_string(),
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!("remove_block error: {e}");
+                    send_err(tx, "Could not unblock user.");
+                }
+            }
+        }
+
+        // ── List blocked users ─────────────────────────────────────────────
+        ClientCommandType::ListBlocked => match db::list_blocked_users(&state.db, user.id).await {
+            Ok(users) => {
+                let payload = users
+                    .iter()
+                    .map(|u| {
+                        json!({
+                            "user_id": u.user_id,
+                            "winkd_id": u.winkd_id,
+                            "display_name": u.display_name,
+                            "avatar_data": u.avatar_data,
+                            "blocked_at": u.blocked_at,
+                        })
+                    })
+                    .collect::<Vec<_>>();
+
+                let _ = tx.send(
+                    json!({
+                        "event": "blocked_list",
+                        "payload": { "users": payload }
+                    })
+                    .to_string(),
+                );
+            }
+            Err(e) => {
+                tracing::warn!("list_blocked_users error: {e}");
+                send_err(tx, "Could not list blocked users.");
+            }
+        },
+
         // ── Set mood ───────────────────────────────────────────────────────
         ClientCommandType::SetMood => {
             let mood = match cmd.payload.get("mood").and_then(|v| v.as_str()) {
@@ -409,10 +585,8 @@ async fn handle_command(
             let name_color = cmd.payload.get("name_color").and_then(|v| v.as_str());
             let av_color = cmd.payload.get("av_color").and_then(|v| v.as_str());
 
-            if let Err(e) = db::update_user_display_name(
-                &state.db, user.id, &name, name_color, av_color,
-            )
-            .await
+            if let Err(e) =
+                db::update_user_display_name(&state.db, user.id, &name, name_color, av_color).await
             {
                 tracing::warn!("update display_name for {}: {e}", user.winkd_id);
             }

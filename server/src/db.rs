@@ -258,7 +258,11 @@ pub async fn delete_session(pool: &DbPool, token: &str) -> Result<(), sqlx::Erro
 
 /// Rotate a session: atomically delete the old token and create a fresh one.
 /// Returns the new token on success.
-pub async fn rotate_session(pool: &DbPool, old_token: &str, user_id: Uuid) -> Result<String, sqlx::Error> {
+pub async fn rotate_session(
+    pool: &DbPool,
+    old_token: &str,
+    user_id: Uuid,
+) -> Result<String, sqlx::Error> {
     let new_token = new_session_token();
     let mut tx = pool.begin().await?;
     sqlx::query("DELETE FROM sessions WHERE token = $1")
@@ -275,10 +279,7 @@ pub async fn rotate_session(pool: &DbPool, old_token: &str, user_id: Uuid) -> Re
 }
 
 /// Validate a session token and return the associated user (None if expired/missing).
-pub async fn find_user_by_session(
-    pool: &DbPool,
-    token: &str,
-) -> Result<Option<User>, sqlx::Error> {
+pub async fn find_user_by_session(pool: &DbPool, token: &str) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>(
         r#"SELECT u.* FROM users u
            JOIN sessions s ON s.user_id = u.id
@@ -304,8 +305,19 @@ pub struct ContactRequest {
 #[derive(sqlx::FromRow, Clone, Debug)]
 pub struct PendingContactRequest {
     pub request_id: Uuid,
+    pub from_user_id: Uuid,
     pub from_winkd_id: String,
     pub from_display_name: String,
+    pub from_avatar_data: Option<String>,
+}
+
+#[derive(sqlx::FromRow, Clone, Debug)]
+pub struct BlockedUser {
+    pub user_id: Uuid,
+    pub winkd_id: String,
+    pub display_name: String,
+    pub avatar_data: Option<String>,
+    pub blocked_at: DateTime<Utc>,
 }
 
 pub async fn find_user_by_id(pool: &DbPool, id: Uuid) -> Result<Option<User>, sqlx::Error> {
@@ -351,8 +363,10 @@ pub async fn list_pending_inbound(
 ) -> Result<Vec<PendingContactRequest>, sqlx::Error> {
     sqlx::query_as::<_, PendingContactRequest>(
         r#"SELECT cr.id       AS request_id,
+                  u.id        AS from_user_id,
                   u.winkd_id  AS from_winkd_id,
-                  u.display_name AS from_display_name
+                  u.display_name AS from_display_name,
+                  u.avatar_data AS from_avatar_data
            FROM contact_requests cr
            JOIN users u ON u.id = cr.from_id
            WHERE cr.to_id = $1 AND cr.status = 'pending'
@@ -382,6 +396,110 @@ pub async fn accept_contact_request(
     .await
 }
 
+pub async fn reject_contact_request(
+    pool: &DbPool,
+    request_id: Uuid,
+    to_id: Uuid,
+) -> Result<ContactRequest, sqlx::Error> {
+    sqlx::query_as::<_, ContactRequest>(
+        r#"UPDATE contact_requests
+           SET status = 'rejected'
+           WHERE id = $1 AND to_id = $2 AND status = 'pending'
+           RETURNING *"#,
+    )
+    .bind(request_id)
+    .bind(to_id)
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn is_blocked_between(
+    pool: &DbPool,
+    user_a: Uuid,
+    user_b: Uuid,
+) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar(
+        r#"SELECT EXISTS(
+            SELECT 1
+            FROM blocks
+            WHERE (blocker_id = $1 AND blocked_id = $2)
+               OR (blocker_id = $2 AND blocked_id = $1)
+        )"#,
+    )
+    .bind(user_a)
+    .bind(user_b)
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn create_block(
+    pool: &DbPool,
+    blocker_id: Uuid,
+    blocked_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"INSERT INTO blocks (blocker_id, blocked_id)
+           VALUES ($1, $2)
+           ON CONFLICT (blocker_id, blocked_id) DO NOTHING"#,
+    )
+    .bind(blocker_id)
+    .bind(blocked_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn remove_block(
+    pool: &DbPool,
+    blocker_id: Uuid,
+    blocked_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM blocks WHERE blocker_id = $1 AND blocked_id = $2")
+        .bind(blocker_id)
+        .bind(blocked_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn clear_pending_contact_requests_between(
+    pool: &DbPool,
+    user_a: Uuid,
+    user_b: Uuid,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE contact_requests
+           SET status = 'rejected'
+           WHERE status = 'pending'
+             AND ((from_id = $1 AND to_id = $2) OR (from_id = $2 AND to_id = $1))"#,
+    )
+    .bind(user_a)
+    .bind(user_b)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn list_blocked_users(
+    pool: &DbPool,
+    blocker_id: Uuid,
+) -> Result<Vec<BlockedUser>, sqlx::Error> {
+    sqlx::query_as::<_, BlockedUser>(
+        r#"SELECT u.id AS user_id,
+                  u.winkd_id,
+                  u.display_name,
+                  u.avatar_data,
+                  b.created_at AS blocked_at
+           FROM blocks b
+           JOIN users u ON u.id = b.blocked_id
+           WHERE b.blocker_id = $1
+           ORDER BY b.created_at DESC"#,
+    )
+    .bind(blocker_id)
+    .fetch_all(pool)
+    .await
+}
+
 // ── ID generation ──────────────────────────────────────────────────────────
 
 /// Generate a Winkd ID (`username#XXXX`) that is not already in the DB.
@@ -399,7 +517,11 @@ pub async fn unique_winkd_id(pool: &DbPool, base: &str) -> Result<String, sqlx::
         }
     }
     // Extremely unlikely to reach here; use a uuid fragment as a last resort.
-    Ok(format!("{}#{}", base, &Uuid::new_v4().simple().to_string()[..4]))
+    Ok(format!(
+        "{}#{}",
+        base,
+        &Uuid::new_v4().simple().to_string()[..4]
+    ))
 }
 
 /// Find an unused username derived from `base` by appending numbers as needed.
@@ -413,7 +535,11 @@ pub async fn unique_username(pool: &DbPool, base: &str) -> Result<String, sqlx::
             return Ok(candidate);
         }
     }
-    Ok(format!("{}{}", base, &Uuid::new_v4().simple().to_string()[..4]))
+    Ok(format!(
+        "{}{}",
+        base,
+        &Uuid::new_v4().simple().to_string()[..4]
+    ))
 }
 
 // ── TOTP ───────────────────────────────────────────────────────────────────
@@ -425,13 +551,11 @@ pub async fn set_totp_secret(
     user_id: Uuid,
     secret: &str,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        "UPDATE users SET totp_secret = $2, updated_at = NOW() WHERE id = $1",
-    )
-    .bind(user_id)
-    .bind(secret)
-    .execute(pool)
-    .await?;
+    sqlx::query("UPDATE users SET totp_secret = $2, updated_at = NOW() WHERE id = $1")
+        .bind(user_id)
+        .bind(secret)
+        .execute(pool)
+        .await?;
     Ok(())
 }
 
@@ -442,12 +566,10 @@ pub async fn set_totp_enabled(
     enabled: bool,
 ) -> Result<(), sqlx::Error> {
     if enabled {
-        sqlx::query(
-            "UPDATE users SET totp_enabled = TRUE, updated_at = NOW() WHERE id = $1",
-        )
-        .bind(user_id)
-        .execute(pool)
-        .await?;
+        sqlx::query("UPDATE users SET totp_enabled = TRUE, updated_at = NOW() WHERE id = $1")
+            .bind(user_id)
+            .execute(pool)
+            .await?;
     } else {
         sqlx::query(
             "UPDATE users SET totp_enabled = FALSE, totp_secret = NULL, updated_at = NOW() WHERE id = $1",
@@ -463,13 +585,11 @@ pub async fn set_totp_enabled(
 /// The token is a 256-bit random hex string — same generation as session tokens.
 pub async fn create_totp_challenge(pool: &DbPool, user_id: Uuid) -> Result<String, sqlx::Error> {
     let token = new_session_token(); // re-use the same CSPRNG helper
-    sqlx::query(
-        "INSERT INTO totp_challenges (user_id, token) VALUES ($1, $2)",
-    )
-    .bind(user_id)
-    .bind(&token)
-    .execute(pool)
-    .await?;
+    sqlx::query("INSERT INTO totp_challenges (user_id, token) VALUES ($1, $2)")
+        .bind(user_id)
+        .bind(&token)
+        .execute(pool)
+        .await?;
     Ok(token)
 }
 
@@ -517,13 +637,11 @@ pub async fn store_recovery_codes(
         .await?;
 
     for hash in hashes {
-        sqlx::query(
-            "INSERT INTO recovery_codes (user_id, code_hash) VALUES ($1, $2)",
-        )
-        .bind(user_id)
-        .bind(hash)
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query("INSERT INTO recovery_codes (user_id, code_hash) VALUES ($1, $2)")
+            .bind(user_id)
+            .bind(hash)
+            .execute(&mut *tx)
+            .await?;
     }
 
     tx.commit().await?;
@@ -532,11 +650,10 @@ pub async fn store_recovery_codes(
 
 /// How many recovery codes remain for this user.
 pub async fn count_recovery_codes(pool: &DbPool, user_id: Uuid) -> Result<i64, sqlx::Error> {
-    let count: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM recovery_codes WHERE user_id = $1")
-            .bind(user_id)
-            .fetch_one(pool)
-            .await?;
+    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM recovery_codes WHERE user_id = $1")
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
     Ok(count.0)
 }
 
@@ -578,12 +695,10 @@ pub struct Device {
 
 /// Return all registered devices for a user, most recently seen first.
 pub async fn list_devices(pool: &DbPool, user_id: Uuid) -> Result<Vec<Device>, sqlx::Error> {
-    sqlx::query_as::<_, Device>(
-        "SELECT * FROM devices WHERE user_id = $1 ORDER BY last_seen DESC",
-    )
-    .bind(user_id)
-    .fetch_all(pool)
-    .await
+    sqlx::query_as::<_, Device>("SELECT * FROM devices WHERE user_id = $1 ORDER BY last_seen DESC")
+        .bind(user_id)
+        .fetch_all(pool)
+        .await
 }
 
 /// Register or update a device entry (upsert on user_id + device_id).
@@ -609,18 +724,12 @@ pub async fn register_device(
 }
 
 /// Update the last_seen timestamp for a device (called on each WebSocket connect).
-pub async fn touch_device(
-    pool: &DbPool,
-    user_id: Uuid,
-    device_id: i32,
-) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        "UPDATE devices SET last_seen = NOW() WHERE user_id = $1 AND device_id = $2",
-    )
-    .bind(user_id)
-    .bind(device_id)
-    .execute(pool)
-    .await?;
+pub async fn touch_device(pool: &DbPool, user_id: Uuid, device_id: i32) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE devices SET last_seen = NOW() WHERE user_id = $1 AND device_id = $2")
+        .bind(user_id)
+        .bind(device_id)
+        .execute(pool)
+        .await?;
     Ok(())
 }
 
@@ -633,21 +742,17 @@ pub async fn revoke_device(
 ) -> Result<bool, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
-    sqlx::query(
-        "DELETE FROM pre_key_bundles WHERE user_id = $1 AND device_id = $2",
-    )
-    .bind(user_id)
-    .bind(device_id)
-    .execute(&mut *tx)
-    .await?;
+    sqlx::query("DELETE FROM pre_key_bundles WHERE user_id = $1 AND device_id = $2")
+        .bind(user_id)
+        .bind(device_id)
+        .execute(&mut *tx)
+        .await?;
 
-    let res = sqlx::query(
-        "DELETE FROM devices WHERE user_id = $1 AND device_id = $2",
-    )
-    .bind(user_id)
-    .bind(device_id)
-    .execute(&mut *tx)
-    .await?;
+    let res = sqlx::query("DELETE FROM devices WHERE user_id = $1 AND device_id = $2")
+        .bind(user_id)
+        .bind(device_id)
+        .execute(&mut *tx)
+        .await?;
 
     tx.commit().await?;
     Ok(res.rows_affected() > 0)
