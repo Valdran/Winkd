@@ -180,6 +180,7 @@ export function useSocket() {
             request_id: string
             to_winkd_id: string
             to_display_name: string
+            to_avatar_data?: string | null
           }
           addAcceptedContact({
             id: payload.to_winkd_id,
@@ -187,7 +188,7 @@ export function useSocket() {
             displayName: payload.to_display_name,
             moodMessage: '',
             status: 'invisible' as UserStatus,
-            avatarData: null,
+            avatarData: payload.to_avatar_data ?? null,
             requestStatus: 'pending_outbound',
             unreadCount: 0,
             lastMessageAt: null,

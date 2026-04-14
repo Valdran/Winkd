@@ -4,7 +4,6 @@ import type { Contact, UserStatus } from '@winkd/types'
 import { useAuthStore } from '../stores/authStore'
 import { useContactsStore } from '../stores/contactsStore'
 import { useChatStore } from '../stores/chatStore'
-import { useSocket } from '../hooks/useSocket'
 import { ContactItem } from './ContactItem'
 import { StatusBar } from './StatusBar'
 import { SecuritySettings } from './SecuritySettings'
@@ -37,7 +36,11 @@ const UI_GROUPS: { key: UIGroup; label: string; filter: (c: Contact) => boolean 
   { key: 'offline', label: 'Offline', filter: (c) => c.status === 'invisible' },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  send: (payload: object) => void
+}
+
+export function Sidebar({ send }: SidebarProps) {
   const session = useAuthStore((s) => s.session)
   const updateProfile = useAuthStore((s) => s.updateProfile)
   const contacts = useContactsStore((s) => s.contacts)
@@ -48,7 +51,6 @@ export function Sidebar() {
   const blockedUsers = useContactsStore((s) => s.blockedUsers)
   const openConversation = useChatStore((s) => s.openConversation)
   const activeConversationId = useChatStore((s) => s.activeConversationId)
-  const { send } = useSocket()
 
   const [collapsed, setCollapsed] = useState<Record<UIGroup, boolean>>({
     online: false,
