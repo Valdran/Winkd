@@ -275,7 +275,7 @@ Key files:
 |---|---|
 | Desktop | Tauri (Rust + React) |
 | Mobile | React Native (iOS + Android) |
-| Web / PWA | React + TypeScript |
+| Web / PWA | Core client UI currently shipped from `apps/web/app.html` (legacy DOM app); React + TypeScript code exists in `apps/web/src` but is not the default core app path |
 | Server | Rust, WebSockets, PostgreSQL, Redis |
 | Encryption | Signal Protocol (libsignal / WebCrypto) |
 | Package manager | pnpm workspaces + Turborepo |
