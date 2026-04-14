@@ -458,15 +458,15 @@ export function LoginPage() {
               <input
                 type="password"
                 required
-                autoComplete="current-password"
-                minLength={mode === 'register' ? 10 : 1}
+                autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                minLength={mode === 'register' ? 12 : 1}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={inputStyle}
               />
               {mode === 'register' && (
                 <div style={{ fontSize: 9, color: '#5a7a9a', marginTop: 3 }}>
-                  Minimum 10 characters
+                  Minimum 12 characters
                 </div>
               )}
             </div>
