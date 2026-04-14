@@ -7,7 +7,6 @@ import { useChatStore } from '../stores/chatStore'
 import { useSocket } from '../hooks/useSocket'
 import { ContactItem } from './ContactItem'
 import { StatusBar } from './StatusBar'
-import { ProfileEditModal } from './ProfileEditModal'
 
 const STATUS_LABELS: Record<UserStatus, string> = {
   online: '● Online',
@@ -241,14 +240,7 @@ export function Sidebar() {
         extra={profile.winkdId}
       />
 
-      {showProfileEdit && (
-        <ProfileEditModal
-          displayName={profile.displayName}
-          moodMessage={profile.moodMessage}
-          onSave={handleProfileSave}
-          onClose={() => setShowProfileEdit(false)}
-        />
-      )}
+
     </div>
   )
 }
