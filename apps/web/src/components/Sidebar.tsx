@@ -59,6 +59,10 @@ export function Sidebar() {
   const [showSecurity, setShowSecurity] = useState(false)
   const [showInvitations, setShowInvitations] = useState(false)
   const [showBlockedUsers, setShowBlockedUsers] = useState(false)
+  const [showAddContact, setShowAddContact] = useState(false)
+  const [addContactInput, setAddContactInput] = useState('')
+  const [addContactError, setAddContactError] = useState('')
+  const [addContactSent, setAddContactSent] = useState(false)
 
   if (!session) return null
   const { profile } = session
@@ -111,6 +115,24 @@ export function Sidebar() {
 
   const handleUnblock = (userId: string) => {
     send({ command: 'unblock_contact', payload: { user_id: userId } })
+  }
+
+  const closeAddContact = () => {
+    setShowAddContact(false)
+    setAddContactInput('')
+    setAddContactError('')
+    setAddContactSent(false)
+  }
+
+  const handleAddContact = () => {
+    const trimmed = addContactInput.trim()
+    if (!/^[^#]+#\d{4}$/.test(trimmed)) {
+      setAddContactError('Must be in format username#1234')
+      return
+    }
+    send({ command: 'add_contact', payload: { winkd_id: trimmed } })
+    setAddContactSent(true)
+    setAddContactError('')
   }
 
   return (
@@ -323,6 +345,7 @@ export function Sidebar() {
       )}
       <div style={{ padding: '5px 8px', flexShrink: 0 }}>
         <button
+          onClick={() => setShowAddContact(true)}
           style={{
             width: '100%',
             height: 28,
@@ -333,9 +356,8 @@ export function Sidebar() {
             color: '#e9f4ff',
             fontSize: 11,
             fontWeight: 700,
-            cursor: 'default',
+            cursor: 'pointer',
           }}
-          title="Add contact flow coming soon"
         >
           + Add Contact
         </button>
@@ -430,6 +452,108 @@ export function Sidebar() {
                 }}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddContact && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 110,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(0,0,0,0.45)',
+          padding: 10,
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: 320,
+            background: 'linear-gradient(180deg, rgba(25,65,145,0.96) 0%, rgba(12,35,92,0.98) 100%)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            borderRadius: 10,
+            boxShadow: '0 12px 40px rgba(0,0,0,0.55)',
+            overflow: 'hidden',
+          }}>
+            <div style={{ padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.15)', fontSize: 12, fontWeight: 700, color: '#eef6ff' }}>
+              Add a Buddy
+            </div>
+            <div style={{ padding: 12 }}>
+              {addContactSent ? (
+                <div style={{ color: '#90ee90', fontSize: 12, textAlign: 'center', padding: '8px 0' }}>
+                  Buddy request sent!
+                </div>
+              ) : (
+                <>
+                  <div style={{ color: 'rgba(200,225,255,0.8)', fontSize: 11, marginBottom: 8 }}>
+                    Enter your buddy's Winkd ID:
+                  </div>
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="username#1234"
+                    value={addContactInput}
+                    onChange={(e) => { setAddContactInput(e.target.value); setAddContactError('') }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddContact() }}
+                    style={{
+                      width: '100%',
+                      height: 28,
+                      borderRadius: 5,
+                      border: `1px solid ${addContactError ? 'rgba(255,100,100,0.7)' : 'rgba(100,150,220,0.5)'}`,
+                      background: 'rgba(255,255,255,0.09)',
+                      color: '#ddeeff',
+                      fontSize: 11,
+                      padding: '0 8px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {addContactError && (
+                    <div style={{ color: '#ff9090', fontSize: 10, marginTop: 4 }}>
+                      {addContactError}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div style={{ padding: '0 12px 12px', display: 'flex', gap: 8 }}>
+              {!addContactSent && (
+                <button
+                  onClick={handleAddContact}
+                  style={{
+                    flex: 1,
+                    height: 28,
+                    borderRadius: 6,
+                    border: '1px solid rgba(80,130,220,0.7)',
+                    background: 'linear-gradient(180deg, #2060c0 0%, #1450a0 100%)',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: 11,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Send Request
+                </button>
+              )}
+              <button
+                onClick={closeAddContact}
+                style={{
+                  flex: addContactSent ? 1 : undefined,
+                  height: 28,
+                  borderRadius: 6,
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: 'rgba(255,255,255,0.08)',
+                  color: '#dcecff',
+                  fontWeight: 700,
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  padding: addContactSent ? undefined : '0 14px',
+                }}
+              >
+                {addContactSent ? 'Close' : 'Cancel'}
               </button>
             </div>
           </div>

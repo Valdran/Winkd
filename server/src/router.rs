@@ -388,6 +388,8 @@ async fn handle_command(
                                     "payload": {
                                         "winkd_id": requester.winkd_id,
                                         "display_name": requester.display_name,
+                                        "avatar_data": requester.avatar_data,
+                                        "mood_message": requester.mood_message,
                                     }
                                 })
                                 .to_string(),
@@ -399,6 +401,8 @@ async fn handle_command(
                                 "payload": {
                                     "winkd_id": user.winkd_id,
                                     "display_name": user.display_name,
+                                    "avatar_data": user.avatar_data,
+                                    "mood_message": user.mood_message,
                                 }
                             })
                             .to_string();
@@ -639,6 +643,55 @@ async fn handle_command(
             if let Some(mut entry) = state.presence.get(&user.id.to_string()).await {
                 entry.status = status;
                 state.presence.set(&user.id.to_string(), entry).await;
+            }
+        }
+
+        // ── Message relay (text / winkd / nudge / wink) ───────────────────
+        ClientCommandType::SendMessage
+        | ClientCommandType::SendWinkd
+        | ClientCommandType::SendNudge
+        | ClientCommandType::SendWink => {
+            // The client sets conversationId = the other person's winkd_id.
+            let recipient_winkd_id = cmd
+                .payload
+                .get("conversationId")
+                .or_else(|| cmd.payload.get("conversation_id"))
+                .or_else(|| cmd.payload.get("recipient_winkd_id"))
+                .and_then(|v| v.as_str())
+                .map(str::to_string);
+
+            let Some(recipient_winkd_id) = recipient_winkd_id else {
+                return;
+            };
+
+            match db::find_user_by_winkd_id(&state.db, &recipient_winkd_id).await {
+                Ok(Some(recipient)) => {
+                    if let Some(recipient_chan) =
+                        state.clients.read().await.get(&recipient.id).cloned()
+                    {
+                        // Rewrite conversationId to the sender's winkd_id so the
+                        // recipient's client routes it to the right conversation.
+                        let mut forwarded = cmd.payload.clone();
+                        forwarded["conversationId"] = json!(user.winkd_id);
+                        forwarded["senderId"] = json!(user.winkd_id);
+                        let _ = recipient_chan.send(
+                            json!({
+                                "event": "message",
+                                "payload": forwarded,
+                            })
+                            .to_string(),
+                        );
+                    }
+                }
+                Ok(None) => {
+                    tracing::debug!(
+                        "relay_message: recipient '{}' not found",
+                        recipient_winkd_id
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!("relay_message: db error: {e}");
+                }
             }
         }
 
