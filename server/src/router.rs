@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use axum::{
-    extract::{Query, State, WebSocketUpgrade},
+    extract::{State, WebSocketUpgrade},
     response::Response,
     routing::{get, get_service, post},
     Json, Router,
@@ -13,6 +13,7 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use tokio::sync::{mpsc, RwLock};
+use tokio::time::{timeout, Duration};
 use tower_http::{
     cors::CorsLayer,
     services::{ServeDir, ServeFile},
@@ -27,6 +28,7 @@ use crate::{
     db::DbPool,
     presence::PresenceStore,
     protocol::{ClientCommand, ClientCommandType},
+    ratelimit::RateLimiter,
 };
 
 /// Live WebSocket senders, keyed by user UUID.
@@ -38,6 +40,10 @@ pub struct AppState {
     pub db: DbPool,
     pub presence: PresenceStore,
     pub clients: ConnectedClients,
+    /// Rate limiter for POST /api/auth/login — 10 attempts / minute per IP.
+    pub login_limiter: RateLimiter,
+    /// Rate limiter for POST /api/auth/register — 5 attempts / minute per IP.
+    pub register_limiter: RateLimiter,
 }
 
 pub async fn build_router(config: Config, db: DbPool) -> Router {
@@ -46,6 +52,8 @@ pub async fn build_router(config: Config, db: DbPool) -> Router {
         db,
         presence: PresenceStore::default(),
         clients: Arc::new(RwLock::new(HashMap::new())),
+        login_limiter: RateLimiter::new(10, 60),
+        register_limiter: RateLimiter::new(5, 60),
     };
 
     Router::new()
@@ -60,12 +68,11 @@ pub async fn build_router(config: Config, db: DbPool) -> Router {
             "/api/auth/oauth/:provider/callback",
             get(auth::oauth_callback),
         )
-        // WebSocket messaging endpoint
+        // WebSocket messaging endpoint (token sent as first message, NOT in URL)
         .route("/ws", get(ws_handler))
         // Root: serve landing page
         .route_service("/", get_service(ServeFile::new("web-dist/winkd_website.html")))
-        // Frontend static files — fallback_service avoids the route conflict that
-        // nest_service("/", …) causes in Axum 0.7 when "/" is already registered above.
+        // Frontend static files
         .fallback_service(get_service(
             ServeDir::new("web-dist")
                 .not_found_service(ServeFile::new("web-dist/winkd_website.html")),
@@ -88,34 +95,88 @@ async fn health(State(state): State<AppState>) -> Json<serde_json::Value> {
     }))
 }
 
+// ── WebSocket handler ──────────────────────────────────────────────────────
+// The session token is NO LONGER passed as a URL query parameter (?token=…).
+// Instead the client sends it as the very first WebSocket message:
+//   { "type": "auth", "token": "<hex-session-token>" }
+// The server replies with { "type": "auth_ok" } and then enters the normal
+// message loop, or closes with code 4001 if auth fails / times out.
+
 async fn ws_handler(
     ws: WebSocketUpgrade,
-    Query(params): Query<HashMap<String, String>>,
     State(state): State<AppState>,
 ) -> Response {
-    let token = params.get("token").cloned().unwrap_or_default();
-    ws.on_upgrade(move |socket| handle_socket(socket, state, token))
+    ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
-async fn handle_socket(
-    socket: axum::extract::ws::WebSocket,
-    state: AppState,
-    token: String,
-) {
+async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
     use axum::extract::ws::Message;
 
-    // Authenticate before doing anything else.
-    let user = match db::find_user_by_session(&state.db, &token).await {
-        Ok(Some(u)) => u,
+    #[derive(serde::Deserialize)]
+    struct WsAuthMessage {
+        #[serde(rename = "type")]
+        msg_type: String,
+        token: String,
+    }
+
+    let (mut ws_tx, mut ws_rx) = socket.split();
+
+    // ── Step 1: Authenticate — must receive auth message within 5 seconds ──
+    let user = match timeout(Duration::from_secs(5), ws_rx.next()).await {
+        Ok(Some(Ok(Message::Text(text)))) => {
+            match serde_json::from_str::<WsAuthMessage>(&text) {
+                Ok(auth) if auth.msg_type == "auth" => {
+                    match db::find_user_by_session(&state.db, &auth.token).await {
+                        Ok(Some(u)) => u,
+                        _ => {
+                            let _ = ws_tx
+                                .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                                    code: 4001,
+                                    reason: "Unauthorized".into(),
+                                })))
+                                .await;
+                            tracing::warn!("WS rejected: invalid or expired session token");
+                            return;
+                        }
+                    }
+                }
+                _ => {
+                    let _ = ws_tx
+                        .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                            code: 4001,
+                            reason: "Expected auth message".into(),
+                        })))
+                        .await;
+                    tracing::warn!("WS rejected: first message was not a valid auth frame");
+                    return;
+                }
+            }
+        }
         _ => {
-            tracing::warn!("WS rejected: invalid or expired session token");
+            let _ = ws_tx
+                .send(Message::Close(Some(axum::extract::ws::CloseFrame {
+                    code: 4001,
+                    reason: "Auth timeout".into(),
+                })))
+                .await;
+            tracing::warn!("WS rejected: no auth message within 5 s");
             return;
         }
     };
 
+    // ── Step 2: Confirm authentication ─────────────────────────────────────
+    if ws_tx
+        .send(Message::Text(
+            json!({ "type": "auth_ok" }).to_string().into(),
+        ))
+        .await
+        .is_err()
+    {
+        return;
+    }
+
     tracing::info!("WS connected: {} ({})", user.display_name, user.winkd_id);
 
-    let (mut ws_tx, mut ws_rx) = socket.split();
     let (chan_tx, mut chan_rx) = mpsc::unbounded_channel::<String>();
 
     // Register the live sender so other handlers can push events to this user.
@@ -315,12 +376,10 @@ async fn handle_command(
                 None => return,
             };
 
-            // Persist only the mood column — never touch display_name here.
             if let Err(e) = db::update_user_mood(&state.db, user.id, &mood).await {
                 tracing::warn!("update mood for {}: {e}", user.winkd_id);
             }
 
-            // Update live presence
             if let Some(mut entry) = state.presence.get(&user.id.to_string()).await {
                 entry.mood = mood;
                 state.presence.set(&user.id.to_string(), entry).await;
@@ -347,14 +406,13 @@ async fn handle_command(
 
         // ── Set avatar ─────────────────────────────────────────────────────
         ClientCommandType::SetAvatar => {
-            // avatar_data may be null (to remove the avatar)
             let avatar_data = cmd.payload.get("avatar_data").and_then(|v| v.as_str());
             if let Err(e) = db::update_user_avatar(&state.db, user.id, avatar_data).await {
                 tracing::warn!("update avatar for {}: {e}", user.winkd_id);
             }
         }
 
-        // ── Set profile style (colours only) ───────────────────────────────
+        // ── Set profile style ──────────────────────────────────────────────
         ClientCommandType::SetProfileStyle => {
             let name_color = cmd.payload.get("name_color").and_then(|v| v.as_str());
             let av_color = cmd.payload.get("av_color").and_then(|v| v.as_str());

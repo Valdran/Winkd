@@ -4,6 +4,8 @@ import { useChatStore } from '../stores/chatStore'
 import { useContactsStore } from '../stores/contactsStore'
 import type { Message, UserStatus } from '@winkd/types'
 
+// Connect without token in URL — the session token is sent as the first
+// WebSocket message after the connection opens (first-message auth protocol).
 const WS_URL =
   (import.meta.env.VITE_WS_URL as string | undefined) ??
   `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`
@@ -25,14 +27,28 @@ export function useSocket() {
   useEffect(() => {
     if (!session) return
 
-    const ws = new WebSocket(`${WS_URL}?token=${session.token}`)
+    // No token in URL — send it as the first message instead.
+    const ws = new WebSocket(WS_URL)
     wsRef.current = ws
+
+    // Track whether the server has confirmed authentication.
+    let authenticated = false
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: 'auth', token: session.token }))
+    }
 
     ws.onmessage = (e: MessageEvent<string>) => {
       try {
-        const envelope = JSON.parse(e.data) as {
-          event: string
-          payload: unknown
+        const envelope = JSON.parse(e.data) as { event?: string; type?: string; payload?: unknown }
+
+        // First message from the server must be auth_ok.
+        if (!authenticated) {
+          if (envelope.type === 'auth_ok') {
+            authenticated = true
+          }
+          // Ignore any other messages before auth is confirmed.
+          return
         }
 
         if (envelope.event === 'message') {
@@ -53,6 +69,15 @@ export function useSocket() {
         }
       } catch {
         // ignore malformed server messages
+      }
+    }
+
+    ws.onclose = (e) => {
+      wsRef.current = null
+      // Code 4001 means the server rejected our session (expired / invalid).
+      // The auth store should handle sign-out.
+      if (e.code === 4001) {
+        useAuthStore.getState().clearSession?.()
       }
     }
 

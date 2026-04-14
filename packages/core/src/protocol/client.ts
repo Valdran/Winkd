@@ -1,4 +1,11 @@
 // ── Winkd Protocol Client ──
+// Manages the WebSocket connection to the Winkd server.
+//
+// Authentication protocol:
+//   1. Connect to /ws (NO token in the URL)
+//   2. Immediately send { "type": "auth", "token": "<session-token>" }
+//   3. Wait for { "type": "auth_ok" } before dispatching any other messages
+//   4. On close code 4001, the session is invalid — caller should sign out
 
 import type {
   ClientCommand,
@@ -13,7 +20,10 @@ export class WinkdClient {
   private ws: WebSocket | null = null;
   private handlers = new Map<ServerEventType, Set<EventHandler>>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private reconnectDelay = 1000;
+  private reconnectDelay = 1_000;
+  private authenticated = false;
+  /** Called when the server returns close code 4001 (session invalid). */
+  onAuthFailure: (() => void) | null = null;
 
   constructor(
     private readonly serverUrl: string,
@@ -23,26 +33,40 @@ export class WinkdClient {
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
-    const url = new URL(this.serverUrl);
-    url.searchParams.set("token", this.sessionToken);
-
-    this.ws = new WebSocket(url.toString());
+    // Token is NOT in the URL — it is sent as the first WebSocket message.
+    this.ws = new WebSocket(this.serverUrl);
+    this.authenticated = false;
 
     this.ws.onopen = () => {
-      this.reconnectDelay = 1000;
-      console.log("[WinkdClient] Connected");
+      this.reconnectDelay = 1_000;
+      this.ws!.send(JSON.stringify({ type: "auth", token: this.sessionToken }));
     };
 
     this.ws.onmessage = (event: MessageEvent<string>) => {
       try {
-        const envelope = JSON.parse(event.data) as ServerEvent;
+        const envelope = JSON.parse(event.data) as ServerEvent & { type?: string };
+
+        // Must receive auth_ok before routing any other events.
+        if (!this.authenticated) {
+          if (envelope.type === "auth_ok") {
+            this.authenticated = true;
+          }
+          return;
+        }
+
         this.dispatch(envelope);
       } catch {
         console.error("[WinkdClient] Failed to parse server event", event.data);
       }
     };
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (e: CloseEvent) => {
+      this.authenticated = false;
+      if (e.code === 4001) {
+        console.warn("[WinkdClient] Session rejected by server (4001) — signing out");
+        this.onAuthFailure?.();
+        return; // Do not reconnect on auth failure.
+      }
       console.warn("[WinkdClient] Disconnected — reconnecting in", this.reconnectDelay, "ms");
       this.scheduleReconnect();
     };
@@ -56,11 +80,12 @@ export class WinkdClient {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.ws?.close();
     this.ws = null;
+    this.authenticated = false;
   }
 
   send<T>(command: ClientCommandType, payload: T): void {
-    if (this.ws?.readyState !== WebSocket.OPEN) {
-      console.warn("[WinkdClient] send() called while not connected");
+    if (!this.authenticated || this.ws?.readyState !== WebSocket.OPEN) {
+      console.warn("[WinkdClient] send() called while not authenticated");
       return;
     }
     const msg: ClientCommand<T> = { command, payload };
