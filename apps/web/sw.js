@@ -1,12 +1,12 @@
 // ── Winkd Messenger Service Worker ──
 // Cache-first for assets, network-first for API calls, offline fallback page
 
-const CACHE_NAME = 'winkd-v1';
-const OFFLINE_URL = '/index.html';
+const CACHE_NAME = 'winkd-v2';
+const OFFLINE_URL = '/app.html';
 
 // Everything we want cached immediately on install
 const PRECACHE_ASSETS = [
-  '/index.html',
+  '/app.html',
   '/manifest.json',
 ];
 
