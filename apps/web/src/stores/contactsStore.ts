@@ -111,7 +111,12 @@ export const useContactsStore = create<ContactsState>((set) => ({
   addAcceptedContact: (contact) =>
     set((s) => {
       if (s.contacts.some((c) => c.id === contact.id)) {
-        return { contacts: s.contacts }
+        // Update existing contact (e.g. pending_outbound → accepted)
+        return {
+          contacts: s.contacts.map((c) =>
+            c.id === contact.id ? { ...c, ...contact } : c,
+          ),
+        }
       }
       return { contacts: [...s.contacts, contact] }
     }),
