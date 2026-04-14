@@ -150,7 +150,22 @@ export function useSocket() {
           const payload = envelope.payload as { user_id: string }
           removeBlockedUser(payload.user_id)
         } else if (envelope.event === 'contact_request_sent') {
-          // server confirmed the outgoing request was recorded; UI updated optimistically
+          const payload = envelope.payload as {
+            request_id: string
+            to_winkd_id: string
+            to_display_name: string
+          }
+          addAcceptedContact({
+            id: payload.to_winkd_id,
+            winkdId: payload.to_winkd_id as `${string}#${string}`,
+            displayName: payload.to_display_name,
+            moodMessage: '',
+            status: 'invisible' as UserStatus,
+            avatarData: null,
+            requestStatus: 'pending_outbound',
+            unreadCount: 0,
+            lastMessageAt: null,
+          })
         }
       } catch {
         // ignore malformed server messages
