@@ -742,6 +742,10 @@ async fn handle_command(
 
             match db::find_user_by_winkd_id(&state.db, &recipient_winkd_id).await {
                 Ok(Some(recipient)) => {
+                    let mut sender_payload = cmd.payload.clone();
+                    sender_payload["conversationId"] = json!(recipient_winkd_id.clone());
+                    sender_payload["senderId"] = json!(user.winkd_id.clone());
+
                     if let Some(recipient_chan) =
                         state.clients.read().await.get(&recipient.id).cloned()
                     {
@@ -750,6 +754,7 @@ async fn handle_command(
                         let mut forwarded = cmd.payload.clone();
                         forwarded["conversationId"] = json!(user.winkd_id);
                         forwarded["senderId"] = json!(user.winkd_id);
+                        forwarded["delivered"] = json!(true);
                         let _ = recipient_chan.send(
                             json!({
                                 "event": "message",
@@ -757,7 +762,18 @@ async fn handle_command(
                             })
                             .to_string(),
                         );
+                        sender_payload["delivered"] = json!(true);
+                    } else {
+                        sender_payload["delivered"] = json!(false);
                     }
+
+                    let _ = tx.send(
+                        json!({
+                            "event": "message",
+                            "payload": sender_payload,
+                        })
+                        .to_string(),
+                    );
                 }
                 Ok(None) => {
                     tracing::debug!(

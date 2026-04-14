@@ -35,6 +35,11 @@ interface AvatarProps {
 }
 
 export function Avatar({ displayName, avatarData, status, size = 32 }: AvatarProps) {
+  const normalizedAvatarData =
+    avatarData && !avatarData.startsWith("data:") && !avatarData.startsWith("http")
+      ? `data:image/png;base64,${avatarData}`
+      : avatarData;
+
   const initials = displayName
     .split(" ")
     .map((w) => w[0]?.toUpperCase() ?? "")
@@ -62,7 +67,7 @@ export function Avatar({ displayName, avatarData, status, size = 32 }: AvatarPro
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: avatarData ? undefined : gradientForInitials(initials || "??"),
+    background: normalizedAvatarData ? undefined : gradientForInitials(initials || "??"),
     fontFamily: "'Segoe UI', Tahoma, sans-serif",
     fontSize: Math.round(size * 0.35),
     fontWeight: 700,
@@ -84,9 +89,9 @@ export function Avatar({ displayName, avatarData, status, size = 32 }: AvatarPro
   return (
     <div style={containerStyle}>
       <div style={innerStyle}>
-        {avatarData ? (
+        {normalizedAvatarData ? (
           <img
-            src={avatarData}
+            src={normalizedAvatarData}
             alt={displayName}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />

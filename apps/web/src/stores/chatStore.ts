@@ -128,13 +128,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   receiveMessage: (message) => {
     const conv = get().conversations[message.conversationId]
+    const existingMessages = conv?.messages ?? []
+    const existingIndex = existingMessages.findIndex((m) => m.id === message.id)
+    const nextMessages =
+      existingIndex >= 0
+        ? existingMessages.map((m, i) => (i === existingIndex ? { ...m, ...message } : m))
+        : [...existingMessages, message]
+
     set((s) => ({
       conversations: {
         ...s.conversations,
         [message.conversationId]: {
           id: message.conversationId,
           contactId: conv?.contactId ?? message.senderId,
-          messages: [...(conv?.messages ?? []), message],
+          messages: nextMessages,
           isShaking: message.type === 'winkd',
         },
       },
