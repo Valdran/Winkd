@@ -395,7 +395,7 @@ export function Sidebar() {
                     <Avatar
                       displayName={invitation.fromDisplayName}
                       avatarData={invitation.fromAvatarData}
-                      status="offline"
+                      status="invisible"
                       size={32}
                     />
                     <div style={{ minWidth: 0 }}>
@@ -471,7 +471,7 @@ export function Sidebar() {
                   <Avatar
                     displayName={blocked.displayName}
                     avatarData={blocked.avatarData}
-                    status="offline"
+                    status="invisible"
                     size={28}
                   />
                   <div style={{ minWidth: 0, flex: 1 }}>
