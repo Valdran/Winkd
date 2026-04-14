@@ -91,6 +91,40 @@ Brute-force protection on authentication endpoints, enforced per IP address:
 | `POST /api/auth/login` | 10 requests / minute |
 | `POST /api/auth/register` | 5 requests / minute |
 
+### Two-Factor Authentication (TOTP)
+
+TOTP 2FA is available on all accounts and optional but strongly recommended.
+
+| Detail | Implementation |
+|---|---|
+| Standard | RFC 6238 (TOTP) / RFC 4226 (HOTP) |
+| Algorithm | HMAC-SHA1 |
+| Secret | 160-bit random, Base32-encoded |
+| Code length | 6 digits |
+| Window | ±1 step (30 seconds each side) for clock skew |
+| URI | `otpauth://totp/` — compatible with all authenticator apps |
+
+**Login flow with 2FA enabled:**
+1. Correct password → server issues a short-lived (5-minute) `challenge_token` — no session created yet
+2. Client submits `challenge_token` + 6-digit code to `/api/auth/totp/challenge`
+3. Server verifies code (or backup code), creates full session
+4. Challenge token is deleted on first use regardless of outcome
+
+**Setup flow:** generate secret → display QR code / raw Base32 → confirm with first valid code → 2FA enabled + backup codes issued atomically.
+
+### Account Recovery — Backup Codes
+
+10 backup codes are generated when 2FA is first enabled. They are single-use replacements for the TOTP code at login.
+
+| Detail | Implementation |
+|---|---|
+| Format | 32-character random alphanumeric (128-bit entropy) |
+| Hashing | SHA-256 (high-entropy input — SHA-256 is appropriate; Argon2 would be wasteful) |
+| Storage | Hashed copies only — plaintext never persisted |
+| Expiry | Single-use: deleted from DB on consumption |
+| Regeneration | Requires a valid live TOTP code; old set wiped atomically |
+| Remaining count | Exposed via `GET /api/auth/recovery-codes` so the client can warn when running low |
+
 ### OAuth / Social Login
 
 12 providers supported (Discord, Google, Apple, Microsoft, Facebook, X/Twitter, Twitch, Reddit, Spotify, LinkedIn, Steam).
@@ -102,6 +136,54 @@ Security measures applied to every OAuth flow:
 - **Cookie expiry:** 10 minutes (`Max-Age=600`) — short enough to prevent replay
 - **Email deduplication:** If an OAuth email matches an existing account, the OAuth identity is linked rather than creating a duplicate account
 - **OAuth-only accounts:** Users who register via OAuth have `NULL` password hashes — there is no password to leak
+
+---
+
+## Device Management
+
+Each device registers independently with its own pre-key bundle, giving the server per-device Signal Protocol state.
+
+| Operation | Endpoint |
+|---|---|
+| Upload bundle + register device | `POST /api/keys/bundle` |
+| Fetch peer bundle for X3DH | `GET /api/keys/bundle/:winkd_id` |
+| List my devices | `GET /api/devices` |
+| Revoke a device | `DELETE /api/devices/:device_id` |
+
+- Pre-key bundles are keyed `(user_id, device_id)` — one bundle per device, not per user
+- One-time pre-keys are consumed atomically on fetch (each key used for exactly one X3DH session initiation)
+- Revoking a device deletes its pre-key bundle and device record; any in-flight sessions using that bundle expire naturally
+- The in-app Security panel lists all devices with registration date and last-seen timestamp
+
+---
+
+## Structured Audit Log
+
+Every security-relevant event is appended to an immutable `audit_log` table (PostgreSQL). Log writes are fire-and-forget — a DB hiccup never breaks the auth flow.
+
+**Logged events:**
+
+| Action | When |
+|---|---|
+| `login` | Successful password login |
+| `login_failed` | Wrong password, unknown user, or OAuth-only account |
+| `register` | New account created |
+| `logout` | Session invalidated |
+| `totp_challenge_issued` | 2FA required — challenge token sent |
+| `totp_challenge_passed` | Correct TOTP code — full session created |
+| `totp_challenge_failed` | Wrong TOTP code |
+| `totp_enabled` | 2FA enabled on account |
+| `totp_disabled` | 2FA disabled on account |
+| `recovery_code_used` | Backup code redeemed (remaining count in metadata) |
+| `recovery_codes_regenerated` | Full backup code set replaced |
+| `device_registered` | Pre-key bundle uploaded / device registered |
+| `device_revoked` | Device removed by user |
+| `password_changed` | Password updated |
+| `all_sessions_revoked` | All sessions invalidated |
+
+Each entry stores: `user_id`, `action`, `ip_address` (PostgreSQL `INET`), `metadata` (JSONB for structured context), `created_at`.
+
+Users can view their own last 100 events via `GET /api/security/audit-log`. The in-app Security panel renders them with human-readable labels and timestamps.
 
 ---
 
@@ -117,6 +199,10 @@ All production traffic is served over **TLS 1.2+** via a reverse proxy (nginx / 
 - **Email uniqueness** enforced at database level
 - **Timestamptz** on all rows for audit trails (`created_at`, `updated_at`)
 - **Pre-key bundle isolation:** One-time pre-keys are stored separately from the main user record and consumed atomically
+- **Per-device key bundles:** `pre_key_bundles` is keyed `(user_id, device_id)`, not just `user_id`
+- **TOTP state isolation:** `totp_secret` and `totp_enabled` stored separately from the main user record; secret is wiped when 2FA is disabled
+- **Recovery codes:** hashed separately in `recovery_codes` table — never co-located with the plaintext
+- **Audit log append-only:** `audit_log` has no UPDATE or DELETE privileges in normal operation; indexed on `user_id`, `created_at DESC`, and `action`
 
 ---
 
@@ -144,8 +230,13 @@ Key files:
 - `packages/core/src/encryption/crypto.ts` — X3DH, ECDH, ECDSA, AES-GCM, HKDF primitives
 - `packages/core/src/encryption/session.ts` — Double Ratchet session manager
 - `packages/core/src/encryption/keystore.ts` — IndexedDB key storage layer
-- `server/src/auth.rs` — Argon2id hashing, session management, OAuth flows
+- `server/src/auth.rs` — Argon2id hashing, session management, OAuth, 2FA, device management
+- `server/src/totp.rs` — RFC 6238 TOTP implementation with RFC 4226 test vectors
+- `server/src/audit.rs` — Structured security audit log
 - `server/src/ratelimit.rs` — Per-IP rate limiting
+- `server/migrations/006_totp_and_recovery.sql` — TOTP + backup codes schema
+- `server/migrations/007_multi_device.sql` — Per-device pre-key bundles + device registry
+- `server/migrations/008_audit_log.sql` — Audit log table
 
 ---
 

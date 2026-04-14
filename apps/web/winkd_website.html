@@ -1735,6 +1735,16 @@ body {
             </div>
 
             <div class="feat-box">
+              <div class="feat-box-title">🔐 Two-Factor Authentication (TOTP)</div>
+              <div class="feat-box-desc">Enable TOTP 2FA from the Security panel — works with Google Authenticator, Authy, Bitwarden, and any RFC 6238-compatible app. When 2FA is on, correct password alone is not enough: login issues a short-lived challenge token, and a full session is only created after you supply a valid 6-digit code. No session is ever created by password alone.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">🗝 Backup Codes — Never Locked Out</div>
+              <div class="feat-box-desc">When you enable 2FA, Winkd generates 10 cryptographically random backup codes. Each is 128 bits of entropy, hashed with SHA-256 before storage — the plaintext is shown once and never persisted. Codes are single-use. You can regenerate the full set at any time with a valid TOTP code. The Security panel shows how many remain so you're never caught off guard.</div>
+            </div>
+
+            <div class="feat-box">
               <div class="feat-box-title">🛡 Argon2id Password Hashing</div>
               <div class="feat-box-desc">Passwords are hashed with Argon2id at 128 MB memory cost, 4 iterations — one of the strongest password hashing configurations available. A plaintext password never touches the database. Minimum 12 characters with complexity requirements enforced at registration.</div>
             </div>
@@ -1760,6 +1770,16 @@ body {
             </div>
 
             <div class="feat-box">
+              <div class="feat-box-title">💻 Multi-Device — Per-Device Key Bundles</div>
+              <div class="feat-box-desc">Each device you use registers its own Signal Protocol pre-key bundle. Your encryption keys are never shared between devices — if one device is compromised or lost, you revoke it from the Security panel. Revoking a device deletes its pre-key bundle from the server; future messages cannot be initiated to that device.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">📋 Security Audit Log</div>
+              <div class="feat-box-desc">Every security event on your account is recorded: logins (success and failure), 2FA challenges, backup code use, device registrations and revocations. View your last 100 events in the Security panel, including the IP address and timestamp of each event. You'll know immediately if something unexpected happened to your account.</div>
+            </div>
+
+            <div class="feat-box">
               <div class="feat-box-title">🚫 Zero Data Monetisation</div>
               <div class="feat-box-desc">Winkd is open source (MIT licence) with no advertising, no analytics without explicit opt-in, and no data sold — ever. The business model is hosted instances and optional cosmetics. We have zero financial incentive to collect your conversation data.</div>
             </div>
@@ -1772,8 +1792,8 @@ body {
             <div class="feat-box" style="background:linear-gradient(135deg,rgba(220,240,255,0.7),rgba(200,225,255,0.5));border-color:rgba(100,160,240,0.4);">
               <div class="feat-box-title" style="font-size:12px;color:#0a3a8a;">What the server can and cannot see</div>
               <div class="feat-box-desc" style="font-size:11px;line-height:1.7;">
-                <strong>Cannot see:</strong> message content, encryption keys, safety numbers, your password.<br>
-                <strong>Can see:</strong> who you've added as contacts, when you were online, your IP address (standard for any networked service).<br><br>
+                <strong>Cannot see:</strong> message content, encryption keys, safety numbers, your password, your TOTP secret, your backup codes (hashed only).<br>
+                <strong>Can see:</strong> who you've added as contacts, when you were online, your registered devices, your IP address (standard for any networked service), and your own security audit log events (which you can also see).<br><br>
                 A server breach, a subpoena, or a rogue employee <strong>cannot</strong> access the content of your messages.
               </div>
             </div>
