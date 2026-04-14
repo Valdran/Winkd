@@ -17,6 +17,13 @@ export function useSocket() {
   const activeConversationId = useChatStore((s) => s.activeConversationId)
   const updateContactStatus = useContactsStore((s) => s.updateContactStatus)
   const incrementUnread = useContactsStore((s) => s.incrementUnread)
+  const upsertPendingInvitation = useContactsStore((s) => s.upsertPendingInvitation)
+  const removePendingInvitation = useContactsStore((s) => s.removePendingInvitation)
+  const clearPendingFromUser = useContactsStore((s) => s.clearPendingFromUser)
+  const setBlockedUsers = useContactsStore((s) => s.setBlockedUsers)
+  const upsertBlockedUser = useContactsStore((s) => s.upsertBlockedUser)
+  const removeBlockedUser = useContactsStore((s) => s.removeBlockedUser)
+  const addAcceptedContact = useContactsStore((s) => s.addAcceptedContact)
 
   const send = useCallback((payload: object) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -66,6 +73,77 @@ export function useSocket() {
             status: UserStatus
           }
           updateContactStatus(userId, status)
+        } else if (envelope.event === 'contact_request') {
+          const payload = envelope.payload as {
+            request_id: string
+            from_winkd_id: string
+            from_display_name: string
+            from_avatar_data?: string | null
+          }
+          upsertPendingInvitation({
+            requestId: payload.request_id,
+            fromWinkdId: payload.from_winkd_id,
+            fromDisplayName: payload.from_display_name,
+            fromAvatarData: payload.from_avatar_data ?? null,
+          })
+        } else if (envelope.event === 'contact_accepted') {
+          const payload = envelope.payload as { winkd_id: string; display_name: string }
+          clearPendingFromUser(payload.winkd_id)
+          addAcceptedContact({
+            id: payload.winkd_id,
+            winkdId: payload.winkd_id as `${string}#${string}`,
+            displayName: payload.display_name,
+            moodMessage: '',
+            status: 'online',
+            avatarData: null,
+            requestStatus: 'accepted',
+            unreadCount: 0,
+            lastMessageAt: null,
+          })
+        } else if (envelope.event === 'contact_request_rejected') {
+          const payload = envelope.payload as { request_id: string }
+          removePendingInvitation(payload.request_id)
+        } else if (envelope.event === 'blocked_list') {
+          const payload = envelope.payload as {
+            users: Array<{
+              user_id: string
+              winkd_id: string
+              display_name: string
+              avatar_data?: string | null
+              blocked_at: string
+            }>
+          }
+          setBlockedUsers(
+            payload.users.map((u) => ({
+              userId: u.user_id,
+              winkdId: u.winkd_id,
+              displayName: u.display_name,
+              avatarData: u.avatar_data ?? null,
+              blockedAt: u.blocked_at,
+            })),
+          )
+        } else if (envelope.event === 'contact_blocked') {
+          const payload = envelope.payload as {
+            request_id?: string
+            user_id: string
+            winkd_id: string
+            display_name: string
+            avatar_data?: string | null
+            blocked_at: string
+          }
+          if (payload.request_id) {
+            removePendingInvitation(payload.request_id)
+          }
+          upsertBlockedUser({
+            userId: payload.user_id,
+            winkdId: payload.winkd_id,
+            displayName: payload.display_name,
+            avatarData: payload.avatar_data ?? null,
+            blockedAt: payload.blocked_at,
+          })
+        } else if (envelope.event === 'contact_unblocked') {
+          const payload = envelope.payload as { user_id: string }
+          removeBlockedUser(payload.user_id)
         }
       } catch {
         // ignore malformed server messages
@@ -92,7 +170,19 @@ export function useSocket() {
     // activeConversationId intentionally not in deps — we want the current
     // value at message receipt time, not to re-subscribe on every nav change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, receiveMessage, updateContactStatus, incrementUnread])
+  }, [
+    session,
+    receiveMessage,
+    updateContactStatus,
+    incrementUnread,
+    upsertPendingInvitation,
+    removePendingInvitation,
+    clearPendingFromUser,
+    setBlockedUsers,
+    upsertBlockedUser,
+    removeBlockedUser,
+    addAcceptedContact,
+  ])
 
   return { send }
 }
