@@ -858,7 +858,23 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
         </div>
       </div>
       <label class="modal-label">Mood Message</label>
-      <input class="modal-input" id="profile-mood-input" type="text" placeholder="What's on your mind?" maxlength="60">
+      <div id="mood-field-wrap" style="position:relative;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;border:1px solid rgba(100,150,220,0.5);border-radius:4px;background:#fff;box-shadow:inset 0 1px 3px rgba(0,0,80,0.08);overflow:hidden;">
+          <button id="mood-emoji-btn" type="button" title="Choose emoji" onclick="toggleMoodEmojiPicker(event)" style="flex-shrink:0;width:36px;height:34px;border:none;border-right:1px solid rgba(100,150,220,0.3);background:rgba(200,220,255,0.4);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;padding:0 2px;gap:1px;transition:background 0.1s;">
+            <span id="mood-emoji-display">🙂</span><span style="font-size:7px;color:rgba(30,70,160,0.5);margin-left:1px;">▼</span>
+          </button>
+          <input id="profile-mood-text" type="text" placeholder="What's on your mind?" maxlength="58" style="flex:1;height:34px;border:none;background:transparent;padding:0 8px;font-size:12px;font-family:var(--font);color:var(--text-dark);outline:none;min-width:0;">
+          <button id="mood-emoji-clear-btn" type="button" title="Remove emoji" onclick="clearMoodEmoji()" style="display:none;flex-shrink:0;width:22px;height:34px;border:none;border-left:1px solid rgba(100,150,220,0.12);background:transparent;cursor:pointer;font-size:10px;color:rgba(100,130,180,0.55);padding:0;align-items:center;justify-content:center;">✕</button>
+        </div>
+        <div id="mood-emoji-panel" style="display:none;position:absolute;top:38px;left:0;z-index:1100;width:272px;border-radius:6px;border:1px solid rgba(100,150,220,0.45);background:linear-gradient(180deg,rgba(222,234,255,0.99),rgba(200,218,255,0.99));box-shadow:0 6px 24px rgba(0,0,50,0.35);overflow:hidden;font-family:var(--font);">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px 4px;border-bottom:1px solid rgba(100,150,220,0.2);">
+            <span style="font-size:11px;font-weight:600;color:#0a3a8a;">Emoticons</span>
+            <button type="button" onclick="closeMoodEmojiPanel()" style="width:18px;height:18px;border-radius:3px;border:1px solid rgba(100,150,220,0.4);background:rgba(200,215,240,0.6);cursor:pointer;font-size:10px;color:#1a3a6a;padding:0;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
+          </div>
+          <div id="mood-ep-tabs" style="display:flex;overflow-x:auto;padding:3px 4px;gap:2px;border-bottom:1px solid rgba(100,150,220,0.15);scrollbar-width:none;"></div>
+          <div id="mood-ep-grid" style="display:flex;flex-wrap:wrap;gap:1px;padding:4px 5px;max-height:150px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(100,150,220,0.3) transparent;"></div>
+        </div>
+      </div>
       <hr class="modal-divider">
       <div class="qr-section">
         <div class="qr-wrap">
@@ -1347,6 +1363,14 @@ let myAvColor='#5a5acc';
 let myNameColor=null;
 let myAvatarSrc=null;
 let myStatus='online';
+let moodPickerEmoji='';
+let moodEpCurCat=0;
+const MOOD_EP_CATS=[
+  {icon:'😀',label:'Smileys',emojis:['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','🙂','🤗','🤩','🤔','🤨','😐','😑','😶','🙄','😏','😒','😓','😔','😕','🙃','😲','😴','🥱','😌','😛','😜','😝','😭','😢','😡','🤯','🥳','🥸','🤡','😷','🤒','🤕','🥵','🥶']},
+  {icon:'👋',label:'Gestures',emojis:['👍','👎','👌','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','👋','🤚','🖐️','✋','🖖','👏','🙌','🤝','🙏','💪','✍️']},
+  {icon:'❤️',label:'Hearts',emojis:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟']},
+  {icon:'☕',label:'Vibes',emojis:['☕','🫖','🍵','🎵','🎶','🎮','📚','🌙','⭐','🌟','✨','🔥','💫','⚡','🎉','🎊','🏆','🎯','🌸','🌊','🌈','❄️','🌿','🍀','🐱','🐶','🐼','🦋']},
+];
 (function(){
   try{
     const raw=localStorage.getItem('winkd-auth');
@@ -1879,10 +1903,70 @@ function addContact(){
   showToast('Contact request sent!','info');
 }
 
+function toggleMoodEmojiPicker(e){
+  e.stopPropagation();
+  const panel=document.getElementById('mood-emoji-panel');
+  if(!panel)return;
+  const isOpen=panel.style.display!=='none';
+  if(isOpen){closeMoodEmojiPanel();return;}
+  panel.style.display='block';
+  moodEpCurCat=0;
+  buildMoodEpTabs();buildMoodEpGrid();
+  setTimeout(()=>document.addEventListener('click',closeMoodEpOutside),50);
+}
+function closeMoodEmojiPanel(){
+  const panel=document.getElementById('mood-emoji-panel');
+  if(panel)panel.style.display='none';
+  document.removeEventListener('click',closeMoodEpOutside);
+}
+function closeMoodEpOutside(e){
+  const panel=document.getElementById('mood-emoji-panel');
+  const btn=document.getElementById('mood-emoji-btn');
+  if(panel&&!panel.contains(e.target)&&(!btn||!btn.contains(e.target))){closeMoodEmojiPanel();}
+}
+function buildMoodEpTabs(){
+  const tabs=document.getElementById('mood-ep-tabs');if(!tabs)return;
+  tabs.innerHTML='';
+  MOOD_EP_CATS.forEach((cat,i)=>{
+    const b=document.createElement('button');b.type='button';b.title=cat.label;b.textContent=cat.icon;
+    b.style.cssText='flex-shrink:0;width:26px;height:26px;border-radius:3px;font-size:15px;cursor:pointer;padding:0;transition:all 0.1s;border:'+(i===moodEpCurCat?'1px solid rgba(26,90,204,0.5);background:rgba(26,90,204,0.15)':'1px solid transparent;background:transparent')+';';
+    b.onclick=ev=>{ev.stopPropagation();moodEpCurCat=i;buildMoodEpTabs();buildMoodEpGrid();};
+    tabs.appendChild(b);
+  });
+}
+function buildMoodEpGrid(){
+  const grid=document.getElementById('mood-ep-grid');if(!grid)return;
+  const cat=MOOD_EP_CATS[moodEpCurCat];if(!cat)return;
+  grid.innerHTML='';
+  cat.emojis.forEach(em=>{
+    const b=document.createElement('button');b.type='button';b.title=em;b.textContent=em;
+    b.style.cssText='width:32px;height:32px;border:none;background:transparent;cursor:pointer;font-size:19px;border-radius:4px;padding:2px;transition:background 0.08s;';
+    b.onmouseenter=()=>b.style.background='rgba(26,90,204,0.12)';
+    b.onmouseleave=()=>b.style.background='transparent';
+    b.onclick=ev=>{ev.stopPropagation();selectMoodEmoji(em);};
+    grid.appendChild(b);
+  });
+}
+function selectMoodEmoji(em){
+  moodPickerEmoji=em;
+  const d=document.getElementById('mood-emoji-display');if(d)d.textContent=em;
+  const c=document.getElementById('mood-emoji-clear-btn');if(c)c.style.display='flex';
+  closeMoodEmojiPanel();
+}
+function clearMoodEmoji(){
+  moodPickerEmoji='';
+  const d=document.getElementById('mood-emoji-display');if(d)d.textContent='🙂';
+  const c=document.getElementById('mood-emoji-clear-btn');if(c)c.style.display='none';
+}
 function initProfile(){
   pendingAvatarSrc=null;
   document.getElementById('profile-name-input').value=myName==='You'?'':myName;
-  document.getElementById('profile-mood-input').value=document.getElementById('my-mood').textContent;
+  const _rawMood=document.getElementById('my-mood').textContent||'';
+  const _moodMatch=_rawMood.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)\s*/u);
+  if(_moodMatch&&_moodMatch[1]!=' '){moodPickerEmoji=_moodMatch[1];document.getElementById('profile-mood-text').value=_rawMood.slice(_moodMatch[0].length);}
+  else{moodPickerEmoji='';document.getElementById('profile-mood-text').value=_rawMood;}
+  const _md=document.getElementById('mood-emoji-display');if(_md)_md.textContent=moodPickerEmoji||'🙂';
+  const _mc=document.getElementById('mood-emoji-clear-btn');if(_mc)_mc.style.display=moodPickerEmoji?'flex':'none';
   selAvColor=myAvColor;
   const pv=document.getElementById('profile-av-preview');
   if(myAvatarSrc){pv.innerHTML=`<img src="${myAvatarSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`;document.getElementById('avatar-remove-btn').style.display='block';}
@@ -1906,7 +1990,8 @@ function initProfile(){
 function toggleNameColorPicker(){const p=document.getElementById('name-color-picker');if(p)p.style.display=p.style.display==='none'?'block':'none';}
 function saveProfile(){
   const n=document.getElementById('profile-name-input').value.trim();
-  const m=document.getElementById('profile-mood-input').value.trim();
+  const _moodText=(document.getElementById('profile-mood-text').value||'').trim();
+  const m=moodPickerEmoji?moodPickerEmoji+(_moodText?' '+_moodText:''):_moodText;
   if(n){myName=n;document.getElementById('my-name').textContent=n;}
   // Always update mood, including when user clears it
   const moodEl=document.getElementById('my-mood');
