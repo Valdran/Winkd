@@ -22,6 +22,8 @@ pub struct User {
     pub av_color: Option<String>,
     pub email: Option<String>,
     pub password_hash: Option<String>,
+    pub totp_enabled: bool,
+    pub totp_secret: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -412,4 +414,274 @@ pub async fn unique_username(pool: &DbPool, base: &str) -> Result<String, sqlx::
         }
     }
     Ok(format!("{}{}", base, &Uuid::new_v4().simple().to_string()[..4]))
+}
+
+// ── TOTP ───────────────────────────────────────────────────────────────────
+
+/// Persist a pending TOTP secret for a user (totp_enabled stays false until
+/// the user confirms with a valid code via the /confirm endpoint).
+pub async fn set_totp_secret(
+    pool: &DbPool,
+    user_id: Uuid,
+    secret: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "UPDATE users SET totp_secret = $2, updated_at = NOW() WHERE id = $1",
+    )
+    .bind(user_id)
+    .bind(secret)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Enable (or disable) TOTP. When disabling, also clears the stored secret.
+pub async fn set_totp_enabled(
+    pool: &DbPool,
+    user_id: Uuid,
+    enabled: bool,
+) -> Result<(), sqlx::Error> {
+    if enabled {
+        sqlx::query(
+            "UPDATE users SET totp_enabled = TRUE, updated_at = NOW() WHERE id = $1",
+        )
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    } else {
+        sqlx::query(
+            "UPDATE users SET totp_enabled = FALSE, totp_secret = NULL, updated_at = NOW() WHERE id = $1",
+        )
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    }
+    Ok(())
+}
+
+/// Issue a short-lived (5-minute) challenge token for a user who has 2FA enabled.
+/// The token is a 256-bit random hex string — same generation as session tokens.
+pub async fn create_totp_challenge(pool: &DbPool, user_id: Uuid) -> Result<String, sqlx::Error> {
+    let token = new_session_token(); // re-use the same CSPRNG helper
+    sqlx::query(
+        "INSERT INTO totp_challenges (user_id, token) VALUES ($1, $2)",
+    )
+    .bind(user_id)
+    .bind(&token)
+    .execute(pool)
+    .await?;
+    Ok(token)
+}
+
+/// Validate and consume a TOTP challenge token.
+/// Returns the user_id on success, None if the token is unknown or expired.
+/// The token is deleted on first use regardless of outcome.
+pub async fn consume_totp_challenge(
+    pool: &DbPool,
+    token: &str,
+) -> Result<Option<Uuid>, sqlx::Error> {
+    let row: Option<(Uuid,)> = sqlx::query_as(
+        r#"DELETE FROM totp_challenges
+           WHERE token = $1 AND expires_at > NOW()
+           RETURNING user_id"#,
+    )
+    .bind(token)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|(uid,)| uid))
+}
+
+/// Remove all expired TOTP challenge tokens. Safe to call any time.
+pub async fn purge_expired_totp_challenges(pool: &DbPool) -> Result<u64, sqlx::Error> {
+    let res = sqlx::query("DELETE FROM totp_challenges WHERE expires_at <= NOW()")
+        .execute(pool)
+        .await?;
+    Ok(res.rows_affected())
+}
+
+// ── Recovery (Backup) Codes ────────────────────────────────────────────────
+
+/// Replace the user's entire set of recovery codes atomically.
+/// `hashes` is a slice of SHA-256 hex digests of the plaintext codes.
+pub async fn store_recovery_codes(
+    pool: &DbPool,
+    user_id: Uuid,
+    hashes: &[String],
+) -> Result<(), sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    // Wipe the old set first.
+    sqlx::query("DELETE FROM recovery_codes WHERE user_id = $1")
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+
+    for hash in hashes {
+        sqlx::query(
+            "INSERT INTO recovery_codes (user_id, code_hash) VALUES ($1, $2)",
+        )
+        .bind(user_id)
+        .bind(hash)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+    Ok(())
+}
+
+/// How many recovery codes remain for this user.
+pub async fn count_recovery_codes(pool: &DbPool, user_id: Uuid) -> Result<i64, sqlx::Error> {
+    let count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM recovery_codes WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_one(pool)
+            .await?;
+    Ok(count.0)
+}
+
+/// Attempt to redeem a recovery code. Deletes the matching code on success
+/// (single-use). Returns true if a matching code was found and consumed.
+pub async fn consume_recovery_code(
+    pool: &DbPool,
+    user_id: Uuid,
+    code_hash: &str,
+) -> Result<bool, sqlx::Error> {
+    let res = sqlx::query(
+        r#"DELETE FROM recovery_codes
+           WHERE user_id = $1
+             AND code_hash = $2
+             AND id = (
+                 SELECT id FROM recovery_codes
+                 WHERE user_id = $1 AND code_hash = $2
+                 LIMIT 1
+             )"#,
+    )
+    .bind(user_id)
+    .bind(code_hash)
+    .execute(pool)
+    .await?;
+    Ok(res.rows_affected() > 0)
+}
+
+// ── Devices ────────────────────────────────────────────────────────────────
+
+#[derive(sqlx::FromRow, Clone, Debug)]
+pub struct Device {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub device_id: i32,
+    pub device_name: String,
+    pub registered_at: DateTime<Utc>,
+    pub last_seen: DateTime<Utc>,
+}
+
+/// Return all registered devices for a user, most recently seen first.
+pub async fn list_devices(pool: &DbPool, user_id: Uuid) -> Result<Vec<Device>, sqlx::Error> {
+    sqlx::query_as::<_, Device>(
+        "SELECT * FROM devices WHERE user_id = $1 ORDER BY last_seen DESC",
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+}
+
+/// Register or update a device entry (upsert on user_id + device_id).
+pub async fn register_device(
+    pool: &DbPool,
+    user_id: Uuid,
+    device_id: i32,
+    device_name: &str,
+) -> Result<Device, sqlx::Error> {
+    sqlx::query_as::<_, Device>(
+        r#"INSERT INTO devices (user_id, device_id, device_name)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (user_id, device_id)
+           DO UPDATE SET device_name = EXCLUDED.device_name,
+                         last_seen   = NOW()
+           RETURNING *"#,
+    )
+    .bind(user_id)
+    .bind(device_id)
+    .bind(device_name)
+    .fetch_one(pool)
+    .await
+}
+
+/// Update the last_seen timestamp for a device (called on each WebSocket connect).
+pub async fn touch_device(
+    pool: &DbPool,
+    user_id: Uuid,
+    device_id: i32,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "UPDATE devices SET last_seen = NOW() WHERE user_id = $1 AND device_id = $2",
+    )
+    .bind(user_id)
+    .bind(device_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Revoke a device: deletes its device row and pre_key_bundle.
+/// Returns true if a device was actually found and deleted.
+pub async fn revoke_device(
+    pool: &DbPool,
+    user_id: Uuid,
+    device_id: i32,
+) -> Result<bool, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    sqlx::query(
+        "DELETE FROM pre_key_bundles WHERE user_id = $1 AND device_id = $2",
+    )
+    .bind(user_id)
+    .bind(device_id)
+    .execute(&mut *tx)
+    .await?;
+
+    let res = sqlx::query(
+        "DELETE FROM devices WHERE user_id = $1 AND device_id = $2",
+    )
+    .bind(user_id)
+    .bind(device_id)
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+    Ok(res.rows_affected() > 0)
+}
+
+// ── Audit Log ──────────────────────────────────────────────────────────────
+
+#[derive(sqlx::FromRow, Clone, Debug, serde::Serialize)]
+pub struct AuditEntry {
+    pub id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub action: String,
+    pub ip_address: Option<String>,
+    pub metadata: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Fetch the N most recent audit log entries for a specific user.
+pub async fn get_audit_log(
+    pool: &DbPool,
+    user_id: Uuid,
+    limit: i64,
+) -> Result<Vec<AuditEntry>, sqlx::Error> {
+    sqlx::query_as::<_, AuditEntry>(
+        r#"SELECT id, user_id, action,
+                  host(ip_address) AS ip_address,
+                  metadata, created_at
+           FROM   audit_log
+           WHERE  user_id = $1
+           ORDER  BY created_at DESC
+           LIMIT  $2"#,
+    )
+    .bind(user_id)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
 }

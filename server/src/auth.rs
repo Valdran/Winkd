@@ -26,7 +26,9 @@ use oauth2::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{db, error::AppError, ratelimit::extract_ip, router::AppState};
+use sha2::{Digest, Sha256};
+
+use crate::{audit, db, error::AppError, ratelimit::extract_ip, router::AppState, totp};
 
 // ── Request / Response types ───────────────────────────────────────────────
 
@@ -66,7 +68,9 @@ pub async fn login(
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(body): Json<LoginRequest>,
-) -> Result<Json<LoginResponse>, AppError> {
+) -> Result<Response, AppError> {
+    let ip = extract_ip(&headers).to_string();
+
     // Rate-limit by client IP: 10 attempts per minute.
     if !state.login_limiter.check(extract_ip(&headers)).await {
         return Err(AppError::TooManyRequests);
@@ -90,19 +94,57 @@ pub async fn login(
             .map_err(|e| AppError::Internal(e.to_string()))?
     };
 
-    let user = user.ok_or(AppError::Unauthorized)?;
+    let user = match user {
+        Some(u) => u,
+        None => {
+            audit::log(pool, None, audit::Action::LoginFailed, Some(&ip),
+                serde_json::json!({ "reason": "unknown_user" })).await;
+            return Err(AppError::Unauthorized);
+        }
+    };
 
     // OAuth-only accounts have no password hash — reject password login attempts.
-    let hash = user.password_hash.as_deref().ok_or(AppError::Unauthorized)?;
-    let parsed = PasswordHash::new(hash).map_err(|_| AppError::Unauthorized)?;
-    make_argon2()
+    let hash = match user.password_hash.as_deref() {
+        Some(h) => h.to_string(),
+        None => {
+            audit::log(pool, Some(user.id), audit::Action::LoginFailed, Some(&ip),
+                serde_json::json!({ "reason": "oauth_only_account" })).await;
+            return Err(AppError::Unauthorized);
+        }
+    };
+
+    let parsed = PasswordHash::new(&hash).map_err(|_| AppError::Unauthorized)?;
+    if make_argon2()
         .map_err(|e| AppError::Internal(format!("Argon2 init: {e}")))?
         .verify_password(body.password.as_bytes(), &parsed)
-        .map_err(|_| AppError::Unauthorized)?;
+        .is_err()
+    {
+        audit::log(pool, Some(user.id), audit::Action::LoginFailed, Some(&ip),
+            serde_json::json!({ "reason": "wrong_password" })).await;
+        return Err(AppError::Unauthorized);
+    }
 
+    // ── 2FA check ─────────────────────────────────────────────────────────
+    if user.totp_enabled {
+        let challenge_token = db::create_totp_challenge(pool, user.id)
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        audit::log(pool, Some(user.id), audit::Action::TotpChallengeIssued, Some(&ip),
+            serde_json::json!({})).await;
+        return Ok(Json(serde_json::json!({
+            "totp_required": true,
+            "challenge_token": challenge_token,
+        }))
+        .into_response());
+    }
+
+    // ── No 2FA — create session immediately ───────────────────────────────
     let token = db::create_session(pool, user.id)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    audit::log(pool, Some(user.id), audit::Action::Login, Some(&ip),
+        serde_json::json!({})).await;
 
     Ok(Json(LoginResponse {
         session_token: token,
@@ -112,7 +154,8 @@ pub async fn login(
         avatar_data: user.avatar_data,
         display_name_color: user.display_name_color,
         av_color: user.av_color,
-    }))
+    })
+    .into_response())
 }
 
 // ── Register ───────────────────────────────────────────────────────────────
@@ -192,6 +235,9 @@ pub async fn register(
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     tracing::info!("Registered new user: {} ({})", user.display_name, user.winkd_id);
+    let ip = extract_ip(&headers).to_string();
+    audit::log(&state.db, Some(user.id), audit::Action::Register, Some(&ip),
+        serde_json::json!({ "winkd_id": user.winkd_id })).await;
 
     Ok(Json(LoginResponse {
         session_token: token,
@@ -947,4 +993,499 @@ fn validate_password(password: &str) -> Result<(), AppError> {
         ));
     }
     Ok(())
+}
+
+// ── Auth helper ────────────────────────────────────────────────────────────
+
+/// Extract and validate the Bearer session token from the Authorization header.
+/// Returns the authenticated User or 401.
+pub async fn require_auth(
+    headers: &HeaderMap,
+    pool: &db::DbPool,
+) -> Result<db::User, AppError> {
+    let token = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .ok_or(AppError::Unauthorized)?;
+
+    db::find_user_by_session(pool, token)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or(AppError::Unauthorized)
+}
+
+// ── Recovery code helpers ──────────────────────────────────────────────────
+
+const RECOVERY_CODE_COUNT: usize = 10;
+const RECOVERY_CODE_LEN: usize = 32; // chars (128-bit random, alphanumeric)
+
+/// Generate N cryptographically random alphanumeric recovery codes.
+/// Returns (plaintext_codes, sha256_hashes) — store only the hashes.
+fn generate_recovery_codes() -> (Vec<String>, Vec<String>) {
+    use rand::Rng;
+    const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
+    let mut rng = rand::thread_rng();
+
+    let mut plaintext = Vec::with_capacity(RECOVERY_CODE_COUNT);
+    let mut hashes = Vec::with_capacity(RECOVERY_CODE_COUNT);
+
+    for _ in 0..RECOVERY_CODE_COUNT {
+        let code: String = (0..RECOVERY_CODE_LEN)
+            .map(|_| {
+                let idx = rng.gen_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect();
+        let hash = hex::encode(Sha256::digest(code.as_bytes()));
+        plaintext.push(code);
+        hashes.push(hash);
+    }
+
+    (plaintext, hashes)
+}
+
+fn sha256_hex(input: &str) -> String {
+    hex::encode(Sha256::digest(input.as_bytes()))
+}
+
+// ── TOTP: challenge verification (2FA login step) ──────────────────────────
+
+#[derive(Deserialize)]
+pub struct TotpChallengeRequest {
+    pub challenge_token: String,
+    /// Either a 6-digit TOTP code or a 32-char backup code.
+    pub code: String,
+}
+
+pub async fn totp_challenge(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(body): Json<TotpChallengeRequest>,
+) -> Result<Response, AppError> {
+    let ip = extract_ip(&headers).to_string();
+    let pool = &state.db;
+
+    // Validate and consume the challenge token.
+    let user_id = db::consume_totp_challenge(pool, &body.challenge_token)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or(AppError::Unauthorized)?;
+
+    let user = db::find_user_by_id(pool, user_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or(AppError::Unauthorized)?;
+
+    let secret = user
+        .totp_secret
+        .as_deref()
+        .ok_or(AppError::Unauthorized)?;
+
+    // Try TOTP code first, then backup code.
+    let code_clean = body.code.trim();
+    let verified = if code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()) {
+        totp::verify(secret, code_clean)
+    } else {
+        // Treat as a backup code: hash it and look it up in the DB.
+        let hash = sha256_hex(code_clean);
+        let consumed = db::consume_recovery_code(pool, user_id, &hash)
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        if consumed {
+            audit::log(pool, Some(user_id), audit::Action::RecoveryCodeUsed, Some(&ip),
+                serde_json::json!({ "remaining": db::count_recovery_codes(pool, user_id).await.unwrap_or(0) })).await;
+        }
+        consumed
+    };
+
+    if !verified {
+        audit::log(pool, Some(user_id), audit::Action::TotpChallengeFailed, Some(&ip),
+            serde_json::json!({})).await;
+        return Err(AppError::Unauthorized);
+    }
+
+    // Create the real session.
+    let session_token = db::create_session(pool, user_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    audit::log(pool, Some(user_id), audit::Action::TotpChallengePassed, Some(&ip),
+        serde_json::json!({})).await;
+
+    Ok(Json(LoginResponse {
+        session_token,
+        winkd_id: user.winkd_id,
+        display_name: user.display_name,
+        mood_message: user.mood_message,
+        avatar_data: user.avatar_data,
+        display_name_color: user.display_name_color,
+        av_color: user.av_color,
+    })
+    .into_response())
+}
+
+// ── TOTP: setup (generate secret, return QR URI) ───────────────────────────
+
+#[derive(Serialize)]
+pub struct TotpSetupResponse {
+    pub secret: String,
+    pub uri: String,
+}
+
+pub async fn totp_setup(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<TotpSetupResponse>, AppError> {
+    let user = require_auth(&headers, &state.db).await?;
+    let secret = totp::generate_secret();
+    let uri = totp::totp_uri(&secret, &user.winkd_id, "Winkd");
+
+    // Store the pending secret (not yet enabled — enabled only after /confirm).
+    db::set_totp_secret(&state.db, user.id, &secret)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(TotpSetupResponse { secret, uri }))
+}
+
+// ── TOTP: confirm (verify first code, enable 2FA, return backup codes) ─────
+
+#[derive(Deserialize)]
+pub struct TotpConfirmRequest {
+    pub code: String,
+}
+
+#[derive(Serialize)]
+pub struct TotpConfirmResponse {
+    pub backup_codes: Vec<String>,
+}
+
+pub async fn totp_confirm(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(body): Json<TotpConfirmRequest>,
+) -> Result<Json<TotpConfirmResponse>, AppError> {
+    let ip = extract_ip(&headers).to_string();
+    let user = require_auth(&headers, &state.db).await?;
+    let pool = &state.db;
+
+    let secret = user
+        .totp_secret
+        .as_deref()
+        .ok_or_else(|| AppError::Internal("No pending TOTP secret — call /setup first".into()))?;
+
+    if !totp::verify(secret, body.code.trim()) {
+        return Err(AppError::Unauthorized);
+    }
+
+    // Enable 2FA and generate backup codes atomically.
+    db::set_totp_enabled(pool, user.id, true)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let (plaintext, hashes) = generate_recovery_codes();
+    db::store_recovery_codes(pool, user.id, &hashes)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    audit::log(pool, Some(user.id), audit::Action::TotpEnabled, Some(&ip),
+        serde_json::json!({})).await;
+
+    Ok(Json(TotpConfirmResponse { backup_codes: plaintext }))
+}
+
+// ── TOTP: disable ──────────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct TotpDisableRequest {
+    pub code: String,
+}
+
+pub async fn totp_disable(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(body): Json<TotpDisableRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let ip = extract_ip(&headers).to_string();
+    let user = require_auth(&headers, &state.db).await?;
+    let pool = &state.db;
+
+    if !user.totp_enabled {
+        return Err(AppError::Internal("2FA is not currently enabled".into()));
+    }
+
+    let secret = user.totp_secret.as_deref().ok_or(AppError::Unauthorized)?;
+    if !totp::verify(secret, body.code.trim()) {
+        return Err(AppError::Unauthorized);
+    }
+
+    db::set_totp_enabled(pool, user.id, false)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    audit::log(pool, Some(user.id), audit::Action::TotpDisabled, Some(&ip),
+        serde_json::json!({})).await;
+
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+// ── Recovery codes: regenerate ─────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct RegenerateCodesRequest {
+    /// Requires a valid TOTP code to confirm intent before wiping old codes.
+    pub code: String,
+}
+
+#[derive(Serialize)]
+pub struct RegenerateCodesResponse {
+    pub backup_codes: Vec<String>,
+    pub remaining_before: i64,
+}
+
+pub async fn recovery_codes_generate(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(body): Json<RegenerateCodesRequest>,
+) -> Result<Json<RegenerateCodesResponse>, AppError> {
+    let ip = extract_ip(&headers).to_string();
+    let user = require_auth(&headers, &state.db).await?;
+    let pool = &state.db;
+
+    if !user.totp_enabled {
+        return Err(AppError::Internal(
+            "2FA must be enabled to manage recovery codes".into(),
+        ));
+    }
+
+    let secret = user.totp_secret.as_deref().ok_or(AppError::Unauthorized)?;
+    if !totp::verify(secret, body.code.trim()) {
+        return Err(AppError::Unauthorized);
+    }
+
+    let remaining_before = db::count_recovery_codes(pool, user.id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let (plaintext, hashes) = generate_recovery_codes();
+    db::store_recovery_codes(pool, user.id, &hashes)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    audit::log(pool, Some(user.id), audit::Action::RecoveryCodesRegenerated, Some(&ip),
+        serde_json::json!({ "previous_remaining": remaining_before })).await;
+
+    Ok(Json(RegenerateCodesResponse { backup_codes: plaintext, remaining_before }))
+}
+
+// ── Recovery codes: status ─────────────────────────────────────────────────
+
+pub async fn recovery_codes_status(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let user = require_auth(&headers, &state.db).await?;
+    let remaining = db::count_recovery_codes(&state.db, user.id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(Json(serde_json::json!({
+        "totp_enabled": user.totp_enabled,
+        "recovery_codes_remaining": remaining,
+    })))
+}
+
+// ── Devices: list ──────────────────────────────────────────────────────────
+
+pub async fn list_devices(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let user = require_auth(&headers, &state.db).await?;
+    let devices = db::list_devices(&state.db, user.id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(Json(serde_json::json!({ "devices": devices })))
+}
+
+// ── Devices: revoke ────────────────────────────────────────────────────────
+
+pub async fn revoke_device(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Path(device_id): Path<i32>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let ip = extract_ip(&headers).to_string();
+    let user = require_auth(&headers, &state.db).await?;
+    let pool = &state.db;
+
+    let removed = db::revoke_device(pool, user.id, device_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    if !removed {
+        return Err(AppError::NotFound("Device not found".into()));
+    }
+
+    audit::log(pool, Some(user.id), audit::Action::DeviceRevoked, Some(&ip),
+        serde_json::json!({ "device_id": device_id })).await;
+
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+// ── Devices: register / upload pre-key bundle ──────────────────────────────
+
+#[derive(Deserialize)]
+pub struct PreKeyBundleUpload {
+    pub device_id: i32,
+    pub device_name: String,
+    pub registration_id: i32,
+    pub identity_key: String,
+    pub spk_id: i32,
+    pub spk_public_key: String,
+    pub spk_signature: String,
+    pub one_time_pre_keys: Vec<OneTimePreKey>,
+}
+
+#[derive(Deserialize)]
+pub struct OneTimePreKey {
+    pub key_id: i32,
+    pub public_key: String,
+}
+
+pub async fn upload_pre_key_bundle(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(body): Json<PreKeyBundleUpload>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let ip = extract_ip(&headers).to_string();
+    let user = require_auth(&headers, &state.db).await?;
+    let pool = &state.db;
+
+    // Upsert the signed pre-key bundle.
+    sqlx::query(
+        r#"INSERT INTO pre_key_bundles
+               (user_id, device_id, registration_id, identity_key,
+                spk_id, spk_public_key, spk_signature, uploaded_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+           ON CONFLICT (user_id, device_id)
+           DO UPDATE SET registration_id = EXCLUDED.registration_id,
+                         identity_key    = EXCLUDED.identity_key,
+                         spk_id          = EXCLUDED.spk_id,
+                         spk_public_key  = EXCLUDED.spk_public_key,
+                         spk_signature   = EXCLUDED.spk_signature,
+                         uploaded_at     = NOW()"#,
+    )
+    .bind(user.id)
+    .bind(body.device_id)
+    .bind(body.registration_id)
+    .bind(&body.identity_key)
+    .bind(body.spk_id)
+    .bind(&body.spk_public_key)
+    .bind(&body.spk_signature)
+    .execute(pool)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    // Store any uploaded one-time pre-keys (ignore duplicates).
+    for otpk in &body.one_time_pre_keys {
+        let _ = sqlx::query(
+            r#"INSERT INTO one_time_pre_keys (user_id, key_id, public_key)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (user_id, key_id) DO NOTHING"#,
+        )
+        .bind(user.id)
+        .bind(otpk.key_id)
+        .bind(&otpk.public_key)
+        .execute(pool)
+        .await;
+    }
+
+    // Register the device (upsert).
+    db::register_device(pool, user.id, body.device_id, &body.device_name)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    audit::log(pool, Some(user.id), audit::Action::DeviceRegistered, Some(&ip),
+        serde_json::json!({
+            "device_id": body.device_id,
+            "device_name": body.device_name,
+        })).await;
+
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+// ── Pre-key bundle: fetch (for X3DH initiation) ────────────────────────────
+
+pub async fn fetch_pre_key_bundle(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Path(winkd_id): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_auth(&headers, &state.db).await?; // Must be authenticated to fetch
+
+    let pool = &state.db;
+    let target = db::find_user_by_winkd_id(pool, &winkd_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound("User not found".into()))?;
+
+    // Fetch the primary device bundle.
+    let bundle: Option<(i32, i32, String, i32, String, String)> = sqlx::query_as(
+        r#"SELECT registration_id, device_id, identity_key,
+                  spk_id, spk_public_key, spk_signature
+           FROM   pre_key_bundles
+           WHERE  user_id = $1
+           ORDER  BY device_id ASC
+           LIMIT  1"#,
+    )
+    .bind(target.id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let (registration_id, device_id, identity_key, spk_id, spk_public_key, spk_signature) =
+        bundle.ok_or_else(|| AppError::NotFound("No pre-key bundle for this user".into()))?;
+
+    // Atomically consume one one-time pre-key if available.
+    let otpk: Option<(i32, String)> = sqlx::query_as(
+        r#"DELETE FROM one_time_pre_keys
+           WHERE id = (
+               SELECT id FROM one_time_pre_keys
+               WHERE user_id = $1
+               ORDER BY key_id ASC
+               LIMIT 1
+           )
+           RETURNING key_id, public_key"#,
+    )
+    .bind(target.id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(serde_json::json!({
+        "registration_id": registration_id,
+        "device_id": device_id,
+        "identity_key": identity_key,
+        "spk_id": spk_id,
+        "spk_public_key": spk_public_key,
+        "spk_signature": spk_signature,
+        "one_time_pre_key": otpk.map(|(id, key)| serde_json::json!({
+            "key_id": id,
+            "public_key": key,
+        })),
+    })))
+}
+
+// ── Audit log: fetch ───────────────────────────────────────────────────────
+
+pub async fn get_audit_log(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let user = require_auth(&headers, &state.db).await?;
+    let entries = db::get_audit_log(&state.db, user.id, 100)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(Json(serde_json::json!({ "events": entries })))
 }

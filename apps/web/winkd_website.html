@@ -1703,25 +1703,99 @@ body {
           <!-- SECURITY -->
           <div class="lp-content" id="lp-panel-security" style="display:none">
             <div class="lp-section-title">Security &amp; Privacy</div>
+
             <div class="feat-box">
-              <div class="feat-box-title">🔒 Signal Protocol Encryption</div>
-              <div class="feat-box-desc">Winkd uses the Signal Protocol for end-to-end encryption, the same standard used by Signal and WhatsApp. All messages are encrypted client-side before leaving your device.</div>
+              <div class="feat-box-title">🔒 Signal Protocol — End-to-End Encryption</div>
+              <div class="feat-box-desc">Every message is encrypted on your device before it leaves. Winkd uses the Signal Protocol — the gold standard in private messaging, the same cryptographic foundation as Signal itself. The server relays encrypted blobs and is mathematically unable to read them. Not even us.</div>
             </div>
+
             <div class="feat-box">
-              <div class="feat-box-title">🗝 Key Exchange &amp; Forward Secrecy</div>
-              <div class="feat-box-desc">X3DH key exchange at contact-add time, Double Ratchet algorithm for forward secrecy. If a key is ever compromised, past messages stay safe.</div>
+              <div class="feat-box-title">🔁 X3DH Key Exchange</div>
+              <div class="feat-box-desc">When you add a contact, your client performs an Extended Triple Diffie-Hellman (X3DH) key agreement entirely on your device. Three DH computations across identity, signed pre-key, and one-time pre-key establish a shared secret the server never touches. One-time pre-keys are consumed once and destroyed — no replay possible.</div>
             </div>
+
             <div class="feat-box">
-              <div class="feat-box-title">🛡 Local Key Storage</div>
-              <div class="feat-box-desc">Encryption keys are stored only on your device and are never transmitted to the server. Winkd cannot read your messages. Ever.</div>
+              <div class="feat-box-title">⚙️ Double Ratchet — Forward Secrecy &amp; Break-in Recovery</div>
+              <div class="feat-box-desc">After key exchange, every message rotates the encryption key via the Double Ratchet algorithm. Compromising today's keys cannot decrypt yesterday's messages (forward secrecy). And after a compromise window closes, the ratchet automatically recovers — future messages return to full protection (break-in recovery).</div>
             </div>
+
             <div class="feat-box">
-              <div class="feat-box-title">🚫 No Data Selling</div>
-              <div class="feat-box-desc">Winkd is open source with no advertising or analytics. Your conversation data stays yours. We have no financial incentive to collect or sell it.</div>
+              <div class="feat-box-title">🔑 AES-256-GCM Message Encryption</div>
+              <div class="feat-box-desc">Each individual message is encrypted with AES-256-GCM using a fresh random IV. Authenticated encryption means any tampering with a message in transit is detected and rejected before delivery.</div>
             </div>
+
             <div class="feat-box">
-              <div class="feat-box-title">🌐 Self-Hostable</div>
-              <div class="feat-box-desc">Run your own Winkd server with the provided Docker Compose setup. Complete control over your data and who can connect.</div>
+              <div class="feat-box-title">🗝 Keys Live on Your Device Only</div>
+              <div class="feat-box-desc">Your identity key, signed pre-key, one-time pre-keys, and all ratchet session state are stored in your browser's IndexedDB. They are never transmitted to the server. A server breach, a court order, or a rogue employee cannot produce your keys — because we simply do not have them.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">🔢 Safety Numbers — Verify Your Contacts</div>
+              <div class="feat-box-desc">Every conversation has a 60-digit safety number derived from both users' identity keys via SHA-512. Compare it with your contact in person or over a phone call to confirm no man-in-the-middle is present. The same verification method used by Signal.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">🔐 Two-Factor Authentication (TOTP)</div>
+              <div class="feat-box-desc">Enable TOTP 2FA from the Security panel — works with Google Authenticator, Authy, Bitwarden, and any RFC 6238-compatible app. When 2FA is on, correct password alone is not enough: login issues a short-lived challenge token, and a full session is only created after you supply a valid 6-digit code. No session is ever created by password alone.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">🗝 Backup Codes — Never Locked Out</div>
+              <div class="feat-box-desc">When you enable 2FA, Winkd generates 10 cryptographically random backup codes. Each is 128 bits of entropy, hashed with SHA-256 before storage — the plaintext is shown once and never persisted. Codes are single-use. You can regenerate the full set at any time with a valid TOTP code. The Security panel shows how many remain so you're never caught off guard.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">🛡 Argon2id Password Hashing</div>
+              <div class="feat-box-desc">Passwords are hashed with Argon2id at 128 MB memory cost, 4 iterations — one of the strongest password hashing configurations available. A plaintext password never touches the database. Minimum 12 characters with complexity requirements enforced at registration.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">🎲 256-bit Cryptographic Session Tokens</div>
+              <div class="feat-box-desc">Session tokens are 32 bytes of cryptographically random data — not UUIDs, not sequential IDs, not guessable. Tokens are never placed in URLs (which appear in server logs, browser history, and Referer headers). They expire after 30 days.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">🚦 Rate Limiting &amp; Brute-Force Protection</div>
+              <div class="feat-box-desc">Login is limited to 10 attempts per minute per IP. Registration is capped at 5 per minute per IP. Password brute-forcing is blocked at the network level before it can reach the database.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">🔐 OAuth with PKCE &amp; CSRF Protection</div>
+              <div class="feat-box-desc">Sign in with Discord, Google, Apple, and 9 other providers. Every OAuth flow uses PKCE (SHA-256 code challenge) to prevent authorization code interception, and a signed HttpOnly SameSite=Strict cookie to block cross-site request forgery — no server-side state session required.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">🔓 WebSocket Auth — No Tokens in URLs</div>
+              <div class="feat-box-desc">WebSocket connections authenticate via the first message payload, never a query parameter. URL-based tokens appear in server access logs and browser history. Winkd's approach keeps your session token out of any log file. On invalid auth, the server closes with code 4001 — no retry, no session leak.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">💻 Multi-Device — Per-Device Key Bundles</div>
+              <div class="feat-box-desc">Each device you use registers its own Signal Protocol pre-key bundle. Your encryption keys are never shared between devices — if one device is compromised or lost, you revoke it from the Security panel. Revoking a device deletes its pre-key bundle from the server; future messages cannot be initiated to that device.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">📋 Security Audit Log</div>
+              <div class="feat-box-desc">Every security event on your account is recorded: logins (success and failure), 2FA challenges, backup code use, device registrations and revocations. View your last 100 events in the Security panel, including the IP address and timestamp of each event. You'll know immediately if something unexpected happened to your account.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">🚫 Zero Data Monetisation</div>
+              <div class="feat-box-desc">Winkd is open source (MIT licence) with no advertising, no analytics without explicit opt-in, and no data sold — ever. The business model is hosted instances and optional cosmetics. We have zero financial incentive to collect your conversation data.</div>
+            </div>
+
+            <div class="feat-box">
+              <div class="feat-box-title">🌐 Self-Hostable — Full Data Sovereignty</div>
+              <div class="feat-box-desc">Run your own Winkd server with the provided Docker Compose setup. You own the database, the keys, the connection list. No dependency on Winkd infrastructure. Full source code at <a href="https://github.com/valdran/winkd" style="color:#1a5acc;">github.com/valdran/winkd</a>.</div>
+            </div>
+
+            <div class="feat-box" style="background:linear-gradient(135deg,rgba(220,240,255,0.7),rgba(200,225,255,0.5));border-color:rgba(100,160,240,0.4);">
+              <div class="feat-box-title" style="font-size:12px;color:#0a3a8a;">What the server can and cannot see</div>
+              <div class="feat-box-desc" style="font-size:11px;line-height:1.7;">
+                <strong>Cannot see:</strong> message content, encryption keys, safety numbers, your password, your TOTP secret, your backup codes (hashed only).<br>
+                <strong>Can see:</strong> who you've added as contacts, when you were online, your registered devices, your IP address (standard for any networked service), and your own security audit log events (which you can also see).<br><br>
+                A server breach, a subpoena, or a rogue employee <strong>cannot</strong> access the content of your messages.
+              </div>
             </div>
           </div>
 
