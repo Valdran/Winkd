@@ -24,6 +24,8 @@ export function useSocket() {
   const upsertBlockedUser = useContactsStore((s) => s.upsertBlockedUser)
   const removeBlockedUser = useContactsStore((s) => s.removeBlockedUser)
   const addAcceptedContact = useContactsStore((s) => s.addAcceptedContact)
+  const setContacts = useContactsStore((s) => s.setContacts)
+  const removeContact = useContactsStore((s) => s.removeContact)
 
   const send = useCallback((payload: object) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -105,6 +107,29 @@ export function useSocket() {
             unreadCount: 0,
             lastMessageAt: null,
           })
+        } else if (envelope.event === 'contacts_snapshot') {
+          const payload = envelope.payload as {
+            contacts: Array<{
+              winkd_id: string
+              display_name: string
+              avatar_data?: string | null
+              mood_message?: string
+              request_status: 'accepted' | 'pending_outbound'
+            }>
+          }
+          setContacts(
+            payload.contacts.map((contact) => ({
+              id: contact.winkd_id,
+              winkdId: contact.winkd_id as `${string}#${string}`,
+              displayName: contact.display_name,
+              moodMessage: contact.mood_message ?? '',
+              status: contact.request_status === 'accepted' ? 'online' : 'invisible',
+              avatarData: contact.avatar_data ?? null,
+              requestStatus: contact.request_status,
+              unreadCount: 0,
+              lastMessageAt: null,
+            })),
+          )
         } else if (envelope.event === 'contact_request_rejected') {
           const payload = envelope.payload as { request_id: string }
           removePendingInvitation(payload.request_id)
@@ -146,6 +171,7 @@ export function useSocket() {
             avatarData: payload.avatar_data ?? null,
             blockedAt: payload.blocked_at,
           })
+          removeContact(payload.winkd_id)
         } else if (envelope.event === 'contact_unblocked') {
           const payload = envelope.payload as { user_id: string }
           removeBlockedUser(payload.user_id)
@@ -204,6 +230,8 @@ export function useSocket() {
     upsertBlockedUser,
     removeBlockedUser,
     addAcceptedContact,
+    setContacts,
+    removeContact,
   ])
 
   return { send }

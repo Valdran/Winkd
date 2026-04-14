@@ -37,6 +37,7 @@ pub enum ClientCommandType {
     AcceptContact,
     RejectContact,
     BlockContact,
+    BlockUser,
     UnblockContact,
     ListBlocked,
     SendWinkd,

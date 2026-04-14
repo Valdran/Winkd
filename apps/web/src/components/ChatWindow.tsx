@@ -131,6 +131,25 @@ export function ChatWindow({ send }: ChatWindowProps) {
             </div>
           )}
         </div>
+        <div style={{ marginLeft: 'auto' }}>
+          <button
+            type="button"
+            onClick={() => send({ command: 'block_user', payload: { winkd_id: contact.winkdId } })}
+            style={{
+              height: 24,
+              borderRadius: 4,
+              border: '1px solid rgba(255,110,110,0.6)',
+              background: 'rgba(180,65,65,0.28)',
+              color: '#ffd0d0',
+              fontSize: 10,
+              fontWeight: 700,
+              cursor: 'pointer',
+              padding: '0 8px',
+            }}
+          >
+            Block User
+          </button>
+        </div>
       </div>
 
       {/* Action toolbar */}

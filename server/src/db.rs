@@ -320,6 +320,15 @@ pub struct BlockedUser {
     pub blocked_at: DateTime<Utc>,
 }
 
+#[derive(sqlx::FromRow, Clone, Debug)]
+pub struct ContactRosterEntry {
+    pub winkd_id: String,
+    pub display_name: String,
+    pub avatar_data: Option<String>,
+    pub mood_message: String,
+    pub request_status: String,
+}
+
 pub async fn find_user_by_id(pool: &DbPool, id: Uuid) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
         .bind(id)
@@ -373,6 +382,35 @@ pub async fn list_pending_inbound(
            ORDER BY cr.created_at ASC"#,
     )
     .bind(to_id)
+    .fetch_all(pool)
+    .await
+}
+
+/// List a user's accepted contacts and outbound pending requests.
+pub async fn list_contact_roster(
+    pool: &DbPool,
+    user_id: Uuid,
+) -> Result<Vec<ContactRosterEntry>, sqlx::Error> {
+    sqlx::query_as::<_, ContactRosterEntry>(
+        r#"SELECT u.winkd_id,
+                  u.display_name,
+                  u.avatar_data,
+                  u.mood_message,
+                  CASE
+                    WHEN cr.status = 'accepted' THEN 'accepted'
+                    ELSE 'pending_outbound'
+                  END AS request_status
+           FROM contact_requests cr
+           JOIN users u
+             ON u.id = CASE
+               WHEN cr.from_id = $1 THEN cr.to_id
+               ELSE cr.from_id
+             END
+           WHERE (cr.from_id = $1 OR cr.to_id = $1)
+             AND (cr.status = 'accepted' OR (cr.status = 'pending' AND cr.from_id = $1))
+           ORDER BY cr.created_at DESC"#,
+    )
+    .bind(user_id)
     .fetch_all(pool)
     .await
 }
