@@ -77,7 +77,7 @@ export function useSocket() {
       // Code 4001 means the server rejected our session (expired / invalid).
       // The auth store should handle sign-out.
       if (e.code === 4001) {
-        useAuthStore.getState().clearSession?.()
+        useAuthStore.getState().logout()
       }
     }
 
