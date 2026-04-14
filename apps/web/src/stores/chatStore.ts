@@ -79,7 +79,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
       },
     }))
-    send({ type: 'message', payload: msg })
+    send({ command: 'send_message', payload: msg })
   },
 
   sendWinkd: (conversationId, senderId, send) => {
@@ -101,7 +101,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
       },
     }))
-    send({ type: 'message', payload: msg })
+    send({ command: 'send_message', payload: msg })
   },
 
   sendNudge: (conversationId, senderId, send) => {
@@ -123,7 +123,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
       },
     }))
-    send({ type: 'message', payload: msg })
+    send({ command: 'send_message', payload: msg })
   },
 
   receiveMessage: (message) => {

@@ -87,15 +87,20 @@ export function useSocket() {
             fromAvatarData: payload.from_avatar_data ?? null,
           })
         } else if (envelope.event === 'contact_accepted') {
-          const payload = envelope.payload as { winkd_id: string; display_name: string }
+          const payload = envelope.payload as {
+            winkd_id: string
+            display_name: string
+            avatar_data?: string | null
+            mood_message?: string
+          }
           clearPendingFromUser(payload.winkd_id)
           addAcceptedContact({
             id: payload.winkd_id,
             winkdId: payload.winkd_id as `${string}#${string}`,
             displayName: payload.display_name,
-            moodMessage: '',
+            moodMessage: payload.mood_message ?? '',
             status: 'online',
-            avatarData: null,
+            avatarData: payload.avatar_data ?? null,
             requestStatus: 'accepted',
             unreadCount: 0,
             lastMessageAt: null,

@@ -243,28 +243,6 @@ export function Sidebar() {
         />
       </div>
 
-      {pendingInvitations.length > 0 && (
-        <div style={{ padding: '5px 8px 0', flexShrink: 0 }}>
-          <button
-            onClick={() => setShowInvitations(true)}
-            style={{
-              width: '100%',
-              height: 28,
-              borderRadius: 6,
-              border: '1px solid rgba(255,220,150,0.65)',
-              background:
-                'linear-gradient(180deg, rgba(255,240,185,0.35) 0%, rgba(255,210,120,0.28) 100%)',
-              color: '#ffe8aa',
-              fontWeight: 700,
-              fontSize: 11,
-              cursor: 'pointer',
-            }}
-          >
-            {invitationLabel}
-          </button>
-        </div>
-      )}
-
       {/* Contact groups */}
       <div style={{ flex: 1, overflowY: 'auto', paddingTop: 4 }}>
         {UI_GROUPS.map(({ key, label, filter }) => {
@@ -344,6 +322,27 @@ export function Sidebar() {
           ⛔ Blocked
         </button>
       </div>
+      {pendingInvitations.length > 0 && (
+        <div style={{ padding: '5px 8px 0', flexShrink: 0 }}>
+          <button
+            onClick={() => setShowInvitations(true)}
+            style={{
+              width: '100%',
+              height: 28,
+              borderRadius: 6,
+              border: '1px solid rgba(255,220,150,0.65)',
+              background:
+                'linear-gradient(180deg, rgba(255,240,185,0.35) 0%, rgba(255,210,120,0.28) 100%)',
+              color: '#ffe8aa',
+              fontWeight: 700,
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+          >
+            {invitationLabel}
+          </button>
+        </div>
+      )}
       <div style={{ padding: '5px 8px', flexShrink: 0 }}>
         <button
           onClick={() => setShowAddContact(true)}
