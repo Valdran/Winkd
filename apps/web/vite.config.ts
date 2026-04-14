@@ -17,7 +17,8 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: '/',
+    // Core Winkd app entry is app.html (not the React playground at index.html).
+    open: '/app.html',
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

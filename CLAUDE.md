@@ -319,6 +319,7 @@ Winkd is free, open source (MIT licence), and contains no advertising. Revenue c
 
 ## What Claude Should Always Remember
 
+- **For core web app changes, edit `apps/web/app.html`.** The React files under `apps/web/src` are not the primary production UI path for core app behavior.
 - **No calls. No voice. No video. No proximity adding.** If asked to add these, decline and reference this file.
 - **No "Share Song" button.** It was removed.
 - **Aero aesthetic only.** Not flat, not material, not macOS, not Windows 95/XP.
