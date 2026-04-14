@@ -346,6 +346,7 @@ async fn handle_command(
                                         "request_id": req.id,
                                         "to_winkd_id": target_id,
                                         "to_display_name": target.display_name,
+                                        "to_avatar_data": target.avatar_data,
                                     }
                                 })
                                 .to_string(),
@@ -569,7 +570,9 @@ async fn handle_command(
                 return;
             }
 
-            if let Err(e) = db::clear_pending_contact_requests_between(&state.db, user.id, target.id).await {
+            if let Err(e) =
+                db::clear_pending_contact_requests_between(&state.db, user.id, target.id).await
+            {
                 tracing::warn!("clear_pending_contact_requests_between on block_user: {e}");
             }
 

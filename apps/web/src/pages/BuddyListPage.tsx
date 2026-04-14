@@ -29,7 +29,7 @@ export function BuddyListPage() {
           maxHeight: 690,
         }}
       >
-        <Sidebar />
+        <Sidebar send={send} />
         <ChatWindow send={send} />
       </AeroWindow>
     </div>
