@@ -681,6 +681,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
       <div id="contact-list"></div>
       <div id="sidebar-statusbar">
         <div id="add-contact-btn" onclick="openModal('add-contact-modal')">+ Add Contact</div>
+        <div id="blocked-users-btn" onclick="openBlockedUsersModal()" style="margin-top:5px;background:linear-gradient(to bottom,rgba(80,120,180,0.24),rgba(40,90,150,0.2));border:1px solid rgba(120,160,220,0.38);border-radius:6px;padding:5px 9px;font-size:11px;color:#ffffff;cursor:pointer;transition:all 0.15s;font-weight:600;text-align:center;display:block;width:100%;">🧱 Blocked Users</div>
         <div id="sidebar-bottom-row">
           <span id="contact-count">7 contacts</span>
           <div id="signout-btn" onclick="signOut()" title="Sign out">⏻</div>
@@ -738,6 +739,20 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
   <div class="ep-sheet-actions" id="epSheetActions"></div>
 </div>
 <div id="ep-ctx-menu"></div>
+
+<!-- Modal: Blocked Users -->
+<div class="modal-overlay" id="blocked-users-modal">
+  <div class="modal-box" style="width:420px;">
+    <div class="modal-titlebar">
+      <div class="modal-title">🧱 Blocked Users</div>
+      <div class="modal-close" onclick="closeModal('blocked-users-modal')">✕</div>
+    </div>
+    <div class="modal-body" style="max-height:420px;overflow:auto;">
+      <div id="blocked-users-empty" style="font-size:11px;color:#5a7a9a;display:none;">No blocked users.</div>
+      <div id="blocked-users-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: Add Contact -->
 <div class="modal-overlay" id="add-contact-modal">
@@ -1416,6 +1431,7 @@ window.addEventListener('storage',function(ev){
 });
 
 let inboundRequests=[];
+let blockedUsers=[];
 let activeContact=null,msgColor=null,boldOn=false,italicOn=false,underlineOn=false,emojiOpen=false;
 // FIX: declare formatBarOpen at top level (was missing — caused ReferenceError in buildChat)
 let formatBarOpen=false;
@@ -1853,12 +1869,53 @@ function wsSend(command,payload){
 
 function handleServerEvent(event,payload){
   switch(event){
+    case 'contacts_snapshot':    handleContactsSnapshot(payload);break;
+    case 'presence':             handlePresence(payload);break;
     case 'contact_request_sent': handleContactRequestSent(payload);break;
     case 'contact_request':      handleInboundContactRequest(payload);break;
     case 'contact_accepted':     handleContactAccepted(payload);break;
     case 'contact_request_rejected': handleContactRequestRejected(payload);break;
     case 'contact_blocked':      handleContactBlocked(payload);break;
+    case 'blocked_list':         handleBlockedList(payload);break;
+    case 'contact_unblocked':    handleContactUnblocked(payload);break;
     case 'error':                showToast(payload?.message||'Something went wrong.','error');break;
+  }
+}
+
+function handleContactsSnapshot(payload){
+  const list=Array.isArray(payload?.contacts)?payload.contacts:[];
+  contacts.length=0;
+  list.forEach(item=>{
+    const wid=item.winkd_id;
+    if(!wid)return;
+    const name=item.display_name||wid.split('#')[0];
+    const requestStatus=item.request_status||'accepted';
+    contacts.push({
+      id:wid,
+      initials:name.slice(0,2).toUpperCase(),
+      name,
+      mood:item.mood_message||'',
+      status:requestStatus==='accepted'?'online':'offline',
+      color:'#406080',
+      unread:0,
+      requestStatus
+    });
+    if(!convos[wid])convos[wid]=[];
+  });
+  renderContacts(document.getElementById('search-input')?.value||'');
+}
+
+function handlePresence(payload){
+  const wid=payload?.userId||payload?.user_id;
+  const status=payload?.status;
+  if(!wid||!status)return;
+  const contact=contacts.find(x=>x.id===wid);
+  if(!contact)return;
+  contact.status=(status==='invisible'?'offline':status);
+  renderContacts(document.getElementById('search-input')?.value||'');
+  if(activeContact===wid){
+    const bar=document.querySelector('#chat-statusbar span:last-child');
+    if(bar)bar.textContent=`${contact.name} is ${contact.status}`;
   }
 }
 
@@ -1917,6 +1974,59 @@ function handleContactBlocked(payload){
   }
   renderInboundRequests();
   showToast('User blocked.','info');
+}
+
+function handleBlockedList(payload){
+  blockedUsers=Array.isArray(payload?.users)?payload.users:[];
+  renderBlockedUsers();
+}
+
+function handleContactUnblocked(payload){
+  const uid=payload?.user_id;
+  if(!uid)return;
+  blockedUsers=blockedUsers.filter(u=>u.user_id!==uid);
+  renderBlockedUsers();
+  showToast('User unblocked.','info');
+}
+
+function openBlockedUsersModal(){
+  openModal('blocked-users-modal');
+  renderBlockedUsers();
+  wsSend('list_blocked',{});
+}
+
+function renderBlockedUsers(){
+  const listEl=document.getElementById('blocked-users-list');
+  const emptyEl=document.getElementById('blocked-users-empty');
+  if(!listEl||!emptyEl)return;
+  listEl.innerHTML='';
+  if(!blockedUsers.length){
+    emptyEl.style.display='block';
+    return;
+  }
+  emptyEl.style.display='none';
+  blockedUsers.forEach(user=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid rgba(100,150,220,0.25);border-radius:6px;background:rgba(255,255,255,0.65);';
+    const left=document.createElement('div');
+    left.style.cssText='min-width:0;';
+    const name=user.display_name||'Unknown';
+    const wid=user.winkd_id||'';
+    left.innerHTML=`<div style="font-size:12px;font-weight:700;color:#1a2a40;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div><div style="font-size:10px;color:#5a7a9a;">${wid}</div>`;
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.textContent='Unblock';
+    btn.style.cssText='height:24px;padding:0 10px;border-radius:4px;border:1px solid rgba(80,140,220,0.5);background:linear-gradient(to bottom,#5090e8,#2060c0);color:#fff;font-size:11px;font-weight:700;cursor:pointer;';
+    btn.onclick=()=>unblockUser(user.user_id);
+    row.appendChild(left);
+    row.appendChild(btn);
+    listEl.appendChild(row);
+  });
+}
+
+function unblockUser(userId){
+  if(!userId)return;
+  wsSend('unblock_contact',{user_id:userId});
 }
 
 function renderInboundRequests(){
