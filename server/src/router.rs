@@ -741,6 +741,8 @@ async fn handle_command(
                 .get("conversationId")
                 .or_else(|| cmd.payload.get("conversation_id"))
                 .or_else(|| cmd.payload.get("recipient_winkd_id"))
+                .or_else(|| cmd.payload.get("recipientId"))
+                .or_else(|| cmd.payload.get("recipient_id"))
                 .and_then(|v| v.as_str())
                 .map(str::to_string);
 
