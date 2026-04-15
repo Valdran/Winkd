@@ -1,5 +1,16 @@
 import type { Message } from '@winkd/types'
 
+const URL_REGEX = /(https?:\/\/[^\s]+)/g
+
+function isImageAssetUrl(rawUrl: string): boolean {
+  const normalized = rawUrl.toLowerCase()
+  return /(\.gif|\.webp|\.png|\.jpg|\.jpeg)(\?|$)/.test(normalized) || normalized.includes('/media')
+}
+
+function shouldHideCompanionGifLink(rawUrl: string): boolean {
+  return /https?:\/\/(?:www\.)?(?:giphy\.com|tenor\.com)\//i.test(rawUrl)
+}
+
 interface MessageBubbleProps {
   message: Message
   isMe: boolean
@@ -71,6 +82,10 @@ export function MessageBubble({ message, isMe }: MessageBubbleProps) {
 
   if (message.type !== 'text') return null
 
+  const bodyParts = message.body.split(URL_REGEX)
+  const imageUrls = (message.body.match(URL_REGEX) ?? []).filter(isImageAssetUrl)
+  const hasImageAssets = imageUrls.length > 0
+
   return (
     <div
       style={{
@@ -97,7 +112,44 @@ export function MessageBubble({ message, isMe }: MessageBubbleProps) {
         margin: '2px 0',
       }}
     >
-      {message.body}
+      {bodyParts.map((part, index) => {
+        if (!part.match(URL_REGEX)) {
+          return <span key={`text-${index}`}>{part}</span>
+        }
+
+        if (isImageAssetUrl(part)) {
+          return (
+            <img
+              key={`image-${index}`}
+              src={part}
+              alt="Shared media"
+              style={{
+                display: 'block',
+                marginTop: 6,
+                maxWidth: '100%',
+                borderRadius: 6,
+                border: '1px solid rgba(80,120,180,0.25)',
+              }}
+            />
+          )
+        }
+
+        if (hasImageAssets && shouldHideCompanionGifLink(part)) {
+          return null
+        }
+
+        return (
+          <a
+            key={`link-${index}`}
+            href={part}
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: '#0f4ca8', textDecoration: 'underline' }}
+          >
+            {part}
+          </a>
+        )
+      })}
     </div>
   )
 }
