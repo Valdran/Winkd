@@ -220,6 +220,7 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
             },
         )
         .await;
+    broadcast_presence_to_contacts(&state, &user, "online").await;
 
     // Flush any pending inbound contact requests that arrived while offline.
     if let Ok(contacts) = db::list_contact_roster(&state.db, user.id).await {
@@ -284,6 +285,7 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
     // Cleanup on disconnect.
     state.clients.write().await.remove(&user.id);
     state.presence.remove(&user.id.to_string()).await;
+    broadcast_presence_to_contacts(&state, &user, "offline").await;
     send_task.abort();
 
     tracing::info!("WS disconnected: {}", user.winkd_id);
@@ -720,6 +722,12 @@ async fn handle_command(
                 entry.status = status;
                 state.presence.set(&user.id.to_string(), entry).await;
             }
+            let outbound = if status_str == "invisible" {
+                "offline"
+            } else {
+                status_str.as_str()
+            };
+            broadcast_presence_to_contacts(state, user, outbound).await;
         }
 
         // ── Message relay (text / winkd / nudge / wink) ───────────────────
@@ -801,4 +809,37 @@ fn send_err(tx: &mpsc::UnboundedSender<String>, message: &str) {
         })
         .to_string(),
     );
+}
+
+async fn broadcast_presence_to_contacts(state: &AppState, user: &db::User, status: &str) {
+    let contact_ids = match db::list_accepted_contact_user_ids(&state.db, user.id).await {
+        Ok(ids) => ids,
+        Err(e) => {
+            tracing::warn!(
+                "list_accepted_contact_user_ids error for {}: {e}",
+                user.winkd_id
+            );
+            return;
+        }
+    };
+
+    if contact_ids.is_empty() {
+        return;
+    }
+
+    let msg = json!({
+        "event": "presence",
+        "payload": {
+            "user_id": user.winkd_id,
+            "status": status,
+        }
+    })
+    .to_string();
+
+    let clients = state.clients.read().await;
+    for contact_id in contact_ids {
+        if let Some(chan) = clients.get(&contact_id) {
+            let _ = chan.send(msg.clone());
+        }
+    }
 }
