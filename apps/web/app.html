@@ -344,6 +344,7 @@ display:flex;gap:2px;flex-wrap:wrap;max-height:42px;overflow:hidden;background:r
 .ep-fav-em{width:30px;height:30px;display:flex;align-items:center;justify-content:center;
 font-size:18px;border-radius:4px;cursor:pointer;transition:background 0.1s;}
 .ep-fav-em:hover{background:rgba(255,200,0,0.2);}
+.ep-fav-em img{width:20px;height:20px;object-fit:contain;pointer-events:none;}
 .ep-fav-label{font-size:9px;color:rgba(160,120,0,0.7);font-weight:700;align-self:center;padding-left:2px;white-space:nowrap;}
 .ep-grid-wrap{flex:1;overflow-y:auto;padding:5px 6px;
 scrollbar-width:thin;scrollbar-color:rgba(100,150,220,0.3) transparent;}
@@ -353,6 +354,7 @@ scrollbar-width:thin;scrollbar-color:rgba(100,150,220,0.3) transparent;}
 .ep-em{width:32px;height:32px;display:flex;align-items:center;justify-content:center;
 font-size:19px;border-radius:4px;cursor:pointer;transition:background 0.1s;
 position:relative;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+.ep-em img{width:22px;height:22px;object-fit:contain;pointer-events:none;}
 .ep-em:hover{background:rgba(100,160,255,0.2);}
 .ep-em.fav-glow{outline:2px solid rgba(255,180,0,0.7);outline-offset:0px;}
 .ep-em.long-press-active{background:rgba(100,160,255,0.35);transform:scale(1.15);}
@@ -682,6 +684,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
       <div id="sidebar-statusbar">
         <div id="add-contact-btn" onclick="openModal('add-contact-modal')">+ Add Contact</div>
         <div id="blocked-users-btn" onclick="openBlockedUsersModal()" style="margin-top:5px;background:linear-gradient(to bottom,rgba(80,120,180,0.24),rgba(40,90,150,0.2));border:1px solid rgba(120,160,220,0.38);border-radius:6px;padding:5px 9px;font-size:11px;color:#ffffff;cursor:pointer;transition:all 0.15s;font-weight:600;text-align:center;display:block;width:100%;">🧱 Blocked Users</div>
+        <div id="security-btn" onclick="openSecurityModal()" style="margin-top:5px;background:linear-gradient(to bottom,rgba(110,150,210,0.26),rgba(60,100,170,0.2));border:1px solid rgba(140,175,230,0.4);border-radius:6px;padding:5px 9px;font-size:11px;color:#ffffff;cursor:pointer;transition:all 0.15s;font-weight:600;text-align:center;display:block;width:100%;">🛡 Security Settings</div>
         <div id="sidebar-bottom-row">
           <span id="contact-count">7 contacts</span>
           <div id="signout-btn" onclick="signOut()" title="Sign out">⏻</div>
@@ -750,6 +753,45 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
     <div class="modal-body" style="max-height:420px;overflow:auto;">
       <div id="blocked-users-empty" style="font-size:11px;color:#5a7a9a;display:none;">No blocked users.</div>
       <div id="blocked-users-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Security Settings -->
+<div class="modal-overlay" id="security-modal">
+  <div class="modal-box" style="width:min(680px,92vw);max-height:88vh;display:flex;flex-direction:column;">
+    <div class="modal-titlebar">
+      <div class="modal-title">🛡 Security Settings</div>
+      <div class="modal-close" onclick="closeModal('security-modal')">✕</div>
+    </div>
+    <div class="modal-body" style="overflow:auto;">
+      <div style="font-size:11px;color:#5a7a9a;margin-bottom:10px;">Manage 2FA, backup codes, devices, and security logs.</div>
+      <div id="security-flash" style="display:none;font-size:11px;padding:8px 10px;border-radius:6px;margin-bottom:10px;"></div>
+
+      <div style="font-size:11px;font-weight:700;color:#1a3a7a;margin:14px 0 8px;">Two-Factor Authentication (TOTP)</div>
+      <div id="sec-2fa-status" style="font-size:11px;color:#3a5678;margin-bottom:8px;">Loading…</div>
+      <div id="sec-2fa-setup" style="display:none;">
+        <div class="modal-btn" onclick="startTotpSetup()" style="display:inline-flex;">Enable 2FA</div>
+      </div>
+      <div id="sec-2fa-qr" style="display:none;margin-top:8px;padding:10px;border:1px solid rgba(100,150,220,0.28);border-radius:6px;background:rgba(255,255,255,0.75);">
+        <div style="font-size:11px;color:#1a3a6a;margin-bottom:6px;">Scan this URI in your authenticator app:</div>
+        <div id="sec-setup-uri" style="font-size:10px;word-break:break-all;color:#406090;margin-bottom:8px;"></div>
+        <input id="sec-confirm-code" class="modal-input" type="text" maxlength="6" placeholder="Enter 6-digit code" style="margin-bottom:8px;">
+        <div class="modal-btn-row"><div class="modal-btn-cancel" onclick="cancelTotpSetup()">Cancel</div><div class="modal-btn" onclick="confirmTotpSetup()">Confirm 2FA</div></div>
+      </div>
+      <div id="sec-2fa-disable" style="display:none;margin-top:8px;">
+        <div style="font-size:10px;color:#5a7a9a;margin-bottom:6px;">Disable 2FA (requires current code):</div>
+        <input id="sec-disable-code" class="modal-input" type="text" maxlength="6" placeholder="6-digit code" style="margin-bottom:8px;">
+        <div class="modal-btn-row"><div class="modal-btn-cancel" onclick="disableTotp()">Disable 2FA</div><div class="modal-btn" onclick="regenerateRecoveryCodes()">Regenerate backup codes</div></div>
+      </div>
+      <div id="sec-backup-codes" style="display:none;white-space:pre-wrap;font-family:monospace;font-size:11px;background:#fff;border:1px solid rgba(100,150,220,0.28);border-radius:6px;padding:8px;margin-top:8px;"></div>
+
+      <div style="font-size:11px;font-weight:700;color:#1a3a7a;margin:16px 0 8px;">Connected Devices</div>
+      <div id="sec-devices" style="display:flex;flex-direction:column;gap:8px;"></div>
+
+      <div style="font-size:11px;font-weight:700;color:#1a3a7a;margin:16px 0 8px;">Security Audit Log</div>
+      <div class="modal-btn-cancel" onclick="loadSecurityAuditLog()" style="display:inline-flex;margin-bottom:8px;">Load Audit Log</div>
+      <div id="sec-audit-log" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
   </div>
 </div>
@@ -982,6 +1024,12 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
     <div class="wink-hint">Click anywhere to dismiss</div>
   </div>
 </div>
+<div id="fatal-error-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:radial-gradient(ellipse at center,#1a4a8a 0%,#0a1530 100%);color:#e8f4ff;align-items:center;justify-content:center;padding:20px;">
+  <div style="width:min(420px,92vw);border-radius:8px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);box-shadow:0 8px 30px rgba(0,0,0,0.4);padding:20px 22px;">
+    <h1 style="margin:0;font-size:18px;">Winkd failed to load</h1>
+    <p style="margin:10px 0 0;line-height:1.4;font-size:13px;">Something crashed while rendering. Please refresh the page. If this keeps happening, share the first red console error.</p>
+  </div>
+</div>
 
 <script>
 // ══════════════════════════════════════════
@@ -1010,6 +1058,24 @@ const EP_CATS = [
   {id:'misc',    label:'🌟 Misc'},
 ];
 
+const MSN_EMOTICON_BASE_URL = 'https://github.com/bernzrdo/msn-emoticons/raw/main/original';
+const MSN_CLASSIC = [
+  ['Smile','smile'],['Open-mouthed smile','open-mouthed-smile'],['Winking smile','winking-smile'],['Surprised smile','surprised-smile'],
+  ['Smile with tongue out','smile-with-tongue-out'],['Hot smile','hot-smile'],['Angry smile','angry-smile'],['Embarrassed smile','embarrassed-smile'],
+  ['Confused smile','confused-smile'],['Sad smile','sad-smile'],['Crying face','crying-face'],['Disappointed smile','disappointed-smile'],
+  ['Devil','devil'],['Angel','angel'],['Red heart','red-heart'],['Broken heart','broken-heart'],['Messenger','messenger'],['Cat face','cat-face'],
+  ['Dog face','dog-face'],['Sleeping half-moon','sleeping-half-moon'],['Star','star'],['Filmstrip','filmstrip'],['Note','note'],['E-mail','e-mail'],
+  ['Red rose','red-rose'],['Wilted rose','wilted-rose'],['Clock','clock'],['Red lips','red-lips'],['Gift with a bow','gift-with-a-bow'],['Birthday cake','birthday-cake'],
+  ['Camera','camera'],['Light bulb','light-bulb'],['Coffee cup','coffee-cup'],['Telephone receiver','telephone-receiver'],['Left hug','left-hug'],['Right hug','right-hug'],
+  ['Beer mug','beer-mug'],['Martini glass','martini-glass'],['Boy','boy'],['Girl','girl'],['Thumbs up','thumbs-up'],['Thumbs down','thumbs-down'],
+  ['Vampire bat','vampire-bat'],['Goat','goat'],['Sun','sun'],['Rainbow','rainbow'],["Don't tell anyone smile",'dont-tell-anyone-smile'],['Baring teeth smile','baring-teeth-smile'],
+  ['Nerd smile','nerd-smile'],['Sarcastic smile','sarcastic-smile'],['Secret telling smile','secret-telling-smile'],['Sick smile','sick-smile'],['Snail','snail'],['Turtle','turtle'],
+  ['Plate','plate'],['Bowl','bowl'],['Pizza','pizza'],['Soccer ball','soccer-ball'],['Auto','auto'],['Airplane','airplane'],['Umbrella','umbrella'],
+  ['Island with a palm tree','island-with-a-palm-tree'],['Computer','computer'],['Mobile phone','mobile-phone'],['Be right back','be-right-back'],['Storm cloud','storm-cloud'],
+  ['High five','high-five'],['Money','money'],['Black sheep','black-sheep'],["I don't know smile",'i-dont-know-smile'],['Thinking smile','thinking-smile'],['Lightning','lightning'],
+  ['Party smile','party-smile'],['Eye-rolling smile','eye-rolling-smile'],['Sleepy smile','sleepy-smile'],['Bunny','bunny'],
+].map(([name,filename])=>({e:`${MSN_EMOTICON_BASE_URL}/${filename}.png`,n:name,classic:true,filename}));
+
 const EP_DATA = {
   happy:[{e:'😀',n:'grinning'},{e:'😃',n:'big grin'},{e:'😄',n:'grin'},{e:'😁',n:'beaming'},{e:'🙂',n:'smile'},{e:'😊',n:'blushing smile'},{e:'☺️',n:'smiling face'},{e:'😌',n:'relieved'},{e:'🤗',n:'hugging'},{e:'😺',n:'cat smile'},{e:'🥹',n:'holding back tears happy'},{e:'😏',n:'smirk'},{e:'🤩',n:'star eyes starstruck'},{e:'🥳',n:'partying face'},{e:'🤑',n:'money mouth'},{e:'😝',n:'squinting tongue'},{e:'😸',n:'cat grin'},{e:'😻',n:'cat heart eyes'},{e:'🤭',n:'giggling'},{e:'🫠',n:'melting'},{e:'🫡',n:'salute'},{e:'🥸',n:'disguise'},{e:'😶',n:'no mouth'},{e:'😑',n:'expressionless'},{e:'😐',n:'neutral'}],
   wink:[{e:'😉',n:'winking'},{e:'😘',n:'blowing kiss'},{e:'😍',n:'heart eyes'},{e:'🥰',n:'hearts around'},{e:'😚',n:'kissing closed eyes'},{e:'😙',n:'kissing smiling eyes'},{e:'😗',n:'kissing'},{e:'😜',n:'winking tongue'},{e:'🤪',n:'zany wink'},{e:'😛',n:'tongue out wink'},{e:'🫦',n:'lips'},{e:'💋',n:'kiss mark'},{e:'😽',n:'cat kiss'},{e:'🥂',n:'cheers wink'},{e:'😎',n:'cool wink'},{e:'🫣',n:'peeking'},{e:'😲',n:'astonished wink'},{e:'🤫',n:'shushing'},{e:'🤔',n:'thinking'},{e:'🙃',n:'upside down wink'}],
@@ -1028,7 +1094,7 @@ const EP_DATA = {
   animal:[{e:'🐱',n:'cat'},{e:'🐶',n:'dog'},{e:'🐭',n:'mouse'},{e:'🐹',n:'hamster'},{e:'🐰',n:'rabbit'},{e:'🦊',n:'fox'},{e:'🐻',n:'bear'},{e:'🐼',n:'panda'},{e:'🐨',n:'koala'},{e:'🐯',n:'tiger'},{e:'🦁',n:'lion'},{e:'🐮',n:'cow'},{e:'🐷',n:'pig'},{e:'🐸',n:'frog'},{e:'🐵',n:'monkey'},{e:'🙈',n:'see no evil'},{e:'🙉',n:'hear no evil'},{e:'🙊',n:'speak no evil'},{e:'🐧',n:'penguin'},{e:'🦅',n:'eagle'},{e:'🦉',n:'owl'},{e:'🦇',n:'bat'},{e:'🐺',n:'wolf'},{e:'🐴',n:'horse'},{e:'🦄',n:'unicorn'},{e:'🐝',n:'bee'},{e:'🦋',n:'butterfly'},{e:'🐌',n:'snail'},{e:'🐢',n:'turtle'},{e:'🐍',n:'snake'},{e:'🦕',n:'dinosaur'},{e:'🦖',n:'trex'},{e:'🐬',n:'dolphin'},{e:'🐋',n:'whale'},{e:'🦈',n:'shark'},{e:'🐙',n:'octopus'},{e:'🦜',n:'parrot'},{e:'🦦',n:'otter'},{e:'🦥',n:'sloth'},{e:'🦔',n:'hedgehog'},{e:'🦙',n:'llama'},{e:'🦘',n:'kangaroo'}],
   sign:[{e:'👍',n:'thumbs up'},{e:'👎',n:'thumbs down'},{e:'👏',n:'clapping'},{e:'🙌',n:'raised hands'},{e:'🤜',n:'right fist bump'},{e:'🤛',n:'left fist bump'},{e:'✊',n:'raised fist'},{e:'👊',n:'oncoming fist'},{e:'🤞',n:'crossed fingers'},{e:'✌️',n:'peace sign'},{e:'🤟',n:'love you gesture'},{e:'🤘',n:'sign of horns rock'},{e:'🤙',n:'call me'},{e:'👈',n:'point left'},{e:'👉',n:'point right'},{e:'👆',n:'point up'},{e:'👇',n:'point down'},{e:'👋',n:'waving hand'},{e:'✋',n:'stop'},{e:'🖐️',n:'splayed hand'},{e:'🖖',n:'vulcan salute'},{e:'👌',n:'ok'},{e:'🤌',n:'pinching'},{e:'✍️',n:'writing hand'},{e:'💪',n:'flex'},{e:'🙏',n:'folded hands pray'},{e:'🫶',n:'heart hands'},{e:'🤝',n:'handshake'},{e:'💅',n:'nail polish'},{e:'🫷',n:'pushing left'},{e:'🫸',n:'nudge push right'}],
   character:[{e:'🤖',n:'robot'},{e:'👾',n:'alien monster game'},{e:'👻',n:'ghost'},{e:'💀',n:'skull'},{e:'☠️',n:'skull crossbones'},{e:'👽',n:'alien'},{e:'🎃',n:'jack o lantern halloween'},{e:'🤡',n:'clown'},{e:'😈',n:'devil smiling'},{e:'👿',n:'devil angry'},{e:'👺',n:'japanese goblin'},{e:'👹',n:'japanese ogre'},{e:'🧌',n:'troll'},{e:'🧟',n:'zombie'},{e:'🧛',n:'vampire'},{e:'🧜',n:'merperson'},{e:'🧝',n:'elf'},{e:'🧞',n:'genie'},{e:'🧚',n:'fairy'},{e:'🧙',n:'mage wizard'},{e:'🦸',n:'superhero'},{e:'🦹',n:'supervillain'},{e:'🕵️',n:'detective spy'},{e:'🥷',n:'ninja'},{e:'👮',n:'police officer'},{e:'🤠',n:'cowboy'},{e:'🎅',n:'santa'},{e:'👑',n:'crown royalty'},{e:'🎭',n:'masks'}],
-  msn:[{e:':)',n:'classic smile'},{e:':D',n:'classic laugh'},{e:';)',n:'classic wink'},{e:':P',n:'classic tongue'},{e:':(',n:'classic sad'},{e:':@',n:'classic angry'},{e:':$',n:'classic blush'},{e:':S',n:'classic confused'},{e:':|',n:'classic neutral'},{e:'(H)',n:'classic cool'},{e:'(U)',n:'classic broken heart'},{e:'(L)',n:'classic heart'},{e:'(K)',n:'classic kiss'},{e:'(Y)',n:'classic thumbs up'},{e:'(N)',n:'classic thumbs down'},{e:'(G)',n:'classic gift'},{e:'(@)',n:'classic cat'},{e:'(&)',n:'classic dog'},{e:'(C)',n:'classic coffee'},{e:'(D)',n:'classic drink'},{e:'(B)',n:'classic beer'},{e:'(P)',n:'classic camera'},{e:'(O)',n:'classic clock'},{e:'(8)',n:'classic note'},{e:'(E)',n:'classic envelope'},{e:'(F)',n:'classic rose'},{e:'(W)',n:'classic wilted rose'},{e:'(X)',n:'classic girl'},{e:'(Z)',n:'classic boy'},{e:'({)',n:'classic hug left'},{e:'(})',n:'classic hug right'},{e:'(^)',n:'classic cake'},{e:'(*)',n:'classic star'},{e:'(#)',n:'classic sun'},{e:'(R)',n:'classic rainbow'},{e:'(ap)',n:'classic apple'},{e:'(au)',n:'classic auto'},{e:'(sn)',n:'classic snail'},{e:'(bah)',n:'classic sheep'},{e:'^^',n:'classic happy face'}],
+  msn:MSN_CLASSIC,
   war:[{e:'💥',n:'explosion'},{e:'💢',n:'anger'},{e:'👊',n:'punch'},{e:'🤜',n:'right punch'},{e:'✊',n:'fist fight'},{e:'🗡️',n:'dagger'},{e:'⚔️',n:'swords crossed'},{e:'🛡️',n:'shield'},{e:'🏹',n:'bow arrow'},{e:'💣',n:'bomb'},{e:'🧨',n:'firecracker'},{e:'⚡',n:'thunder strike'},{e:'🌋',n:'volcano'},{e:'🔥',n:'fire war'},{e:'💀',n:'skull war'},{e:'🦈',n:'shark attack'},{e:'🦂',n:'scorpion'},{e:'🕷️',n:'spider attack'},{e:'🦅',n:'eagle strike'},{e:'🐉',n:'dragon attack'},{e:'🏴‍☠️',n:'pirate flag'},{e:'💪',n:'strong fight'},{e:'🥊',n:'boxing glove'},{e:'🥋',n:'martial arts'}],
   misc:[{e:'🌟',n:'star glow'},{e:'💫',n:'dizzy star'},{e:'⭐',n:'star'},{e:'🌈',n:'rainbow'},{e:'☀️',n:'sun'},{e:'🌙',n:'moon'},{e:'⛅',n:'partly cloudy'},{e:'🌊',n:'ocean wave'},{e:'❄️',n:'snowflake'},{e:'⚡',n:'lightning'},{e:'🎵',n:'music note'},{e:'🎶',n:'musical notes'},{e:'💤',n:'sleep zzz'},{e:'💬',n:'speech bubble'},{e:'💭',n:'thought bubble'},{e:'❗',n:'exclamation'},{e:'❓',n:'question'},{e:'💯',n:'hundred percent'},{e:'🔥',n:'fire'},{e:'💧',n:'droplet'},{e:'🌀',n:'cyclone'},{e:'☕',n:'coffee'},{e:'🍕',n:'pizza'},{e:'🎮',n:'video game'},{e:'📱',n:'phone'},{e:'💻',n:'laptop'},{e:'📀',n:'cd disc'},{e:'💾',n:'floppy disk retro'},{e:'📼',n:'vhs tape'},{e:'📺',n:'television'},{e:'📻',n:'radio'},{e:'☎️',n:'old phone'},{e:'🔑',n:'key'},{e:'🚀',n:'rocket'},{e:'🌍',n:'earth'}],
 };
@@ -1049,6 +1115,20 @@ const EP_LONG_MS = 500;
 
 function epSaveFavs(){ localStorage.setItem('winkd-favs', JSON.stringify([...epFavourites])); }
 function epSavePins(){ localStorage.setItem('winkd-pins', JSON.stringify(epPinned)); }
+function isClassicEmojiValue(v){return typeof v==='string'&&v.startsWith(MSN_EMOTICON_BASE_URL+'/');}
+function createEmojiVisual(value,size){
+  if(isClassicEmojiValue(value)){
+    const img=document.createElement('img');
+    img.src=value;
+    img.alt='msn emoji';
+    img.loading='lazy';
+    img.width=size;img.height=size;
+    return img;
+  }
+  const span=document.createElement('span');
+  span.textContent=value;
+  return span;
+}
 
 function epAllEmojis(){
   const seen = new Set(), arr = [];
@@ -1078,7 +1158,10 @@ function epBuildPins(){
     slot.className = 'ep-pin-slot' + (em?' filled':'');
     slot.title = em ? em : ('Slot '+(i+1)+': hold any emoji to pin');
     if(em){
-      slot.innerHTML = `<span style="font-size:19px;">${em}</span>`;
+      slot.innerHTML = '';
+      const visual=createEmojiVisual(em,20);
+      if(!isClassicEmojiValue(em))visual.style.fontSize='19px';
+      slot.appendChild(visual);
       const rm = document.createElement('div');
       rm.className = 'ep-unpin';
       rm.textContent = '✕';
@@ -1106,7 +1189,8 @@ function epBuildFavBar(){
   [...epFavourites].slice(0,20).forEach(em=>{
     const b = document.createElement('div');
     b.className = 'ep-fav-em';
-    b.textContent = em;
+    b.innerHTML = '';
+    b.appendChild(createEmojiVisual(em,20));
     b.title = em;
     b.onclick = ()=>epInsertEmoji(em);
     epAttachLongPress(b, ()=>epOpenAction({e:em,n:em}, b), ()=>epInsertEmoji(em), em);
@@ -1134,7 +1218,8 @@ function epBuildGrid(list){
     const btn = document.createElement('div');
     btn.className = 'ep-em' + (epFavourites.has(item.e)?' fav-glow':'');
     btn.title = item.n;
-    btn.textContent = item.e;
+    btn.innerHTML='';
+    btn.appendChild(createEmojiVisual(item.e,22));
     btn.setAttribute('data-emoji', item.e);
     btn.setAttribute('data-name', item.n);
 
@@ -1281,9 +1366,10 @@ function epCtxOutside(e){ if(!document.getElementById('ep-ctx-menu').contains(e.
 function epInsertEmoji(em){
   const inp = document.getElementById('chat-input');
   if(!inp) return;
+  const token = isClassicEmojiValue(em)?`${em} `:em;
   const pos = inp.selectionStart||inp.value.length;
-  inp.value = inp.value.slice(0,pos)+em+inp.value.slice(pos);
-  inp.selectionStart = inp.selectionEnd = pos+em.length;
+  inp.value = inp.value.slice(0,pos)+token+inp.value.slice(pos);
+  inp.selectionStart = inp.selectionEnd = pos+token.length;
   inp.focus();
   inp.dispatchEvent(new Event('input'));
   const orig = inp.style.background;
@@ -1364,7 +1450,7 @@ const MOOD_EP_CATS=[
   {icon:'👋',label:'Gestures',emojis:['👍','👎','👌','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','👋','🤚','🖐️','✋','🖖','👏','🙌','🤝','🙏','💪','✍️']},
   {icon:'❤️',label:'Hearts',emojis:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟']},
   {icon:'☕',label:'Vibes',emojis:['☕','🫖','🍵','🎵','🎶','🎮','📚','🌙','⭐','🌟','✨','🔥','💫','⚡','🎉','🎊','🏆','🎯','🌸','🌊','🌈','❄️','🌿','🍀','🐱','🐶','🐼','🦋']},
-  {icon:'💬',label:'MSN Classic',emojis:[':)',':D',';)',':P',':(','(H)','(L)','(K)','(Y)','(N)','(C)','(B)','(8)','(F)','(W)','(*)','^^']},
+  {icon:'💬',label:'MSN Classic',emojis:MSN_CLASSIC.map(item=>({value:item.e,label:item.n,classic:true}))},
 ];
 (function(){
   try{
@@ -1384,7 +1470,9 @@ let selNameColor=myNameColor;
 let _winkdChannel=null;
 try{_winkdChannel=new BroadcastChannel('winkd-profile');}catch(e){}
 function _broadcastProfile(mood){
-  const msg={type:'profile',name:myName,mood:mood!==undefined?mood:(document.getElementById('my-mood')?.textContent||''),nameColor:myNameColor,avColor:myAvColor,avatarSrc:myAvatarSrc,status:myStatus};
+  const moodEl=document.getElementById('my-mood');
+  const currentMood=moodEl?.dataset?.rawMood||moodEl?.textContent||'';
+  const msg={type:'profile',name:myName,mood:mood!==undefined?mood:currentMood,nameColor:myNameColor,avColor:myAvColor,avatarSrc:myAvatarSrc,status:myStatus};
   if(_winkdChannel)try{_winkdChannel.postMessage(msg);}catch(e){}
 }
 function _applyProfileBroadcast(d){
@@ -1393,7 +1481,7 @@ function _applyProfileBroadcast(d){
   if(d.nameColor!==undefined)myNameColor=d.nameColor;
   if(d.avColor!==undefined)myAvColor=d.avColor;
   if(d.avatarSrc!==undefined)myAvatarSrc=d.avatarSrc;
-  if(d.mood!==undefined){const el=document.getElementById('my-mood');if(el)el.textContent=d.mood;}
+  if(d.mood!==undefined){const el=document.getElementById('my-mood');if(el)renderMoodText(el,d.mood);}
   if(d.status!==undefined&&d.status!==myStatus){
     myStatus=d.status;
     ['online','away','busy','invisible'].forEach(x=>{const p=document.getElementById('pill-'+x);if(p)p.classList.toggle('active',x===d.status);});
@@ -1422,8 +1510,18 @@ let msgFont="'Segoe UI',Tahoma,sans-serif";
 
 function dk(h){const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return`rgb(${Math.max(0,r-40)},${Math.max(0,g-40)},${Math.max(0,b-40)})`;}
 function ts(){return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function nowIso(){return new Date().toISOString();}
+function mkMsgId(){return (crypto&&crypto.randomUUID)?crypto.randomUUID():`msg_${Date.now()}_${Math.random().toString(16).slice(2)}`;}
 function sb(){const m=document.getElementById('chat-messages');if(m)m.scrollTop=m.scrollHeight;}
 function mob(){return window.innerWidth<=640;}
+function renderMoodText(el,mood){
+  if(!el)return;
+  const text=(mood||'').trim();
+  el.dataset.rawMood=text;
+  const m=text.match(/^(https:\/\/github\.com\/bernzrdo\/msn-emoticons\/raw\/main\/original\/[a-z0-9-]+\.png)\s*(.*)$/i);
+  if(!m){el.textContent=text;return;}
+  el.innerHTML=`<img src="${m[1]}" alt="mood emoji" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;margin-right:4px;">${(m[2]||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}`;
+}
 
 function renderContacts(f=''){
   const list=document.getElementById('contact-list');list.innerHTML='';
@@ -1600,7 +1698,12 @@ function addMsg(m,contact,animate=true){
     ?`<div style="margin-bottom:${m.text?6:0}px;"><img src="${safeSrc}" alt="shared media" style="max-width:min(260px,60vw);max-height:220px;border-radius:8px;display:block;border:1px solid rgba(100,140,210,0.35);"></div>`
     :'';
   const rawText=(m.text||'');
-  const txt=rawText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  const txt=rawText
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/\n/g,'<br>')
+    .replace(/https:\/\/github\.com\/bernzrdo\/msn-emoticons\/raw\/main\/original\/[a-z0-9-]+\.png/gi,(url)=>`<img src="${url}" alt="msn emoji" style="width:20px;height:20px;vertical-align:middle;">`);
   const textHtml=txt?`<div style="${styleStr}">${txt}</div>`:'';
   row.innerHTML=`<div class="msg-av" style="background:${bg};">${avInner}</div><div class="msg-body"><div class="msg-meta">${me?myName:c.name} · ${m.time||ts()}</div><div class="${me?'bubble-me':'bubble-them'}">${mediaHtml}${textHtml}</div><div class="msg-reaction-wrap" id="rw-${msgId}"></div></div><div class="reaction-add-btn" onclick="openReactionPopover(event,'${msgId}')">＋</div>`;
   msgs.appendChild(row);
@@ -1675,10 +1778,14 @@ function sendMsg(){
   const attachment=composeAttachment;
   if(!t&&!attachment)return;
   const payload={
+    id:mkMsgId(),
     conversationId:activeContact,
-    kind:'text',
-    text:t,
-    time:ts(),
+    senderId:myWinkdId,
+    type:'text',
+    body:t,
+    sentAt:nowIso(),
+    delivered:false,
+    read:false,
     color:msgColor,
     bold:boldOn,
     italic:italicOn,
@@ -1702,15 +1809,15 @@ function sendMsg(){
 }
 function sendWinkd(){
   if(!activeContact)return;
-  const payload={conversationId:activeContact,kind:'winkd',time:ts()};
-  if(!wsSend('send_winkd',payload)){showToast('Not connected. Winkd not sent.','error');return;}
+  const payload={id:mkMsgId(),conversationId:activeContact,senderId:myWinkdId,type:'winkd',sentAt:nowIso(),delivered:false,read:false};
+  if(!wsSend('send_message',payload)){showToast('Not connected. Winkd not sent.','error');return;}
   doShake();
   playWinkdSound();
 }
 function sendNudge(){
   if(!activeContact)return;
-  const payload={conversationId:activeContact,kind:'nudge',time:ts()};
-  if(!wsSend('send_nudge',payload)){showToast('Not connected. Nudge not sent.','error');return;}
+  const payload={id:mkMsgId(),conversationId:activeContact,senderId:myWinkdId,type:'nudge',sentAt:nowIso(),delivered:false,read:false};
+  if(!wsSend('send_message',payload)){showToast('Not connected. Nudge not sent.','error');return;}
   playNudgeSound();
 }
 
@@ -1729,7 +1836,7 @@ function sendWink(){
   if(!activeContact)return;
   const pack=WINK_PACKS[Math.floor(Math.random()*WINK_PACKS.length)];
   showWinkOverlay(pack,true);
-  wsSend('send_wink',{conversationId:activeContact,kind:'wink',emoji:pack.emoji,label:pack.label,time:ts()});
+  wsSend('send_message',{id:mkMsgId(),conversationId:activeContact,senderId:myWinkdId,type:'wink',emoji:pack.emoji,label:pack.label,sentAt:nowIso(),delivered:false,read:false});
   const msgs=document.getElementById('chat-messages');
   if(msgs){const el=document.createElement('div');el.className='winkd-event';el.style.cssText='background:linear-gradient(to bottom,#e8d8ff,#c8b0f0);border-color:rgba(140,80,220,0.6);color:#3a0080;';el.textContent=`${pack.emoji} You sent a ${pack.label} Wink!`;msgs.appendChild(el);sb();}
 }
@@ -1839,9 +1946,9 @@ function applyAvatarToSidebar(){
 function toggleMoodEdit(){
   const w=document.getElementById('mood-edit-wrap'),el=document.getElementById('my-mood');
   if(w.classList.contains('open')){w.classList.remove('open');el.style.display='';}
-  else{document.getElementById('mood-input').value=el.textContent;w.classList.add('open');el.style.display='none';document.getElementById('mood-input').focus();}
+  else{document.getElementById('mood-input').value=el?.dataset?.rawMood||el.textContent;w.classList.add('open');el.style.display='none';document.getElementById('mood-input').focus();}
 }
-function saveMood(){const v=document.getElementById('mood-input').value.trim(),el=document.getElementById('my-mood');el.textContent=v;el.style.display='';document.getElementById('mood-edit-wrap').classList.remove('open');wsSend('set_mood',{mood:v});_saveProfileToStorage(v);_broadcastProfile(v);}
+function saveMood(){const v=document.getElementById('mood-input').value.trim(),el=document.getElementById('my-mood');renderMoodText(el,v);el.style.display='';document.getElementById('mood-edit-wrap').classList.remove('open');wsSend('set_mood',{mood:v});_saveProfileToStorage(v);_broadcastProfile(v);}
 document.getElementById('mood-input').addEventListener('keydown',e=>{if(e.key==='Enter')saveMood();if(e.key==='Escape')toggleMoodEdit();});
 
 function toggleEmoji(){
@@ -1990,8 +2097,8 @@ function handleRelayedMessage(payload){
 
   if(!convos[conversationId])convos[conversationId]=[];
   const fromMe=senderId===myWinkdId;
-  const kind=payload?.kind||'text';
-  const msgTime=payload?.time||ts();
+  const kind=payload?.type||payload?.kind||'text';
+  const msgTime=payload?.sentAt||payload?.sent_at||payload?.time||ts();
 
   let message;
   if(kind==='winkd')message={type:'winkd',from:fromMe?'me':'them',time:msgTime};
@@ -1999,7 +2106,7 @@ function handleRelayedMessage(payload){
   else if(kind==='wink')message={type:'system',text:fromMe?'✨ You sent a Wink!':`✨ ${contact.name} sent you a Wink!`};
   else message={
     from:fromMe?'me':'them',
-    text:payload?.text||'',
+    text:payload?.body||payload?.text||'',
     time:msgTime,
     color:payload?.color||null,
     bold:!!payload?.bold,
@@ -2216,9 +2323,148 @@ function showToast(message,type='info'){
 }
 
 // ── MODALS ──
-function openModal(id){document.getElementById(id).classList.add('open');if(id==='profile-modal')initProfile();}
+function openModal(id){
+  document.getElementById(id).classList.add('open');
+  if(id==='profile-modal')initProfile();
+  if(id==='security-modal')loadSecuritySettings();
+}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeModal(el.id);}));
+
+function authHeaders(){
+  const token=wsGetToken();
+  return token?{'Authorization':'Bearer '+token,'Content-Type':'application/json'}:{'Content-Type':'application/json'};
+}
+function openSecurityModal(){openModal('security-modal');}
+function flashSecurity(msg,isError=false){
+  const el=document.getElementById('security-flash');if(!el)return;
+  el.style.display='block';
+  el.style.background=isError?'rgba(220,70,70,0.15)':'rgba(70,160,90,0.15)';
+  el.style.border='1px solid '+(isError?'rgba(210,70,70,0.4)':'rgba(70,160,90,0.4)');
+  el.style.color=isError?'#8a2020':'#1f6a2f';
+  el.textContent=msg;
+}
+function clearSecurityFlash(){const el=document.getElementById('security-flash');if(el){el.style.display='none';el.textContent='';}}
+async function loadSecuritySettings(){
+  clearSecurityFlash();
+  const headers=authHeaders();
+  try{
+    const [codesRes,devicesRes]=await Promise.all([
+      fetch('/api/auth/recovery-codes',{headers}),
+      fetch('/api/devices',{headers}),
+    ]);
+    if(!codesRes.ok)throw new Error('Could not load 2FA status');
+    const codeData=await codesRes.json();
+    renderSecurity2fa(codeData?.totp_enabled,codeData?.recovery_codes_remaining);
+    if(devicesRes.ok){
+      const deviceData=await devicesRes.json();
+      renderSecurityDevices(deviceData?.devices||[]);
+    }else renderSecurityDevices([]);
+  }catch{
+    flashSecurity('Could not load security settings.',true);
+  }
+}
+function renderSecurity2fa(enabled,recoveryRemaining){
+  const status=document.getElementById('sec-2fa-status');
+  const setup=document.getElementById('sec-2fa-setup');
+  const disable=document.getElementById('sec-2fa-disable');
+  const qr=document.getElementById('sec-2fa-qr');
+  if(status)status.textContent=enabled?`🔐 2FA enabled (${recoveryRemaining??0} backup code${recoveryRemaining===1?'':'s'} remaining)`:'🔓 2FA disabled';
+  if(setup)setup.style.display=enabled?'none':'block';
+  if(disable)disable.style.display=enabled?'block':'none';
+  if(qr)qr.style.display='none';
+}
+function cancelTotpSetup(){const q=document.getElementById('sec-2fa-qr');if(q)q.style.display='none';}
+async function startTotpSetup(){
+  try{
+    const res=await fetch('/api/auth/totp/setup',{method:'POST',headers:authHeaders()});
+    if(!res.ok){flashSecurity('TOTP setup failed.',true);return;}
+    const d=await res.json();
+    const box=document.getElementById('sec-2fa-qr');
+    const uri=document.getElementById('sec-setup-uri');
+    if(uri)uri.textContent=d?.uri||'';
+    if(box)box.style.display='block';
+  }catch{flashSecurity('TOTP setup failed.',true);}
+}
+async function confirmTotpSetup(){
+  const code=document.getElementById('sec-confirm-code')?.value?.trim()||'';
+  if(code.length!==6){flashSecurity('Enter a valid 6-digit code.',true);return;}
+  try{
+    const res=await fetch('/api/auth/totp/confirm',{method:'POST',headers:authHeaders(),body:JSON.stringify({code})});
+    if(!res.ok){flashSecurity('Invalid code. Please try again.',true);return;}
+    const d=await res.json();
+    const out=document.getElementById('sec-backup-codes');
+    if(out){out.style.display='block';out.textContent=(d?.backup_codes||[]).join('\n');}
+    flashSecurity('2FA enabled. Save your backup codes now.');
+    loadSecuritySettings();
+  }catch{flashSecurity('Could not confirm 2FA.',true);}
+}
+async function disableTotp(){
+  const code=document.getElementById('sec-disable-code')?.value?.trim()||'';
+  if(code.length!==6){flashSecurity('Enter your current 6-digit code.',true);return;}
+  try{
+    const res=await fetch('/api/auth/totp/disable',{method:'POST',headers:authHeaders(),body:JSON.stringify({code})});
+    if(!res.ok){flashSecurity('Could not disable 2FA.',true);return;}
+    flashSecurity('2FA disabled.');
+    loadSecuritySettings();
+  }catch{flashSecurity('Could not disable 2FA.',true);}
+}
+async function regenerateRecoveryCodes(){
+  const code=document.getElementById('sec-disable-code')?.value?.trim()||'';
+  if(code.length!==6){flashSecurity('Enter your current 6-digit code first.',true);return;}
+  try{
+    const res=await fetch('/api/auth/recovery-codes/generate',{method:'POST',headers:authHeaders(),body:JSON.stringify({code})});
+    if(!res.ok){flashSecurity('Could not generate backup codes.',true);return;}
+    const d=await res.json();
+    const out=document.getElementById('sec-backup-codes');
+    if(out){out.style.display='block';out.textContent=(d?.backup_codes||[]).join('\n');}
+    flashSecurity('Backup codes regenerated.');
+    loadSecuritySettings();
+  }catch{flashSecurity('Could not generate backup codes.',true);}
+}
+function renderSecurityDevices(devices){
+  const wrap=document.getElementById('sec-devices');if(!wrap)return;
+  wrap.innerHTML='';
+  if(!devices.length){wrap.innerHTML='<div style=\"font-size:10px;color:#6a86a6;\">No registered devices.</div>';return;}
+  devices.forEach(device=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border:1px solid rgba(100,150,220,0.25);border-radius:6px;background:rgba(255,255,255,0.8);';
+    const meta=document.createElement('div');
+    meta.innerHTML=`<div style=\"font-size:11px;font-weight:700;color:#1a2a40;\">💻 ${device.device_name||'Unknown device'}</div><div style=\"font-size:10px;color:#5a7a9a;\">Last seen: ${device.last_seen_at||'unknown'}</div>`;
+    const btn=document.createElement('button');
+    btn.type='button';btn.textContent='Revoke';
+    btn.style.cssText='height:24px;padding:0 10px;border-radius:4px;border:1px solid rgba(180,80,80,0.45);background:linear-gradient(to bottom,#d06060,#a03030);color:#fff;font-size:11px;font-weight:700;cursor:pointer;';
+    btn.onclick=()=>revokeDevice(device.device_id);
+    row.appendChild(meta);row.appendChild(btn);wrap.appendChild(row);
+  });
+}
+async function revokeDevice(deviceId){
+  try{
+    const res=await fetch(`/api/devices/${deviceId}`,{method:'DELETE',headers:authHeaders()});
+    if(!res.ok){flashSecurity('Could not revoke device.',true);return;}
+    flashSecurity('Device revoked.');
+    loadSecuritySettings();
+  }catch{flashSecurity('Could not revoke device.',true);}
+}
+async function loadSecurityAuditLog(){
+  const wrap=document.getElementById('sec-audit-log');if(!wrap)return;
+  wrap.innerHTML='<div style=\"font-size:10px;color:#6a86a6;\">Loading…</div>';
+  try{
+    const res=await fetch('/api/security/audit-log',{headers:authHeaders()});
+    if(!res.ok){wrap.innerHTML='<div style=\"font-size:10px;color:#8a2020;\">Could not load audit log.</div>';return;}
+    const d=await res.json();const events=Array.isArray(d?.events)?d.events:[];
+    if(!events.length){wrap.innerHTML='<div style=\"font-size:10px;color:#6a86a6;\">No audit events yet.</div>';return;}
+    wrap.innerHTML='';
+    events.forEach(entry=>{
+      const row=document.createElement('div');
+      row.style.cssText='padding:8px 10px;border:1px solid rgba(100,150,220,0.2);border-radius:6px;background:rgba(255,255,255,0.75);';
+      row.innerHTML=`<div style=\"font-size:11px;font-weight:700;color:#1a2a40;\">${entry.action||'event'}</div><div style=\"font-size:10px;color:#5a7a9a;\">${entry.created_at||''}</div>`;
+      wrap.appendChild(row);
+    });
+  }catch{
+    wrap.innerHTML='<div style=\"font-size:10px;color:#8a2020;\">Could not load audit log.</div>';
+  }
+}
 
 function addContact(){
   const v=document.getElementById('add-id-input').value.trim();if(!v)return;
@@ -2257,8 +2503,9 @@ function buildMoodEpTabs(){
   const tabs=document.getElementById('mood-ep-tabs');if(!tabs)return;
   tabs.innerHTML='';
   MOOD_EP_CATS.forEach((cat,i)=>{
-    const b=document.createElement('button');b.type='button';b.title=cat.label;b.textContent=cat.icon;
+    const b=document.createElement('button');b.type='button';b.title=cat.label;
     b.style.cssText='flex-shrink:0;width:26px;height:26px;border-radius:3px;font-size:15px;cursor:pointer;padding:0;transition:all 0.1s;border:'+(i===moodEpCurCat?'1px solid rgba(26,90,204,0.5);background:rgba(26,90,204,0.15)':'1px solid transparent;background:transparent')+';';
+    if(isClassicEmojiValue(cat.icon)){const img=createEmojiVisual(cat.icon,16);b.appendChild(img);}else b.textContent=cat.icon;
     b.onclick=ev=>{ev.stopPropagation();moodEpCurCat=i;buildMoodEpTabs();buildMoodEpGrid();};
     tabs.appendChild(b);
   });
@@ -2267,34 +2514,40 @@ function buildMoodEpGrid(){
   const grid=document.getElementById('mood-ep-grid');if(!grid)return;
   const cat=MOOD_EP_CATS[moodEpCurCat];if(!cat)return;
   grid.innerHTML='';
-  cat.emojis.forEach(em=>{
-    const b=document.createElement('button');b.type='button';b.title=em;b.textContent=em;
+  cat.emojis.forEach(raw=>{
+    const em=typeof raw==='string'?{value:raw,label:raw,classic:false}:raw;
+    const b=document.createElement('button');b.type='button';b.title=em.label||em.value;
     b.style.cssText='width:32px;height:32px;border:none;background:transparent;cursor:pointer;font-size:19px;border-radius:4px;padding:2px;transition:background 0.08s;';
+    b.appendChild(createEmojiVisual(em.value,20));
     b.onmouseenter=()=>b.style.background='rgba(26,90,204,0.12)';
     b.onmouseleave=()=>b.style.background='transparent';
-    b.onclick=ev=>{ev.stopPropagation();selectMoodEmoji(em);};
+    b.onclick=ev=>{ev.stopPropagation();selectMoodEmoji(em.value);};
     grid.appendChild(b);
   });
 }
 function selectMoodEmoji(em){
   moodPickerEmoji=em;
-  const d=document.getElementById('mood-emoji-display');if(d)d.textContent=em;
+  const d=document.getElementById('mood-emoji-display');
+  if(d){d.innerHTML='';d.appendChild(createEmojiVisual(em,16));}
   const c=document.getElementById('mood-emoji-clear-btn');if(c)c.style.display='flex';
   closeMoodEmojiPanel();
 }
 function clearMoodEmoji(){
   moodPickerEmoji='';
-  const d=document.getElementById('mood-emoji-display');if(d)d.textContent='🙂';
+  const d=document.getElementById('mood-emoji-display');
+  if(d){d.innerHTML='';d.textContent='🙂';}
   const c=document.getElementById('mood-emoji-clear-btn');if(c)c.style.display='none';
 }
 function initProfile(){
   pendingAvatarSrc=null;
   document.getElementById('profile-name-input').value=myName==='You'?'':myName;
-  const _rawMood=document.getElementById('my-mood').textContent||'';
-  const _moodMatch=_rawMood.match(/^((\p{Emoji_Presentation}|\p{Emoji}\uFE0F)|\([a-zA-Z@&*#^{}]{1,3}\)|[:;][)(DSP@|$]|\^\^)\s*/u);
+  const moodEl=document.getElementById('my-mood');
+  const _rawMood=moodEl?.dataset?.rawMood||moodEl?.textContent||'';
+  const _moodMatch=_rawMood.match(/^((https:\/\/github\.com\/bernzrdo\/msn-emoticons\/raw\/main\/original\/[a-z0-9-]+\.png)|(\p{Emoji_Presentation}|\p{Emoji}\uFE0F))\s*/u);
   if(_moodMatch&&_moodMatch[1]!=' '){moodPickerEmoji=_moodMatch[1];document.getElementById('profile-mood-text').value=_rawMood.slice(_moodMatch[0].length);}
   else{moodPickerEmoji='';document.getElementById('profile-mood-text').value=_rawMood;}
-  const _md=document.getElementById('mood-emoji-display');if(_md)_md.textContent=moodPickerEmoji||'🙂';
+  const _md=document.getElementById('mood-emoji-display');
+  if(_md){_md.innerHTML='';_md.appendChild(createEmojiVisual(moodPickerEmoji||'🙂',16));}
   const _mc=document.getElementById('mood-emoji-clear-btn');if(_mc)_mc.style.display=moodPickerEmoji?'flex':'none';
   selAvColor=myAvColor;
   const pv=document.getElementById('profile-av-preview');
@@ -2324,7 +2577,7 @@ function saveProfile(){
   if(n){myName=n;document.getElementById('my-name').textContent=n;}
   // Always update mood, including when user clears it
   const moodEl=document.getElementById('my-mood');
-  if(moodEl)moodEl.textContent=m||'';
+  if(moodEl)renderMoodText(moodEl,m||'');
   myAvColor=selAvColor;myNameColor=selNameColor;
   const nameEl=document.getElementById('my-name');if(nameEl)nameEl.style.color=myNameColor||'';
   if(pendingAvatarSrc==='**remove**'){myAvatarSrc=null;}else if(pendingAvatarSrc){myAvatarSrc=pendingAvatarSrc;}
@@ -2339,7 +2592,7 @@ function saveProfile(){
   applyAvatarToSidebar();closeModal('profile-modal');
 }
 function copyWinkdId(){navigator.clipboard.writeText(myWinkdId).then(()=>{const b=document.querySelector('.copy-btn'),o=b.textContent;b.textContent='✅ Copied!';setTimeout(()=>b.textContent=o,1800);}).catch(()=>{});}
-function _saveProfileToStorage(moodOverride){try{const raw=localStorage.getItem('winkd-auth');if(!raw)return;const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(!p)return;p.displayName=myName;p.avColor=myAvColor;p.nameColor=myNameColor;p.avatarData=myAvatarSrc||null;p.status=myStatus;p.moodMessage=moodOverride!==undefined?moodOverride:(document.getElementById('my-mood')?.textContent||'');localStorage.setItem('winkd-auth',JSON.stringify(auth));}catch(e){}}
+function _saveProfileToStorage(moodOverride){try{const raw=localStorage.getItem('winkd-auth');if(!raw)return;const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(!p)return;const moodEl=document.getElementById('my-mood');p.displayName=myName;p.avColor=myAvColor;p.nameColor=myNameColor;p.avatarData=myAvatarSrc||null;p.status=myStatus;p.moodMessage=moodOverride!==undefined?moodOverride:(moodEl?.dataset?.rawMood||moodEl?.textContent||'');localStorage.setItem('winkd-auth',JSON.stringify(auth));}catch(e){}}
 function drawQR(text,_retries){
   const retries=_retries||0;
   const canvas=document.getElementById('qr-canvas');if(!canvas)return;
@@ -2602,13 +2855,19 @@ function initDidYouKnow(){
   function advance(){ dykIndex=(dykIndex+1)%tips.length; showTip(dykIndex,true); }
   dykTimer = setInterval(advance, 5000);
 }
+function showFatalErrorOverlay(){
+  const el=document.getElementById('fatal-error-overlay');
+  if(el)el.style.display='flex';
+}
+window.addEventListener('error',()=>showFatalErrorOverlay());
+window.addEventListener('unhandledrejection',()=>showFatalErrorOverlay());
 
 // ── INIT ──
 // Restore full profile from session to DOM before first render
 (function(){
   const nameEl=document.getElementById('my-name');
   if(nameEl){if(myName!=='You')nameEl.textContent=myName;if(myNameColor)nameEl.style.color=myNameColor;}
-  try{const raw=localStorage.getItem('winkd-auth');if(raw){const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(p&&p.moodMessage){const mEl=document.getElementById('my-mood');if(mEl)mEl.textContent=p.moodMessage;}}}catch(e){}
+  try{const raw=localStorage.getItem('winkd-auth');if(raw){const auth=JSON.parse(raw);const p=auth&&auth.state&&auth.state.session&&auth.state.session.profile;if(p&&p.moodMessage){const mEl=document.getElementById('my-mood');if(mEl)renderMoodText(mEl,p.moodMessage);}}}catch(e){}
   // Apply status pills and dot without triggering a storage write
   const s=myStatus;['online','away','busy','invisible'].forEach(x=>{const pill=document.getElementById('pill-'+x);if(pill)pill.classList.toggle('active',x===s);});
   const dot=document.getElementById('my-status-dot');
