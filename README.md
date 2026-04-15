@@ -282,6 +282,15 @@ Key files:
 
 ---
 
+## Web client entrypoint clarity
+
+- `apps/web/app.html` is the live chat UI users interact with today.
+- `apps/web/login.html` is the login/signup UI and redirects into `app.html` after auth.
+- `apps/web/index.html` is only a bootstrap redirect page: it checks auth and sends users to `app.html` or `login.html`.
+- The React code under `apps/web/src/*` is currently non-primary and is **not** the active chat surface in production flow.
+
+---
+
 ## Licence
 
 MIT — see [LICENSE](LICENSE)

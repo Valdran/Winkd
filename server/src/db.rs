@@ -415,6 +415,25 @@ pub async fn list_contact_roster(
     .await
 }
 
+/// List UUIDs of users who are in an accepted contact relationship with `user_id`.
+pub async fn list_accepted_contact_user_ids(
+    pool: &DbPool,
+    user_id: Uuid,
+) -> Result<Vec<Uuid>, sqlx::Error> {
+    sqlx::query_scalar(
+        r#"SELECT CASE
+               WHEN cr.from_id = $1 THEN cr.to_id
+               ELSE cr.from_id
+             END AS contact_user_id
+           FROM contact_requests cr
+           WHERE (cr.from_id = $1 OR cr.to_id = $1)
+             AND cr.status = 'accepted'"#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+}
+
 /// Mark a contact request as accepted. Only succeeds if the request is
 /// addressed to `to_id` and is still pending.
 pub async fn accept_contact_request(
