@@ -31,8 +31,17 @@ use crate::{
     ratelimit::RateLimiter,
 };
 
-/// Live WebSocket senders, keyed by user UUID.
-pub type ConnectedClients = Arc<RwLock<HashMap<Uuid, mpsc::UnboundedSender<String>>>>;
+/// A live WebSocket session for a given user — the sender channel plus a
+/// per-connection UUID so disconnect cleanup can tell its own registration
+/// apart from a newer one that replaced it.
+#[derive(Clone)]
+pub struct ClientSession {
+    pub session_id: Uuid,
+    pub sender: mpsc::UnboundedSender<String>,
+}
+
+/// Live WebSocket sessions, keyed by user UUID.
+pub type ConnectedClients = Arc<RwLock<HashMap<Uuid, ClientSession>>>;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -207,7 +216,17 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
     let (chan_tx, mut chan_rx) = mpsc::unbounded_channel::<String>();
 
     // Register the live sender so other handlers can push events to this user.
-    state.clients.write().await.insert(user.id, chan_tx.clone());
+    // A per-connection session_id lets cleanup distinguish this registration
+    // from a later connection that replaced it (e.g. page refresh, roaming,
+    // or a second tab) so we don't wipe the newer session's entry.
+    let session_id = Uuid::new_v4();
+    state.clients.write().await.insert(
+        user.id,
+        ClientSession {
+            session_id,
+            sender: chan_tx.clone(),
+        },
+    );
 
     // Mark online in presence store, seeding mood from the DB so it survives restarts.
     state
@@ -282,13 +301,32 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
         }
     }
 
-    // Cleanup on disconnect.
-    state.clients.write().await.remove(&user.id);
-    state.presence.remove(&user.id.to_string()).await;
-    broadcast_presence_to_contacts(&state, &user, "offline").await;
+    // Cleanup on disconnect — but only if we're still the active session.
+    // If the user already reconnected on a new socket, their newer entry is in
+    // state.clients under a different session_id; removing it here would strand
+    // the live connection and silently drop every inbound message to them.
+    let was_active_session = {
+        let mut clients = state.clients.write().await;
+        match clients.get(&user.id) {
+            Some(s) if s.session_id == session_id => {
+                clients.remove(&user.id);
+                true
+            }
+            _ => false,
+        }
+    };
+
+    if was_active_session {
+        state.presence.remove(&user.id.to_string()).await;
+        broadcast_presence_to_contacts(&state, &user, "offline").await;
+    }
     send_task.abort();
 
-    tracing::info!("WS disconnected: {}", user.winkd_id);
+    tracing::info!(
+        "WS disconnected: {} (active_session={})",
+        user.winkd_id,
+        was_active_session
+    );
 }
 
 async fn handle_command(
@@ -366,10 +404,10 @@ async fn handle_command(
                             })
                             .to_string();
 
-                            if let Some(target_chan) =
+                            if let Some(target_session) =
                                 state.clients.read().await.get(&target.id).cloned()
                             {
-                                let _ = target_chan.send(event);
+                                let _ = target_session.sender.send(event);
                             }
                         }
                         Err(e) => {
@@ -433,10 +471,10 @@ async fn handle_command(
                             })
                             .to_string();
 
-                            if let Some(req_chan) =
+                            if let Some(req_session) =
                                 state.clients.read().await.get(&requester.id).cloned()
                             {
-                                let _ = req_chan.send(event);
+                                let _ = req_session.sender.send(event);
                             }
                         }
                         _ => {
@@ -756,7 +794,7 @@ async fn handle_command(
                     sender_payload["conversationId"] = json!(recipient_winkd_id.clone());
                     sender_payload["senderId"] = json!(user.winkd_id.clone());
 
-                    if let Some(recipient_chan) =
+                    if let Some(recipient_session) =
                         state.clients.read().await.get(&recipient.id).cloned()
                     {
                         // Rewrite conversationId to the sender's winkd_id so the
@@ -765,7 +803,7 @@ async fn handle_command(
                         forwarded["conversationId"] = json!(user.winkd_id);
                         forwarded["senderId"] = json!(user.winkd_id);
                         forwarded["delivered"] = json!(true);
-                        let _ = recipient_chan.send(
+                        let _ = recipient_session.sender.send(
                             json!({
                                 "event": "message",
                                 "payload": forwarded,
@@ -840,8 +878,8 @@ async fn broadcast_presence_to_contacts(state: &AppState, user: &db::User, statu
 
     let clients = state.clients.read().await;
     for contact_id in contact_ids {
-        if let Some(chan) = clients.get(&contact_id) {
-            let _ = chan.send(msg.clone());
+        if let Some(session) = clients.get(&contact_id) {
+            let _ = session.sender.send(msg.clone());
         }
     }
 }
