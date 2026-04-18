@@ -106,6 +106,8 @@ pub async fn build_router(config: Config, db: DbPool) -> Router {
         )
         // Audit log (authenticated user's own events)
         .route("/api/security/audit-log", get(auth::get_audit_log))
+        // Buy Me a Coffee webhook — grants Max tier / emoji-pack extras.
+        .route("/api/bmac/webhook", post(crate::bmac::webhook))
         // WebSocket messaging endpoint (token sent as first message, NOT in URL)
         .route("/ws", get(ws_handler))
         // Root: serve landing page
@@ -144,7 +146,13 @@ async fn health(State(state): State<AppState>) -> Json<serde_json::Value> {
 // message loop, or closes with code 4001 if auth fails / times out.
 
 async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
+    // Raise frame/message caps so Max-tier supporters can send ~10 MB
+    // attachments (which inflate to ~13 MB after base64) without tripping
+    // tokio-tungstenite's 16 MiB default. The tier-aware payload validator
+    // still enforces the actual per-user attachment limit.
+    ws.max_frame_size(crate::limits::WS_MAX_FRAME_BYTES)
+        .max_message_size(crate::limits::WS_MAX_MESSAGE_BYTES)
+        .on_upgrade(move |socket| handle_socket(socket, state))
 }
 
 async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
@@ -201,9 +209,22 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
     };
 
     // ── Step 2: Confirm authentication ─────────────────────────────────────
+    // Echo the user's effective supporter tier and the matching limits so the
+    // web client can render the right character counter and pre-flight-check
+    // attachment sizes before even attempting a send. The server still
+    // validates on every inbound command — these values are only a UX hint.
+    let effective_tier = user.effective_tier().to_string();
+    let tier_limits = crate::limits::limits_for(&effective_tier);
     if ws_tx
         .send(Message::Text(
-            json!({ "type": "auth_ok" }).to_string().into(),
+            json!({
+                "type": "auth_ok",
+                "tier": effective_tier,
+                "limits": tier_limits,
+                "purchased_extras": user.purchased_extras,
+            })
+            .to_string()
+            .into(),
         ))
         .await
         .is_err()
@@ -787,6 +808,16 @@ async fn handle_command(
         | ClientCommandType::SendWinkd
         | ClientCommandType::SendNudge
         | ClientCommandType::SendWink => {
+            // Enforce the sender's tier-aware size caps before we do anything
+            // else. A tampered client can send huge payloads even though the
+            // web UI won't let them compose one, so this is the real gate.
+            let tier = user.effective_tier();
+            let limits = crate::limits::limits_for(tier);
+            if let Err(violation) = crate::limits::validate_send_payload(&cmd.payload, &limits) {
+                send_err(tx, &violation.user_message(tier));
+                return;
+            }
+
             // The client sets conversationId = the other person's winkd_id.
             let recipient_winkd_id = cmd
                 .payload

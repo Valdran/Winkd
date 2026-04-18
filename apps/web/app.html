@@ -295,6 +295,9 @@ transition:all 0.1s;white-space:nowrap;flex-shrink:0;align-self:flex-end;height:
 #chat-statusbar{background:linear-gradient(to bottom,rgba(195,218,255,0.9),rgba(178,205,250,0.95));
 border-top:1px solid rgba(130,175,240,0.28);padding:3px 11px;display:flex;align-items:center;
 justify-content:space-between;font-size:10px;color:#3a5a9a;flex-shrink:0;}
+#chat-char-counter{font-variant-numeric:tabular-nums;font-size:10px;color:#3a5a9a;opacity:0.75;margin:0 6px;}
+#chat-char-counter.near{color:#b06a00;opacity:1;}
+#chat-char-counter.over{color:#c02020;font-weight:700;opacity:1;}
 
 /* ── EMOJI PICKER ── */
 #emoji-picker{
@@ -1655,6 +1658,7 @@ function buildChat(c){
     <div id="chat-statusbar">
       <span>🔒 End-to-end encrypted</span>
       <span id="typing-ind" style="font-style:italic;color:#5a8aaa;"></span>
+      <span id="chat-char-counter" style="display:none;"></span>
       <span>${c.name} is ${c.status}</span>
     </div>
   </div>
@@ -1677,8 +1681,9 @@ function buildChat(c){
   // FIX: formatBarOpen is now properly declared above — no longer a ReferenceError
   if(formatBarOpen){const fb=document.getElementById('format-bar');if(fb)fb.classList.add('open');const ft=document.getElementById('format-tbtn');if(ft)ft.classList.add('tbtn-format-active');}
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
-  inp.addEventListener('input',()=>{inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,100)+'px';updateComposePreviewFromInput();});
+  inp.addEventListener('input',()=>{inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,100)+'px';updateComposePreviewFromInput();updateCharCounter();});
   inp.addEventListener('paste',handleComposePaste);
+  updateCharCounter();
   renderComposePreview();
   initDpResize();
   scaleDpFrames();
@@ -1791,6 +1796,10 @@ function handleComposePaste(e){
     if(item.kind==='file'&&item.type&&item.type.startsWith('image/')){
       const file=item.getAsFile();if(!file)continue;
       e.preventDefault();
+      if(file.size>supporterLimits.max_media_bytes){
+        showToast(`Image is ${humanMb(file.size)} — limit is ${humanMb(supporterLimits.max_media_bytes)}.${upgradeHint()}`,'error');
+        return;
+      }
       const fr=new FileReader();
       fr.onload=ev=>{
         composeAttachment={kind:'image',data:ev.target.result,mime:file.type||'image/png'};
@@ -1809,6 +1818,21 @@ function sendMsg(){
   const t=inp.value.trim();
   const attachment=composeAttachment;
   if(!t&&!attachment)return;
+  if(t.length>supporterLimits.max_text_chars){
+    showToast(`Message is ${t.length} characters — limit is ${supporterLimits.max_text_chars}.${upgradeHint()}`,'error');
+    return;
+  }
+  if(attachment?.kind==='image'&&attachment.data){
+    const bytes=approxDataUriBytes(attachment.data);
+    if(bytes>supporterLimits.max_media_bytes){
+      showToast(`Image is ${humanMb(bytes)} — limit is ${humanMb(supporterLimits.max_media_bytes)}.${upgradeHint()}`,'error');
+      return;
+    }
+  }
+  if(attachment?.kind==='gif'&&attachment.url&&attachment.url.length>supporterLimits.max_media_url_chars){
+    showToast(`GIF link is too long (${attachment.url.length} chars).`,'error');
+    return;
+  }
   const payload={
     id:mkMsgId(),
     conversationId:activeContact,
@@ -2053,6 +2077,50 @@ function renderReactions(msgId){
 // ── WEBSOCKET ──
 let ws=null,wsReconnectDelay=2000,wsAuthenticated=false;
 
+// Tier + size limits. Defaults match the server's free-tier caps so the UI
+// behaves correctly before the auth_ok frame arrives. Once we authenticate
+// the server sends authoritative values that may be higher for Max
+// supporters — we swap them in and re-render the character counter.
+let supporterTier='free';
+let supporterLimits={max_text_chars:2000,max_media_bytes:3*1024*1024,max_media_url_chars:1024};
+let purchasedExtras=[];
+function applyServerLimits(tier,limits,extras){
+  if(tier)supporterTier=tier;
+  if(limits&&typeof limits==='object'){
+    if(Number.isFinite(limits.max_text_chars))supporterLimits.max_text_chars=limits.max_text_chars;
+    if(Number.isFinite(limits.max_media_bytes))supporterLimits.max_media_bytes=limits.max_media_bytes;
+    if(Number.isFinite(limits.max_media_url_chars))supporterLimits.max_media_url_chars=limits.max_media_url_chars;
+  }
+  if(Array.isArray(extras))purchasedExtras=extras.slice();
+  updateCharCounter();
+}
+function humanMb(bytes){return (bytes/1024/1024).toFixed(bytes>=10*1024*1024?0:1)+' MB';}
+function isMaxTier(){return supporterTier==='max';}
+function upgradeHint(){return isMaxTier()?'':' Upgrade to Max for a higher limit.';}
+// ~data URIs are base64 — 4 chars → 3 bytes. Trim the "data:image/png;base64,"
+// header before counting so the estimate is the raw image size.
+function approxDataUriBytes(uri){
+  if(typeof uri!=='string')return 0;
+  const comma=uri.indexOf(',');
+  const body=comma>=0?uri.slice(comma+1):uri;
+  return Math.floor(body.length*3/4);
+}
+function updateCharCounter(){
+  const inp=document.getElementById('chat-input');
+  const counter=document.getElementById('chat-char-counter');
+  if(!inp||!counter)return;
+  const used=inp.value.length;
+  const max=supporterLimits.max_text_chars;
+  const pct=used/max;
+  // Match Discord's UX: only show the counter when the user is close to or
+  // over the cap, to keep the chat toolbar uncluttered.
+  if(pct<0.8){counter.style.display='none';return;}
+  counter.style.display='inline-block';
+  counter.textContent=`${used} / ${max}`;
+  counter.classList.toggle('over',used>max);
+  counter.classList.toggle('near',used<=max&&pct>=0.8);
+}
+
 function wsGetToken(){
   try{const auth=JSON.parse(localStorage.getItem('winkd-auth')||'{}');return auth?.state?.session?.token||'';}
   catch{return '';}
@@ -2071,7 +2139,10 @@ function wsConnect(){
     try{
       const m=JSON.parse(e.data);
       if(!wsAuthenticated){
-        if(m.type==='auth_ok'){wsAuthenticated=true;}
+        if(m.type==='auth_ok'){
+          wsAuthenticated=true;
+          applyServerLimits(m.tier,m.limits,m.purchased_extras);
+        }
         return;
       }
       handleServerEvent(m.event,m.payload);

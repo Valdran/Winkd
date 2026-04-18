@@ -26,6 +26,30 @@ pub struct User {
     pub totp_secret: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    #[sqlx(default)]
+    pub supporter_tier: String,
+    #[sqlx(default)]
+    pub supporter_expires_at: Option<DateTime<Utc>>,
+    #[sqlx(default)]
+    pub purchased_extras: Vec<String>,
+}
+
+impl User {
+    /// Effective supporter tier after expiry check. Memberships auto-downgrade
+    /// to "free" once `supporter_expires_at` passes so a lapsed subscriber
+    /// loses Max-tier caps without needing a background job.
+    pub fn effective_tier(&self) -> &str {
+        if self.supporter_tier == crate::limits::SUPPORTER_MAX {
+            if let Some(exp) = self.supporter_expires_at {
+                if exp < Utc::now() {
+                    return crate::limits::SUPPORTER_FREE;
+                }
+            }
+            crate::limits::SUPPORTER_MAX
+        } else {
+            crate::limits::SUPPORTER_FREE
+        }
+    }
 }
 
 // ── Connection + migration ─────────────────────────────────────────────────
@@ -866,6 +890,96 @@ pub async fn drain_pending_messages(
     .bind(recipient_id)
     .fetch_all(pool)
     .await
+}
+
+// ── Supporter tier & extras ────────────────────────────────────────────────
+
+/// Grant (or renew) Max-tier supporter status for a user. `expires_at`
+/// should be the end of the billing period reported by BMAC so the tier
+/// auto-downgrades if the supporter cancels.
+pub async fn set_supporter_max(
+    pool: &DbPool,
+    user_id: Uuid,
+    expires_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET supporter_tier = 'max',
+               supporter_expires_at = $2,
+               updated_at = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .bind(expires_at)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn set_supporter_free(pool: &DbPool, user_id: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET supporter_tier = 'free',
+               supporter_expires_at = NULL,
+               updated_at = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn add_purchased_extra(
+    pool: &DbPool,
+    user_id: Uuid,
+    extra_id: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET purchased_extras = ARRAY(
+                   SELECT DISTINCT unnest(array_append(purchased_extras, $2))
+               ),
+               updated_at = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .bind(extra_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Record a BMAC webhook event. Returns `Ok(true)` if this is the first time
+/// we've seen `external_id` (and therefore the caller should apply side
+/// effects like granting a tier) or `Ok(false)` if it was a replay.
+pub async fn record_bmac_event(
+    pool: &DbPool,
+    external_id: &str,
+    event_type: &str,
+    supporter_email: Option<&str>,
+    user_id: Option<Uuid>,
+    amount_cents: Option<i32>,
+    currency: Option<&str>,
+    raw: &serde_json::Value,
+) -> Result<bool, sqlx::Error> {
+    let res = sqlx::query(
+        r#"INSERT INTO bmac_events
+               (external_id, event_type, supporter_email, user_id,
+                amount_cents, currency, raw_payload)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (external_id) DO NOTHING"#,
+    )
+    .bind(external_id)
+    .bind(event_type)
+    .bind(supporter_email)
+    .bind(user_id)
+    .bind(amount_cents)
+    .bind(currency)
+    .bind(raw)
+    .execute(pool)
+    .await?;
+    Ok(res.rows_affected() == 1)
 }
 
 // ── Audit Log ──────────────────────────────────────────────────────────────

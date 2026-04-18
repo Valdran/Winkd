@@ -3,9 +3,11 @@
 
 mod audit;
 mod auth;
+mod bmac;
 mod config;
 mod db;
 mod error;
+mod limits;
 mod presence;
 mod protocol;
 mod ratelimit;
