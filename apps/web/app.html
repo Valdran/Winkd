@@ -1464,6 +1464,38 @@ if(!myWinkdId)myWinkdId='user#'+String(Math.floor(Math.random()*9000)+1000);
 let selAvColor=myAvColor;
 let selNameColor=myNameColor;
 
+// ── Conversation persistence ────────────────────────────────────────────────
+// Conversations used to live only in memory, so refreshing the tab wiped
+// every chat history. We now stash them in localStorage keyed by the logged-in
+// Winkd ID (so multi-account devices don't cross-contaminate) and rehydrate
+// `convos` on load. Saves are debounced to avoid thrashing localStorage on
+// bursts of messages.
+const CONVOS_STORAGE_KEY=myWinkdId?`winkd-convos:${myWinkdId}`:null;
+let _convosSaveTimer=null;
+function loadConvos(){
+  if(!CONVOS_STORAGE_KEY)return;
+  try{
+    const raw=localStorage.getItem(CONVOS_STORAGE_KEY);
+    if(!raw)return;
+    const parsed=JSON.parse(raw);
+    if(parsed&&typeof parsed==='object'){
+      for(const k of Object.keys(parsed)){
+        if(Array.isArray(parsed[k]))convos[k]=parsed[k];
+      }
+    }
+  }catch(e){/* corrupt blob — ignore and start fresh */}
+}
+function saveConvos(){
+  if(!CONVOS_STORAGE_KEY)return;
+  if(_convosSaveTimer)return;
+  _convosSaveTimer=setTimeout(()=>{
+    _convosSaveTimer=null;
+    try{localStorage.setItem(CONVOS_STORAGE_KEY,JSON.stringify(convos));}
+    catch(e){/* quota exceeded — silently drop; next save will retry */}
+  },150);
+}
+loadConvos();
+
 // ── Cross-tab profile sync ──────────────────────────────────────────────────
 // BroadcastChannel propagates profile changes to other open tabs immediately.
 // Falls back to localStorage 'storage' event for Safari < 15.4.
@@ -2096,6 +2128,13 @@ function handleRelayedMessage(payload){
   }
 
   if(!convos[conversationId])convos[conversationId]=[];
+
+  // Dedup by server-provided message id. Matters for two cases: the offline
+  // queue may replay a message the client already persisted locally, and a
+  // reconnect can occasionally cause the server echo to be re-delivered.
+  const msgId=payload?.id||null;
+  if(msgId&&convos[conversationId].some(m=>m&&m.id===msgId))return;
+
   const fromMe=senderId===myWinkdId;
   const kind=payload?.type||payload?.kind||'text';
   const msgTime=payload?.sentAt||payload?.sent_at||payload?.time||ts();
@@ -2117,8 +2156,10 @@ function handleRelayedMessage(payload){
     mediaUrl:payload?.mediaUrl||payload?.media_url||null,
     mediaData:payload?.mediaData||payload?.media_data||null,
   };
+  if(msgId)message.id=msgId;
 
   convos[conversationId].push(message);
+  saveConvos();
 
   if(activeContact===conversationId){
     addMsg(message,contact,!fromMe);
@@ -2177,6 +2218,7 @@ function handleContactRequestSent(payload){
   const nc={id:wid,initials:name.slice(0,2).toUpperCase(),name,mood:'Pending acceptance\u2026',status:'offline',color:'#406080',avatarSrc:payload.to_avatar_data||null,unread:0};
   contacts.push(nc);
   convos[wid]=[{type:'system',text:`Contact request sent to ${wid}. Waiting for them to accept.`}];
+  saveConvos();
   renderContacts();
 }
 
@@ -2197,6 +2239,7 @@ function handleContactAccepted(payload){
     existing.name=name;existing.initials=name.slice(0,2).toUpperCase();
     existing.mood=mood;existing.status='online';existing.avatarSrc=avatarSrc;
     if(convos[wid])convos[wid].push({type:'system',text:`${name} accepted your contact request!`});
+    saveConvos();
     renderContacts();return;
   }
   // Case B: we accepted their inbound request — clear the notification, add contact.
@@ -2206,6 +2249,7 @@ function handleContactAccepted(payload){
     const nc={id:wid,initials:name.slice(0,2).toUpperCase(),name,mood:mood,status:'online',color:'#406080',avatarSrc:avatarSrc,unread:0};
     contacts.push(nc);
     convos[wid]=[{type:'system',text:`You are now connected with ${name}!`}];
+    saveConvos();
   }
   renderContacts();
 }
@@ -2770,6 +2814,7 @@ function sendInkDrawing(){
   if(msgs){const row=document.createElement('div');row.className='msg-row me';const avInner=myAvatarSrc?`<img src="${myAvatarSrc}" style="width:100%;height:100%;object-fit:cover;display:block;">`:(myName.slice(0,2).toUpperCase()||'ME');row.innerHTML=`<div class="msg-av" style="background:${avBg(myAvColor,dk(myAvColor),myStatus||'online')};">${avInner}</div><div class="msg-body"><div class="msg-meta">${myName} · ${ts()}</div><img src="${dataUrl}" style="max-width:240px;border-radius:6px;border:1px solid rgba(100,150,220,0.35);display:block;margin-top:2px;box-shadow:0 2px 6px rgba(0,0,0,0.12);" alt="Drawing"></div>`;msgs.appendChild(row);sb();}
   if(!convos[activeContact])convos[activeContact]=[];
   convos[activeContact].push({from:'me',text:'[Drawing]',time:ts()});
+  saveConvos();
   closeInkDraw();
 }
 

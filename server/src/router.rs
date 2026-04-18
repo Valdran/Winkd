@@ -280,6 +280,20 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
         }
     }
 
+    // Flush any messages that were queued while this user was offline. Each
+    // stored row is the exact payload that would have been sent live, so the
+    // client handles them identically to real-time messages.
+    match db::drain_pending_messages(&state.db, user.id).await {
+        Ok(queued) => {
+            for payload in queued {
+                let _ = chan_tx.send(
+                    json!({ "event": "message", "payload": payload }).to_string(),
+                );
+            }
+        }
+        Err(e) => tracing::warn!("drain_pending_messages: {e}"),
+    }
+
     // Spawn a task that forwards channel messages to the WebSocket.
     let send_task = tokio::spawn(async move {
         while let Some(msg) = chan_rx.recv().await {
@@ -794,26 +808,56 @@ async fn handle_command(
                     sender_payload["conversationId"] = json!(recipient_winkd_id.clone());
                     sender_payload["senderId"] = json!(user.winkd_id.clone());
 
-                    if let Some(recipient_session) =
-                        state.clients.read().await.get(&recipient.id).cloned()
-                    {
-                        // Rewrite conversationId to the sender's winkd_id so the
-                        // recipient's client routes it to the right conversation.
-                        let mut forwarded = cmd.payload.clone();
-                        forwarded["conversationId"] = json!(user.winkd_id);
-                        forwarded["senderId"] = json!(user.winkd_id);
-                        forwarded["delivered"] = json!(true);
-                        let _ = recipient_session.sender.send(
-                            json!({
-                                "event": "message",
-                                "payload": forwarded,
-                            })
-                            .to_string(),
-                        );
-                        sender_payload["delivered"] = json!(true);
-                    } else {
-                        sender_payload["delivered"] = json!(false);
+                    // Build the forwarded payload once — used either for live
+                    // delivery or for the offline queue, so the recipient sees
+                    // the same shape in both cases.
+                    let mut forwarded = cmd.payload.clone();
+                    forwarded["conversationId"] = json!(user.winkd_id);
+                    forwarded["senderId"] = json!(user.winkd_id);
+                    forwarded["delivered"] = json!(true);
+
+                    let client_msg_id = cmd
+                        .payload
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string);
+
+                    let live_session =
+                        state.clients.read().await.get(&recipient.id).cloned();
+
+                    let delivered_live = match live_session {
+                        Some(session) => session
+                            .sender
+                            .send(
+                                json!({
+                                    "event": "message",
+                                    "payload": forwarded.clone(),
+                                })
+                                .to_string(),
+                            )
+                            .is_ok(),
+                        None => false,
+                    };
+
+                    if !delivered_live {
+                        // Either no connection, or the channel was closed
+                        // between the lookup and the send (e.g. the recipient
+                        // is mid-reconnect). Either way, queue it so they
+                        // receive it on next auth instead of dropping it.
+                        if let Err(e) = db::queue_pending_message(
+                            &state.db,
+                            recipient.id,
+                            user.id,
+                            client_msg_id.as_deref(),
+                            &forwarded,
+                        )
+                        .await
+                        {
+                            tracing::warn!("queue_pending_message: {e}");
+                        }
                     }
+
+                    sender_payload["delivered"] = json!(delivered_live);
 
                     let _ = tx.send(
                         json!({

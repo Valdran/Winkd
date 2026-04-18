@@ -815,6 +815,59 @@ pub async fn revoke_device(
     Ok(res.rows_affected() > 0)
 }
 
+// ── Pending (offline) message queue ────────────────────────────────────────
+//
+// When a message is relayed to a recipient who has no live WebSocket session,
+// we stash the outbound payload here so it can be flushed on their next
+// authenticated connection. This is what prevents "sometimes messages arrive,
+// sometimes they don't" — without this, the server silently dropped messages
+// for anyone not currently connected.
+
+/// Enqueue a message for later delivery. `client_msg_id` (when supplied) makes
+/// the insert idempotent per (recipient, client_msg_id) so a retrying sender
+/// won't queue the same message twice.
+pub async fn queue_pending_message(
+    pool: &DbPool,
+    recipient_id: Uuid,
+    sender_id: Uuid,
+    client_msg_id: Option<&str>,
+    payload: &serde_json::Value,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"INSERT INTO pending_messages
+               (recipient_id, sender_id, client_msg_id, payload)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT DO NOTHING"#,
+    )
+    .bind(recipient_id)
+    .bind(sender_id)
+    .bind(client_msg_id)
+    .bind(payload)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Atomically drain every queued message for a recipient, oldest first.
+/// Returning via a CTE preserves the original send order — `DELETE ...
+/// RETURNING` alone does not.
+pub async fn drain_pending_messages(
+    pool: &DbPool,
+    recipient_id: Uuid,
+) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+    sqlx::query_scalar::<_, serde_json::Value>(
+        r#"WITH drained AS (
+               DELETE FROM pending_messages
+               WHERE recipient_id = $1
+               RETURNING payload, created_at
+           )
+           SELECT payload FROM drained ORDER BY created_at ASC"#,
+    )
+    .bind(recipient_id)
+    .fetch_all(pool)
+    .await
+}
+
 // ── Audit Log ──────────────────────────────────────────────────────────────
 
 #[derive(sqlx::FromRow, Clone, Debug, serde::Serialize)]
