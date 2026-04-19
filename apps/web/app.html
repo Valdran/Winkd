@@ -153,6 +153,34 @@ font-size:13px;cursor:pointer;color:rgba(200,220,255,0.7);transition:all 0.15s;f
 background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);}
 #signout-btn:hover{background:rgba(220,60,60,0.3);border-color:rgba(255,100,100,0.4);color:#ffaaaa;}
 
+/* ── WINKD PLUS! BRANDING ── */
+/* Candara is the Vista-era rounded typeface — perfect for the Aero aesthetic.
+   The gradient turns the text into the warm amber "gold" energy of classic
+   MSN Plus!, distinct from the blue glass chrome everywhere else. */
+.plus-brand{
+  font-family:'Candara','Trebuchet MS','Comic Sans MS',cursive;
+  font-style:italic;font-weight:700;letter-spacing:-0.01em;
+  background:linear-gradient(145deg,#ffe76a 0%,#ffb700 55%,#e07a00 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  display:inline-block;}
+#plus-badge{
+  display:none;align-items:center;gap:3px;
+  background:linear-gradient(135deg,rgba(255,230,80,0.22),rgba(220,140,0,0.18));
+  border:1px solid rgba(255,200,40,0.45);border-radius:8px;
+  padding:1px 6px 1px 5px;margin-top:3px;font-size:10px;cursor:default;}
+#plus-badge.visible{display:inline-flex;}
+#get-plus-btn{
+  display:none;margin-top:5px;
+  background:linear-gradient(to bottom,rgba(255,220,60,0.22),rgba(200,130,0,0.18));
+  border:1px solid rgba(255,200,40,0.45);border-radius:6px;
+  padding:5px 9px;font-size:11px;cursor:pointer;transition:all 0.15s;
+  text-align:center;width:100%;}
+#get-plus-btn:hover{background:linear-gradient(to bottom,rgba(255,230,80,0.38),rgba(220,150,0,0.3));
+  border-color:rgba(255,210,60,0.7);}
+#buddy-counter{font-size:10px;color:rgba(200,225,255,0.8);text-align:center;padding:1px 0;}
+#buddy-counter.near-cap{color:#ffe080;}
+#buddy-counter.at-cap{color:#ffaaaa;font-weight:700;}
+
 /* ── CHAT AREA ── */
 #chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden;
 background:linear-gradient(to bottom,rgba(238,245,255,0.97),rgba(224,236,255,0.97));}
@@ -664,7 +692,10 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
             <div class="av-dot" id="my-status-dot" style="background:var(--online);"></div>
           </div>
           <div style="flex:1;min-width:0;">
-            <div class="my-name" id="my-name" onclick="openModal('profile-modal')">You</div>
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+              <div class="my-name" id="my-name" onclick="openModal('profile-modal')">You</div>
+              <span id="plus-badge"><span class="plus-brand">Plus!</span></span>
+            </div>
             <div class="my-mood" id="my-mood" onclick="toggleMoodEdit()">🎵 making beats in the dark</div>
             <div id="mood-edit-wrap">
               <input id="mood-input" type="text" placeholder="What's your mood?" maxlength="60">
@@ -685,7 +716,9 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
       <div id="inbound-requests"></div>
       <div id="contact-list"></div>
       <div id="sidebar-statusbar">
+        <div id="buddy-counter"></div>
         <div id="add-contact-btn" onclick="openModal('add-contact-modal')">+ Add Contact</div>
+        <div id="get-plus-btn" onclick="openPlusPage()"></div>
         <div id="blocked-users-btn" onclick="openBlockedUsersModal()" style="margin-top:5px;background:linear-gradient(to bottom,rgba(80,120,180,0.24),rgba(40,90,150,0.2));border:1px solid rgba(120,160,220,0.38);border-radius:6px;padding:5px 9px;font-size:11px;color:#ffffff;cursor:pointer;transition:all 0.15s;font-weight:600;text-align:center;display:block;width:100%;">🧱 Blocked Users</div>
         <div id="security-btn" onclick="openSecurityModal()" style="margin-top:5px;background:linear-gradient(to bottom,rgba(110,150,210,0.26),rgba(60,100,170,0.2));border:1px solid rgba(140,175,230,0.4);border-radius:6px;padding:5px 9px;font-size:11px;color:#ffffff;cursor:pointer;transition:all 0.15s;font-weight:600;text-align:center;display:block;width:100%;">🛡 Security Settings</div>
         <div id="sidebar-bottom-row">
@@ -2084,7 +2117,11 @@ let ws=null,wsReconnectDelay=2000,wsAuthenticated=false;
 let supporterTier='free';
 let supporterLimits={max_text_chars:2000,max_media_bytes:3*1024*1024,max_media_url_chars:1024};
 let purchasedExtras=[];
-function applyServerLimits(tier,limits,extras){
+let buddyCap=25;        // null = unlimited (Plus!)
+let buddyUsed=0;
+let groupChatUnlocked=false;
+
+function applyServerLimits(tier,limits,extras,cap,used,groupUnlocked){
   if(tier)supporterTier=tier;
   if(limits&&typeof limits==='object'){
     if(Number.isFinite(limits.max_text_chars))supporterLimits.max_text_chars=limits.max_text_chars;
@@ -2092,13 +2129,18 @@ function applyServerLimits(tier,limits,extras){
     if(Number.isFinite(limits.max_media_url_chars))supporterLimits.max_media_url_chars=limits.max_media_url_chars;
   }
   if(Array.isArray(extras))purchasedExtras=extras.slice();
+  // cap is null for Plus! (unlimited), a number for free/slot-pack users.
+  buddyCap=(cap===null||cap===undefined)?null:(Number.isFinite(cap)?cap:25);
+  buddyUsed=Number.isFinite(used)?used:buddyUsed;
+  groupChatUnlocked=!!groupUnlocked;
   updateCharCounter();
+  updateBuddyCounter();
+  updatePlusBadge();
 }
+function isPlusTier(){return supporterTier==='plus';}
+function upgradeHint(){return isPlusTier()?'':' Winkd Plus! raises this cap.';}
 function humanMb(bytes){return (bytes/1024/1024).toFixed(bytes>=10*1024*1024?0:1)+' MB';}
-function isMaxTier(){return supporterTier==='max';}
-function upgradeHint(){return isMaxTier()?'':' Upgrade to Max for a higher limit.';}
-// ~data URIs are base64 — 4 chars → 3 bytes. Trim the "data:image/png;base64,"
-// header before counting so the estimate is the raw image size.
+// base64 data URIs: 4 chars → 3 bytes; strip the header first.
 function approxDataUriBytes(uri){
   if(typeof uri!=='string')return 0;
   const comma=uri.indexOf(',');
@@ -2112,13 +2154,47 @@ function updateCharCounter(){
   const used=inp.value.length;
   const max=supporterLimits.max_text_chars;
   const pct=used/max;
-  // Match Discord's UX: only show the counter when the user is close to or
-  // over the cap, to keep the chat toolbar uncluttered.
   if(pct<0.8){counter.style.display='none';return;}
   counter.style.display='inline-block';
   counter.textContent=`${used} / ${max}`;
   counter.classList.toggle('over',used>max);
   counter.classList.toggle('near',used<=max&&pct>=0.8);
+}
+function updateBuddyCounter(){
+  const el=document.getElementById('buddy-counter');
+  const addBtn=document.getElementById('add-contact-btn');
+  const plusBtn=document.getElementById('get-plus-btn');
+  if(!el)return;
+  if(buddyCap===null){
+    // Plus! — unlimited
+    el.textContent='';el.className='';
+    if(plusBtn)plusBtn.style.display='none';
+    if(addBtn)addBtn.style.opacity='1';
+    return;
+  }
+  const pct=buddyUsed/buddyCap;
+  el.textContent=`${buddyUsed} / ${buddyCap} buddies`;
+  el.className=buddyUsed>=buddyCap?'at-cap':pct>=0.8?'near-cap':'';
+  const atCap=buddyUsed>=buddyCap;
+  if(addBtn)addBtn.style.opacity=atCap?'0.5':'1';
+  if(plusBtn){
+    plusBtn.style.display='block';
+    if(atCap){
+      plusBtn.innerHTML=`<span class="plus-brand">Plus!</span> — no buddy limit · Get it`;
+    }else{
+      plusBtn.innerHTML=`✨ Get <span class="plus-brand">Plus!</span>`;
+    }
+  }
+}
+function updatePlusBadge(){
+  const badge=document.getElementById('plus-badge');
+  if(!badge)return;
+  badge.classList.toggle('visible',isPlusTier());
+}
+function openPlusPage(){
+  // Opens the BMAC membership page. Update the URL with the real BMAC slug
+  // before going live (set via BMAC_PLUS_PAGE_URL build/env var in future).
+  window.open('https://buymeacoffee.com/winkd','_blank','noopener');
 }
 
 function wsGetToken(){
@@ -2141,7 +2217,10 @@ function wsConnect(){
       if(!wsAuthenticated){
         if(m.type==='auth_ok'){
           wsAuthenticated=true;
-          applyServerLimits(m.tier,m.limits,m.purchased_extras);
+          applyServerLimits(
+            m.tier, m.limits, m.purchased_extras,
+            m.buddy_cap, m.buddy_used, m.group_chat_unlocked
+          );
         }
         return;
       }
@@ -2264,7 +2343,11 @@ function handleContactsSnapshot(payload){
     });
     if(!convos[wid])convos[wid]=[];
   });
+  // Keep local buddy count in sync so the counter reflects roster reality
+  // even if auth_ok's buddy_used is stale by the time snapshot arrives.
+  buddyUsed=contacts.filter(c=>c.requestStatus==='accepted'||c.requestStatus==='pending').length;
   renderContacts(document.getElementById('search-input')?.value||'');
+  updateBuddyCounter();
 }
 
 function handlePresence(payload){
@@ -2288,6 +2371,7 @@ function handleContactRequestSent(payload){
   const name=payload.to_display_name||wid.split('#')[0];
   const nc={id:wid,initials:name.slice(0,2).toUpperCase(),name,mood:'Pending acceptance\u2026',status:'offline',color:'#406080',avatarSrc:payload.to_avatar_data||null,unread:0};
   contacts.push(nc);
+  buddyUsed++;updateBuddyCounter();
   convos[wid]=[{type:'system',text:`Contact request sent to ${wid}. Waiting for them to accept.`}];
   saveConvos();
   renderContacts();

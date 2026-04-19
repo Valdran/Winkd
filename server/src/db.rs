@@ -32,22 +32,36 @@ pub struct User {
     pub supporter_expires_at: Option<DateTime<Utc>>,
     #[sqlx(default)]
     pub purchased_extras: Vec<String>,
+    #[sqlx(default)]
+    pub extra_buddy_slots: i32,
+    #[sqlx(default)]
+    pub group_chat_unlocked: bool,
 }
 
 impl User {
     /// Effective supporter tier after expiry check. Memberships auto-downgrade
     /// to "free" once `supporter_expires_at` passes so a lapsed subscriber
-    /// loses Max-tier caps without needing a background job.
+    /// loses Plus! caps without needing a background job.
     pub fn effective_tier(&self) -> &str {
-        if self.supporter_tier == crate::limits::SUPPORTER_MAX {
+        if self.supporter_tier == crate::limits::SUPPORTER_PLUS {
             if let Some(exp) = self.supporter_expires_at {
                 if exp < Utc::now() {
                     return crate::limits::SUPPORTER_FREE;
                 }
             }
-            crate::limits::SUPPORTER_MAX
+            crate::limits::SUPPORTER_PLUS
         } else {
             crate::limits::SUPPORTER_FREE
+        }
+    }
+
+    /// Effective buddy-list cap. `None` means "no cap" (Plus! subscriber);
+    /// otherwise base free cap plus any purchased slot packs.
+    pub fn buddy_cap(&self) -> Option<i64> {
+        if self.effective_tier() == crate::limits::SUPPORTER_PLUS {
+            None
+        } else {
+            Some(crate::limits::FREE_BUDDY_CAP + self.extra_buddy_slots as i64)
         }
     }
 }
@@ -894,17 +908,17 @@ pub async fn drain_pending_messages(
 
 // ── Supporter tier & extras ────────────────────────────────────────────────
 
-/// Grant (or renew) Max-tier supporter status for a user. `expires_at`
+/// Grant (or renew) Plus!-tier supporter status for a user. `expires_at`
 /// should be the end of the billing period reported by BMAC so the tier
 /// auto-downgrades if the supporter cancels.
-pub async fn set_supporter_max(
+pub async fn set_supporter_plus(
     pool: &DbPool,
     user_id: Uuid,
     expires_at: DateTime<Utc>,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"UPDATE users
-           SET supporter_tier = 'max',
+           SET supporter_tier = 'plus',
                supporter_expires_at = $2,
                updated_at = NOW()
            WHERE id = $1"#,
@@ -914,6 +928,59 @@ pub async fn set_supporter_max(
     .execute(pool)
     .await?;
     Ok(())
+}
+
+/// Permanently add extra buddy-list slots (stackable — each pack bumps the
+/// cap by `BUDDY_SLOT_PACK_SIZE`).
+pub async fn add_buddy_slots(
+    pool: &DbPool,
+    user_id: Uuid,
+    extra: i32,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET extra_buddy_slots = extra_buddy_slots + $2,
+               updated_at = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .bind(extra)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Unlock group-conversation hosting for a user (one-off purchase; guests
+/// they invite don't need their own unlock).
+pub async fn unlock_group_chat(pool: &DbPool, user_id: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET group_chat_unlocked = TRUE,
+               updated_at = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Count the buddies (accepted + outbound-pending) that currently occupy a
+/// slot in the user's roster. Matches the rows surfaced by
+/// `list_contact_roster` so the cap check agrees with what the UI shows.
+pub async fn count_roster(pool: &DbPool, user_id: Uuid) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar::<_, i64>(
+        r#"SELECT COUNT(*)::BIGINT FROM (
+               SELECT to_id AS other_id FROM contact_requests
+                   WHERE from_id = $1 AND status IN ('pending','accepted')
+               UNION
+               SELECT from_id FROM contact_requests
+                   WHERE to_id = $1 AND status = 'accepted'
+           ) s"#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
 }
 
 pub async fn set_supporter_free(pool: &DbPool, user_id: Uuid) -> Result<(), sqlx::Error> {

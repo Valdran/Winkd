@@ -148,7 +148,7 @@ async fn apply_event_side_effects(
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
 
-            if tier_name.eq_ignore_ascii_case(&state.config.bmac_max_tier_name) {
+            if tier_name.eq_ignore_ascii_case(&state.config.bmac_plus_tier_name) {
                 // Default to 35 days (~monthly billing cycle + grace). If BMAC
                 // sends an explicit period_end timestamp, prefer that.
                 let expires = data
@@ -158,8 +158,8 @@ async fn apply_event_side_effects(
                     .map(|dt| dt.with_timezone(&Utc))
                     .unwrap_or_else(|| Utc::now() + Duration::days(35));
 
-                if let Err(e) = db::set_supporter_max(&state.db, user.id, expires).await {
-                    tracing::warn!("set_supporter_max failed: {e}");
+                if let Err(e) = db::set_supporter_plus(&state.db, user.id, expires).await {
+                    tracing::warn!("set_supporter_plus failed: {e}");
                 }
             }
         }
@@ -167,31 +167,73 @@ async fn apply_event_side_effects(
         // Membership cancelled or lapsed → drop to free at period end. For
         // simplicity we downgrade immediately; the UX cost of losing tier a
         // few days early is smaller than letting a cancelled member keep
-        // Max access forever.
+        // Plus! access forever.
         "membership.cancelled" | "subscription.cancelled" | "subscription.ended" => {
             if let Err(e) = db::set_supporter_free(&state.db, user.id).await {
                 tracing::warn!("set_supporter_free failed: {e}");
             }
         }
 
-        // One-off purchase of an "Extra" — typically an emoji pack. The
-        // extra's id/slug is recorded against the user.
+        // One-off "Extra" — buddy slots, group-chat unlock, or a cosmetic
+        // pack. The SKU determines the side effect.
         "extra.purchased" | "purchase.created" => {
             let extra_id = data
                 .get("extra_id")
                 .or_else(|| data.get("extra_slug"))
                 .or_else(|| data.get("sku"))
-                .and_then(|v| v.as_str());
-            if let Some(id) = extra_id {
-                if let Err(e) = db::add_purchased_extra(&state.db, user.id, id).await {
-                    tracing::warn!("add_purchased_extra failed: {e}");
-                }
-            }
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let qty = data
+                .get("quantity")
+                .and_then(|v| v.as_i64())
+                .map(|n| n.max(1) as i32)
+                .unwrap_or(1);
+            apply_extra_purchase(state, user, &extra_id, qty).await;
         }
 
         other => {
             tracing::debug!("BMAC event {other} ignored (no handler)");
         }
+    }
+}
+
+/// Route a one-off extra purchase to the right DB mutation. Unknown SKUs
+/// still land in `purchased_extras` so later additions (new emoji packs,
+/// seasonal items) don't need code changes to be recorded.
+async fn apply_extra_purchase(
+    state: &AppState,
+    user: &db::User,
+    extra_id: &str,
+    quantity: i32,
+) {
+    match extra_id {
+        // Buddy-slot packs — stackable. Each purchase grants +10 slots, and
+        // BMAC's `quantity` field lets a supporter buy several at once.
+        "buddy-slots-10" => {
+            let slots = crate::limits::BUDDY_SLOT_PACK_SIZE * quantity;
+            if let Err(e) = db::add_buddy_slots(&state.db, user.id, slots).await {
+                tracing::warn!("add_buddy_slots failed: {e}");
+            }
+        }
+
+        // One-off unlock for hosting group conversations. Guests that the
+        // host invites don't need their own purchase.
+        "group-unlock" => {
+            if let Err(e) = db::unlock_group_chat(&state.db, user.id).await {
+                tracing::warn!("unlock_group_chat failed: {e}");
+            }
+        }
+
+        // Cosmetic packs (emoji / winks / backgrounds / sounds). Recorded
+        // in purchased_extras; the client gates availability off that list.
+        other if !other.is_empty() => {
+            if let Err(e) = db::add_purchased_extra(&state.db, user.id, other).await {
+                tracing::warn!("add_purchased_extra failed: {e}");
+            }
+        }
+
+        _ => tracing::debug!("extra.purchased without a SKU — nothing to apply"),
     }
 }
 

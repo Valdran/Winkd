@@ -215,6 +215,8 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
     // validates on every inbound command — these values are only a UX hint.
     let effective_tier = user.effective_tier().to_string();
     let tier_limits = crate::limits::limits_for(&effective_tier);
+    let buddy_cap = user.buddy_cap(); // None = unlimited (Plus!)
+    let buddy_used = db::count_roster(&state.db, user.id).await.unwrap_or(0);
     if ws_tx
         .send(Message::Text(
             json!({
@@ -222,6 +224,9 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
                 "tier": effective_tier,
                 "limits": tier_limits,
                 "purchased_extras": user.purchased_extras,
+                "buddy_cap": buddy_cap,       // null = unlimited
+                "buddy_used": buddy_used,
+                "group_chat_unlocked": user.group_chat_unlocked,
             })
             .to_string()
             .into(),
@@ -394,6 +399,29 @@ async fn handle_command(
             if target_id == user.winkd_id {
                 send_err(tx, "You can't add yourself.");
                 return;
+            }
+
+            // Buddy-cap check: count the sender's current roster size and
+            // refuse if they've hit their effective cap. Plus! subscribers
+            // have no cap; free users start at 25 and can buy +10 packs.
+            if let Some(cap) = user.buddy_cap() {
+                match db::count_roster(&state.db, user.id).await {
+                    Ok(n) if n >= cap => {
+                        let hint = if user.effective_tier() == crate::limits::SUPPORTER_FREE {
+                            format!(" Your limit is {cap}. Grab a buddy-slot pack or Winkd Plus! to add more.")
+                        } else {
+                            String::new()
+                        };
+                        send_err(tx, &format!("Buddy list is full ({n}/{cap}).{hint}"));
+                        return;
+                    }
+                    Err(e) => {
+                        tracing::warn!("count_roster error: {e}");
+                        send_err(tx, "Server error. Please try again.");
+                        return;
+                    }
+                    _ => {}
+                }
             }
 
             match db::find_user_by_winkd_id(&state.db, &target_id).await {

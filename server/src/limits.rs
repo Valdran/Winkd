@@ -6,19 +6,19 @@
 // Discord-style character counter, but the client values are only a UX hint —
 // a tampered client still can't exceed the server's cap.
 //
-// Sizing rationale (see docs/MONETISATION.md):
-//   • Client persistence lives in localStorage which is ~5 MB per origin, so
-//     the free attachment cap stays under that to keep a handful of recent
-//     images in history without blowing the quota.
-//   • Max (supporter) adds headroom; the WebSocket frame size is lifted to
-//     32 MiB server-side so a 10 MB attachment fits after base64 inflation.
-//   • Text caps mirror Discord's 2000 char free / 4000 Nitro convention but
-//     shifted to 6000 for Max so long-form letters fit in a single bubble.
+// Tier name is `plus` (branded as "Winkd Plus!" in the UI) — the 2000s-era
+// MSN-/Yahoo-plus vibe. See docs/MONETISATION.md for the full pricing table.
 
 use serde::Serialize;
 
 pub const SUPPORTER_FREE: &str = "free";
-pub const SUPPORTER_MAX: &str = "max";
+pub const SUPPORTER_PLUS: &str = "plus";
+
+/// Free-tier buddy-list cap. Users can permanently raise this by purchasing
+/// buddy-slot packs (one-off BMAC extras) which increment
+/// `users.extra_buddy_slots`. Plus! subscribers have no cap.
+pub const FREE_BUDDY_CAP: i64 = 25;
+pub const BUDDY_SLOT_PACK_SIZE: i32 = 10;
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct TierLimits {
@@ -33,13 +33,13 @@ pub const FREE_LIMITS: TierLimits = TierLimits {
     max_media_url_chars: 1_024,
 };
 
-pub const MAX_LIMITS: TierLimits = TierLimits {
+pub const PLUS_LIMITS: TierLimits = TierLimits {
     max_text_chars: 6_000,
     max_media_bytes: 10 * 1024 * 1024,
     max_media_url_chars: 2_048,
 };
 
-/// Largest frame we allow through the WebSocket — wide enough for a Max-tier
+/// Largest frame we allow through the WebSocket — wide enough for a Plus!-tier
 /// attachment after base64 inflation (~1.37×) plus a small headroom for the
 /// JSON envelope. tokio-tungstenite defaults are 16 MiB; we raise to 32.
 pub const WS_MAX_FRAME_BYTES: usize = 32 * 1024 * 1024;
@@ -47,7 +47,7 @@ pub const WS_MAX_MESSAGE_BYTES: usize = 32 * 1024 * 1024;
 
 pub fn limits_for(tier: &str) -> TierLimits {
     match tier {
-        SUPPORTER_MAX => MAX_LIMITS,
+        SUPPORTER_PLUS => PLUS_LIMITS,
         _ => FREE_LIMITS,
     }
 }
@@ -71,17 +71,21 @@ pub enum LimitViolation {
 
 impl LimitViolation {
     pub fn user_message(&self, tier: &str) -> String {
-        let max_hint = if tier == SUPPORTER_MAX { "" } else { " (upgrade to Max for a higher limit)" };
+        let hint = if tier == SUPPORTER_PLUS { "" } else { " — Winkd Plus! raises this cap." };
         match self {
             Self::TextTooLong { len, max } => {
-                format!("Message is {len} characters — limit is {max}{max_hint}.")
+                format!("Message is {len} characters — limit is {max}{hint}")
             }
             Self::MediaTooLarge { bytes, max } => {
                 let mb = |n: usize| n as f64 / 1024.0 / 1024.0;
-                format!("Attachment is {:.1} MB — limit is {:.0} MB{max_hint}.", mb(*bytes), mb(*max))
+                format!(
+                    "Attachment is {:.1} MB — limit is {:.0} MB{hint}",
+                    mb(*bytes),
+                    mb(*max)
+                )
             }
             Self::MediaUrlTooLong { len, max } => {
-                format!("Attachment link is {len} characters — limit is {max}{max_hint}.")
+                format!("Attachment link is {len} characters — limit is {max}{hint}")
             }
         }
     }

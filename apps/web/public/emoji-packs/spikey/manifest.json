@@ -1,0 +1,96 @@
+{
+  "id": "spikey",
+  "name": "Spikey",
+  "description": "The original Winkd mascot — a spiky-haired little dude with big feelings. Drop PNG or GIF files into this folder, add them to the emojis array below, and they'll appear in the emoji picker for anyone who owns the pack.",
+  "version": "1.0.0",
+  "price_cad": 3.99,
+  "sku": "emoji-pack-spikey",
+  "author": "Winkd",
+  "preview": "spikey-happy.png",
+  "emojis": [
+    {
+      "slug": "spikey-happy",
+      "label": "Happy Spikey",
+      "trigger": ":spikey-happy:",
+      "file": "spikey-happy.png",
+      "animated": false
+    },
+    {
+      "slug": "spikey-lol",
+      "label": "Spikey LOL",
+      "trigger": ":spikey-lol:",
+      "file": "spikey-lol.png",
+      "animated": false
+    },
+    {
+      "slug": "spikey-sad",
+      "label": "Sad Spikey",
+      "trigger": ":spikey-sad:",
+      "file": "spikey-sad.png",
+      "animated": false
+    },
+    {
+      "slug": "spikey-angry",
+      "label": "Angry Spikey",
+      "trigger": ":spikey-angry:",
+      "file": "spikey-angry.png",
+      "animated": false
+    },
+    {
+      "slug": "spikey-wave",
+      "label": "Spikey Wave",
+      "trigger": ":spikey-wave:",
+      "file": "spikey-wave.gif",
+      "animated": true
+    },
+    {
+      "slug": "spikey-dance",
+      "label": "Spikey Dance",
+      "trigger": ":spikey-dance:",
+      "file": "spikey-dance.gif",
+      "animated": true
+    },
+    {
+      "slug": "spikey-love",
+      "label": "Spikey in Love",
+      "trigger": ":spikey-love:",
+      "file": "spikey-love.png",
+      "animated": false
+    },
+    {
+      "slug": "spikey-cool",
+      "label": "Cool Spikey",
+      "trigger": ":spikey-cool:",
+      "file": "spikey-cool.png",
+      "animated": false
+    },
+    {
+      "slug": "spikey-sleep",
+      "label": "Sleepy Spikey",
+      "trigger": ":spikey-sleep:",
+      "file": "spikey-sleep.png",
+      "animated": false
+    },
+    {
+      "slug": "spikey-coffee",
+      "label": "Spikey Coffee",
+      "trigger": ":spikey-coffee:",
+      "file": "spikey-coffee.png",
+      "animated": false
+    },
+    {
+      "slug": "spikey-thumbsup",
+      "label": "Spikey Thumbs Up",
+      "trigger": ":spikey-thumbsup:",
+      "file": "spikey-thumbsup.png",
+      "animated": false
+    },
+    {
+      "slug": "spikey-facepalm",
+      "label": "Spikey Facepalm",
+      "trigger": ":spikey-facepalm:",
+      "file": "spikey-facepalm.png",
+      "animated": false
+    }
+  ]
+}
