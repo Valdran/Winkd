@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useAuthStore } from '../stores/authStore'
 
 const MSN_EMOTICON_BASE_URL =
   'https://github.com/bernzrdo/msn-emoticons/raw/main/original'
@@ -6,6 +7,7 @@ const MSN_EMOTICON_BASE_URL =
 type EmojiItem =
   | { type: 'unicode'; value: string }
   | { type: 'classic'; name: string; filename: string }
+  | { type: 'spikey'; name: string; filename: string }
 
 interface Category {
   label: string
@@ -20,6 +22,12 @@ const classic = (name: string, filename: string): EmojiItem => ({
 
 const unicode = (...values: string[]): EmojiItem[] =>
   values.map((value) => ({ type: 'unicode', value }))
+
+const spikey = (name: string, filename: string): EmojiItem => ({
+  type: 'spikey',
+  name,
+  filename,
+})
 
 const CATEGORIES: Category[] = [
   {
@@ -207,32 +215,55 @@ const CATEGORIES: Category[] = [
   },
 ]
 
+const SPIKEY_CATEGORY: Category = {
+  label: 'Spikey',
+  emojis: [
+    spikey('Spikey Smile', 'Smile.png'),
+    spikey('Spikey Laugh', 'Laugh.png'),
+    spikey('Spikey Smirk', 'Smirk.png'),
+    spikey('Spikey Love', 'Love.png'),
+    spikey('Spikey Hug', 'Hug.png'),
+    spikey('Spikey Party', 'Party.png'),
+    spikey('Spikey Heart', 'Heart.png'),
+    spikey('Spikey Music', 'Music.png'),
+  ],
+}
+
 interface EmojiPickerProps {
   onSelect: (emoji: string) => void
   onClose?: () => void
 }
 
 export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
+  const supporter = useAuthStore((s) => s.session?.supporter)
   const [activeCategory, setActiveCategory] = useState(0)
   const [search, setSearch] = useState('')
+  const spikeyUnlocked = supporter?.tier === 'plus' || supporter?.purchasedExtras.includes('emoji-pack-spikey')
+  const categories = spikeyUnlocked ? [...CATEGORIES, SPIKEY_CATEGORY] : CATEGORIES
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     const source = q
-      ? CATEGORIES.flatMap((c) => c.emojis).filter((item) =>
-          item.type === 'classic' ? item.name.toLowerCase().includes(q) : true,
+      ? categories.flatMap((c) => c.emojis).filter((item) =>
+          item.type === 'classic' || item.type === 'spikey' ? item.name.toLowerCase().includes(q) : true,
         )
-      : CATEGORIES[activeCategory]?.emojis ?? []
+      : categories[activeCategory]?.emojis ?? []
     return source
-  }, [activeCategory, search])
+  }, [activeCategory, categories, search])
 
   const getPreview = (item: EmojiItem) =>
     item.type === 'classic'
       ? `${MSN_EMOTICON_BASE_URL}/${item.filename}.png`
+      : item.type === 'spikey'
+        ? `/emoji-packs/spikey/${item.filename}`
       : item.value
 
   const getInsertValue = (item: EmojiItem) =>
-    item.type === 'classic' ? `${MSN_EMOTICON_BASE_URL}/${item.filename}.png ` : item.value
+    item.type === 'classic'
+      ? `${MSN_EMOTICON_BASE_URL}/${item.filename}.png `
+      : item.type === 'spikey'
+        ? `${location.origin}/emoji-packs/spikey/${item.filename} `
+        : item.value
 
   return (
     <div
@@ -314,7 +345,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
             scrollbarWidth: 'none',
           }}
         >
-          {CATEGORIES.map((cat, idx) => (
+          {categories.map((cat, idx) => (
             <button
               key={cat.label}
               type="button"
@@ -338,7 +369,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
                 overflow: 'hidden',
               }}
             >
-              {cat.emojis[0]?.type === 'classic' ? (
+              {cat.emojis[0]?.type === 'classic' || cat.emojis[0]?.type === 'spikey' ? (
                 <img
                   src={getPreview(cat.emojis[0])}
                   alt={cat.label}

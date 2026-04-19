@@ -14,6 +14,7 @@ export function useSocket() {
   const wsRef = useRef<WebSocket | null>(null)
   const session = useAuthStore((s) => s.session)
   const receiveMessage = useChatStore((s) => s.receiveMessage)
+  const setSupporterState = useAuthStore((s) => s.setSupporterState)
   const activeConversationId = useChatStore((s) => s.activeConversationId)
   const updateContactStatus = useContactsStore((s) => s.updateContactStatus)
   const incrementUnread = useContactsStore((s) => s.incrementUnread)
@@ -55,6 +56,28 @@ export function useSocket() {
         if (!authenticated) {
           if (envelope.type === 'auth_ok') {
             authenticated = true
+            const authPayload = envelope as {
+              tier?: unknown
+              purchased_extras?: unknown
+              buddy_cap?: unknown
+              buddy_used?: unknown
+              group_chat_unlocked?: unknown
+              supporter_expires_at?: unknown
+            }
+            setSupporterState({
+              tier: authPayload.tier === 'plus' ? 'plus' : 'free',
+              purchasedExtras: Array.isArray(authPayload.purchased_extras)
+                ? authPayload.purchased_extras
+                    .filter((item): item is string => typeof item === 'string')
+                : [],
+              buddyCap: typeof authPayload.buddy_cap === 'number' ? authPayload.buddy_cap : null,
+              buddyUsed: typeof authPayload.buddy_used === 'number' ? authPayload.buddy_used : 0,
+              groupChatUnlocked: Boolean(authPayload.group_chat_unlocked),
+              supporterExpiresAt:
+                typeof authPayload.supporter_expires_at === 'string'
+                  ? authPayload.supporter_expires_at
+                  : null,
+            })
           }
           // Ignore any other messages before auth is confirmed.
           return
@@ -244,6 +267,7 @@ export function useSocket() {
     addAcceptedContact,
     setContacts,
     removeContact,
+    setSupporterState,
   ])
 
   return { send }

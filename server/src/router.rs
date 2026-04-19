@@ -227,6 +227,7 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
                 "buddy_cap": buddy_cap,       // null = unlimited
                 "buddy_used": buddy_used,
                 "group_chat_unlocked": user.group_chat_unlocked,
+                "supporter_expires_at": user.supporter_expires_at,
             })
             .to_string()
             .into(),
