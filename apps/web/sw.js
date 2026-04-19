@@ -1,12 +1,13 @@
 // ── Winkd Messenger Service Worker ──
 // Cache-first for assets, network-first for API calls, offline fallback page
 
-const CACHE_NAME = 'winkd-v2';
+const CACHE_NAME = 'winkd-v3';
 const OFFLINE_URL = '/app.html';
 
 // Everything we want cached immediately on install
 const PRECACHE_ASSETS = [
   '/app.html',
+  '/login.html',
   '/manifest.json',
 ];
 
@@ -52,21 +53,24 @@ self.addEventListener('fetch', event => {
   // except for the Imgur icon — cache that too
   if (url.origin !== location.origin && !url.hostname.includes('imgur.com')) return;
 
-  // For navigation requests (page loads): cache-first with network fallback
+  // For navigation requests (page loads): network-first, fall back to the
+  // exact cached URL, then the generic offline page. Serving app.html for
+  // ALL navigation requests (including login.html) caused an infinite
+  // redirect loop: app.html's auth guard redirects to login.html, SW serves
+  // app.html again, repeat until chrome-error://chromewebdata/.
   if (request.mode === 'navigate') {
     event.respondWith(
-      caches.match(OFFLINE_URL).then(cached => {
-        return fetch(request)
-          .then(response => {
-            // Update the cache with fresh version
-            if (response.ok) {
-              const clone = response.clone();
-              caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-            }
-            return response;
-          })
-          .catch(() => cached || caches.match(OFFLINE_URL));
-      })
+      fetch(request)
+        .then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then(cached => cached || caches.match(OFFLINE_URL))
+        )
     );
     return;
   }
