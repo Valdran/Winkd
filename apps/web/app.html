@@ -3092,15 +3092,30 @@ function showFatalErrorOverlay(){
   const el=document.getElementById('fatal-error-overlay');
   if(el)el.style.display='flex';
 }
+// Errors from third-party injected scripts (Eruda mobile devtools, browser
+// extensions, in-app webviews) must not trigger the fatal overlay — they are
+// not app failures. Cross-origin scripts report as "Script error." with no
+// filename, and Eruda emits an init warning on some hosts.
+function isForeignScriptError(e){
+  const msg=String(e&&e.message||'');
+  const src=String(e&&e.filename||'');
+  if(!msg&&!src)return true;
+  if(/^Script error\.?$/i.test(msg))return true;
+  if(/eruda/i.test(msg))return true;
+  if(/webkit-masked-url:|chrome-extension:|moz-extension:|safari-extension:/i.test(src))return true;
+  return false;
+}
 window.addEventListener('error',(e)=>{
   // Ignore resource load failures (img, script, etc.) — only catch JS runtime errors
   if(e.target&&e.target!==window)return;
+  if(isForeignScriptError(e))return;
   showFatalErrorOverlay();
 });
 window.addEventListener('unhandledrejection',(e)=>{
   // Ignore expected mobile API rejections (AudioContext, AbortError, network issues)
   const msg=String(e.reason?.message||e.reason||'');
   if(/AudioContext|NotAllowedError|AbortError|NetworkError|WebSocket/i.test(msg))return;
+  if(/eruda/i.test(msg))return;
   showFatalErrorOverlay();
 });
 
