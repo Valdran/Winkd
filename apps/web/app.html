@@ -1129,7 +1129,7 @@ const EP_CATS = [
   {id:'misc',    label:'🌟 Misc'},
 ];
 
-const MSN_EMOTICON_BASE_URL = 'https://raw.githubusercontent.com/bernzrdo/msn-emoticons/main/original';
+const MSN_EMOTICON_BASE_URL = '/msn-emoticons';
 const MSN_CLASSIC = [
   ['Smile','smile'],['Open-mouthed smile','open-mouthed-smile'],['Winking smile','winking-smile'],['Surprised smile','surprised-smile'],
   ['Smile with tongue out','smile-with-tongue-out'],['Hot smile','hot-smile'],['Angry smile','angry-smile'],['Embarrassed smile','embarrassed-smile'],
@@ -1808,7 +1808,7 @@ function addMsg(m,contact,animate=true){
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;')
     .replace(/\n/g,'<br>')
-    .replace(/https:\/\/raw\.githubusercontent\.com\/bernzrdo\/msn-emoticons\/main\/original\/[a-z0-9-]+\.(?:png|gif)/gi,(url)=>`<img src="${url}" alt="msn emoji" style="width:20px;height:20px;vertical-align:middle;">`);
+    .replace(/\/msn-emoticons\/[a-z0-9-]+\.(?:png|gif)/gi,(url)=>`<img src="${url}" alt="msn emoji" style="width:20px;height:20px;vertical-align:middle;">`);
   const textHtml=txt?`<div style="${styleStr}">${txt}</div>`:'';
   row.innerHTML=`<div class="msg-av" style="background:${bg};">${avInner}</div><div class="msg-body"><div class="msg-meta">${me?myName:c.name} · ${m.time||ts()}</div><div class="${me?'bubble-me':'bubble-them'}">${mediaHtml}${textHtml}</div><div class="msg-reaction-wrap" id="rw-${msgId}"></div></div><div class="reaction-add-btn" onclick="openReactionPopover(event,'${msgId}')">＋</div>`;
   msgs.appendChild(row);

@@ -1,96 +1,36 @@
 {
   "id": "spikey",
   "name": "Spikey",
-  "description": "The original Winkd mascot — a spiky-haired little dude with big feelings. Drop PNG or GIF files into this folder, add them to the emojis array below, and they'll appear in the emoji picker for anyone who owns the pack.",
+  "description": "The original Winkd mascot — a spiky-haired little dude with big feelings.",
   "version": "1.0.0",
   "price_cad": 3.99,
   "sku": "emoji-pack-spikey",
   "author": "Winkd",
-  "preview": "spikey-happy.png",
+  "preview": "Smile.png",
   "emojis": [
-    {
-      "slug": "spikey-happy",
-      "label": "Happy Spikey",
-      "trigger": ":spikey-happy:",
-      "file": "spikey-happy.png",
-      "animated": false
-    },
-    {
-      "slug": "spikey-lol",
-      "label": "Spikey LOL",
-      "trigger": ":spikey-lol:",
-      "file": "spikey-lol.png",
-      "animated": false
-    },
-    {
-      "slug": "spikey-sad",
-      "label": "Sad Spikey",
-      "trigger": ":spikey-sad:",
-      "file": "spikey-sad.png",
-      "animated": false
-    },
-    {
-      "slug": "spikey-angry",
-      "label": "Angry Spikey",
-      "trigger": ":spikey-angry:",
-      "file": "spikey-angry.png",
-      "animated": false
-    },
-    {
-      "slug": "spikey-wave",
-      "label": "Spikey Wave",
-      "trigger": ":spikey-wave:",
-      "file": "spikey-wave.gif",
-      "animated": true
-    },
-    {
-      "slug": "spikey-dance",
-      "label": "Spikey Dance",
-      "trigger": ":spikey-dance:",
-      "file": "spikey-dance.gif",
-      "animated": true
-    },
-    {
-      "slug": "spikey-love",
-      "label": "Spikey in Love",
-      "trigger": ":spikey-love:",
-      "file": "spikey-love.png",
-      "animated": false
-    },
-    {
-      "slug": "spikey-cool",
-      "label": "Cool Spikey",
-      "trigger": ":spikey-cool:",
-      "file": "spikey-cool.png",
-      "animated": false
-    },
-    {
-      "slug": "spikey-sleep",
-      "label": "Sleepy Spikey",
-      "trigger": ":spikey-sleep:",
-      "file": "spikey-sleep.png",
-      "animated": false
-    },
-    {
-      "slug": "spikey-coffee",
-      "label": "Spikey Coffee",
-      "trigger": ":spikey-coffee:",
-      "file": "spikey-coffee.png",
-      "animated": false
-    },
-    {
-      "slug": "spikey-thumbsup",
-      "label": "Spikey Thumbs Up",
-      "trigger": ":spikey-thumbsup:",
-      "file": "spikey-thumbsup.png",
-      "animated": false
-    },
-    {
-      "slug": "spikey-facepalm",
-      "label": "Spikey Facepalm",
-      "trigger": ":spikey-facepalm:",
-      "file": "spikey-facepalm.png",
-      "animated": false
-    }
+    { "slug": "spikey-smile",       "label": "Spikey Smile",      "trigger": ":spikey-smile:",       "file": "Smile.png",       "animated": false },
+    { "slug": "spikey-laugh",       "label": "Spikey Laugh",      "trigger": ":spikey-laugh:",       "file": "Laugh.png",       "animated": false },
+    { "slug": "spikey-smirk",       "label": "Spikey Smirk",      "trigger": ":spikey-smirk:",       "file": "Smirk.png",       "animated": false },
+    { "slug": "spikey-excited",     "label": "Spikey Excited",    "trigger": ":spikey-excited:",     "file": "Excited.png",     "animated": false },
+    { "slug": "spikey-love",        "label": "Spikey Love",       "trigger": ":spikey-love:",        "file": "Love.png",        "animated": false },
+    { "slug": "spikey-love-2",      "label": "Spikey Love 2",     "trigger": ":spikey-love-2:",      "file": "Love_1.png",      "animated": false },
+    { "slug": "spikey-heart",       "label": "Spikey Heart",      "trigger": ":spikey-heart:",       "file": "Heart.png",       "animated": false },
+    { "slug": "spikey-hug",         "label": "Spikey Hug",        "trigger": ":spikey-hug:",         "file": "Hug.png",         "animated": false },
+    { "slug": "spikey-sleep",       "label": "Spikey Sleep",      "trigger": ":spikey-sleep:",       "file": "Sleep.png",       "animated": false },
+    { "slug": "spikey-idea",        "label": "Spikey Idea",       "trigger": ":spikey-idea:",        "file": "Idea.png",        "animated": false },
+    { "slug": "spikey-king",        "label": "Spikey King",       "trigger": ":spikey-king:",        "file": "King.png",        "animated": false },
+    { "slug": "spikey-police",      "label": "Spikey Police",     "trigger": ":spikey-police:",      "file": "Police.png",      "animated": false },
+    { "slug": "spikey-music",       "label": "Spikey Music",      "trigger": ":spikey-music:",       "file": "Music.png",       "animated": false },
+    { "slug": "spikey-drink",       "label": "Spikey Drink",      "trigger": ":spikey-drink:",       "file": "Drink.png",       "animated": false },
+    { "slug": "spikey-checklist",   "label": "Spikey Checklist",  "trigger": ":spikey-checklist:",   "file": "Checklist.png",   "animated": false },
+    { "slug": "spikey-party",       "label": "Spikey Party",      "trigger": ":spikey-party:",       "file": "Party.png",       "animated": false },
+    { "slug": "spikey-rip",         "label": "Spikey RIP",        "trigger": ":spikey-rip:",         "file": "RIP.png",         "animated": false },
+    { "slug": "spikey-coffee",      "label": "Spikey Coffee",     "trigger": ":spikey-coffee:",      "file": "Coffee.gif",      "animated": true  },
+    { "slug": "spikey-hearts",      "label": "Spikey Hearts",     "trigger": ":spikey-hearts:",      "file": "Hearts.gif",      "animated": true  },
+    { "slug": "spikey-headbang",    "label": "Spikey Headbang",   "trigger": ":spikey-headbang:",    "file": "Headbang.gif",    "animated": true  },
+    { "slug": "spikey-notes",       "label": "Spikey Notes",      "trigger": ":spikey-notes:",       "file": "Notes.gif",       "animated": true  },
+    { "slug": "spikey-lightsaber",  "label": "Spikey Lightsaber", "trigger": ":spikey-lightsaber:",  "file": "Lightsaber.gif",  "animated": true  },
+    { "slug": "spikey-trophy",      "label": "Spikey Trophy",     "trigger": ":spikey-trophy:",      "file": "Trophy.gif",      "animated": true  },
+    { "slug": "spikey-baseball-bat","label": "Spikey Baseball Bat","trigger": ":spikey-baseball-bat:","file": "Baseball Bat.gif","animated": true  }
   ]
 }
