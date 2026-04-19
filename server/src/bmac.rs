@@ -139,8 +139,9 @@ async fn apply_event_side_effects(
     data: &Value,
 ) {
     match event_type {
-        // Recurring membership started or renewed.
-        "membership.started" | "membership.renewed" | "subscription.created"
+        // Recurring membership started or renewed. BMAC delivers renewals as
+        // `membership.updated`, not `membership.renewed`.
+        "membership.started" | "membership.updated" | "subscription.created"
         | "subscription.renewed" => {
             let tier_name = data
                 .get("membership_level_name")
@@ -175,8 +176,9 @@ async fn apply_event_side_effects(
         }
 
         // One-off "Extra" — buddy slots, group-chat unlock, or a cosmetic
-        // pack. The SKU determines the side effect.
-        "extra.purchased" | "purchase.created" => {
+        // pack. The SKU determines the side effect. BMAC sends these as
+        // `extra_purchase.created`.
+        "extra_purchase.created" | "purchase.created" => {
             let extra_id = data
                 .get("extra_id")
                 .or_else(|| data.get("extra_slug"))
@@ -233,7 +235,7 @@ async fn apply_extra_purchase(
             }
         }
 
-        _ => tracing::debug!("extra.purchased without a SKU — nothing to apply"),
+        _ => tracing::debug!("extra_purchase.created without a SKU — nothing to apply"),
     }
 }
 

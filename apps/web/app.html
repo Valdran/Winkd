@@ -685,7 +685,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
 .ch-info-mobile{display:block!important;}
 .tb-right{display:none;}
 #emoji-picker{left:8px;bottom:80px;width:calc(100vw - 16px);}
-.ch-hbtn:last-child{display:none;}
+#end-chat-btn{display:none;}
 .msg-body{max-width:80%;}
 }
 </style>
@@ -1782,7 +1782,8 @@ function buildChat(c){
         <div class="ch-info-mobile"><div class="ch-name">${c.name}</div><div class="ch-status" style="color:${SC[c.status]};">● ${sl}</div></div>
       </div>
       <div style="display:flex;gap:5px;">
-        <div class="ch-hbtn" onclick="endChat()">🚪 End Chat</div>
+        <div class="ch-hbtn" id="block-chat-btn" onclick="blockActiveContact()" style="color:#8a1818;border-color:rgba(200,80,80,0.55);background:linear-gradient(to bottom,rgba(255,238,238,0.95),rgba(255,210,210,0.85));" title="Block this user">🚫 Block</div>
+        <div class="ch-hbtn" id="end-chat-btn" onclick="endChat()">🚪 End Chat</div>
       </div>
     </div>
     <div id="chat-messages"></div>
@@ -2135,6 +2136,16 @@ function closeWinkOverlay(){clearTimeout(winkDismissTimer);const overlay=documen
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeWinkOverlay();closeActionSheet();}});
 
 function sendFile(){const msgs=document.getElementById('chat-messages');if(!msgs)return;const el=document.createElement('div');el.className='system-msg';el.textContent='📁 File sharing coming in a future update.';msgs.appendChild(el);sb();}
+function blockActiveContact(){
+  if(!activeContact)return;
+  const contact=contacts.find(c=>c.id===activeContact);
+  const name=contact?.name||activeContact;
+  if(!confirm(`Block ${name}?\n\nYou will no longer receive messages or contact requests from them. They will be removed from your buddy list.`))return;
+  if(!wsSend('block_user',{winkd_id:activeContact})){
+    showToast('Not connected. Block failed.','error');
+    return;
+  }
+}
 function endChat(){
   activeContact=null;renderContacts(document.getElementById('search-input').value);
   const a=document.getElementById('chat-area');a.className='empty';
@@ -2514,12 +2525,16 @@ function handleContactsSnapshot(payload){
     if(!wid)return;
     const name=item.display_name||wid.split('#')[0];
     const requestStatus=item.request_status||'accepted';
+    const serverStatus=typeof item.status==='string'?item.status:null;
+    // Trust the server's live presence if present; otherwise default to
+    // offline. Pending outbound contacts don't have presence yet.
+    const status=serverStatus?(serverStatus==='invisible'?'offline':serverStatus):'offline';
     contacts.push({
       id:wid,
       initials:name.slice(0,2).toUpperCase(),
       name,
       mood:item.mood_message||'',
-      status:requestStatus==='accepted'?'online':'offline',
+      status,
       color:'#406080',
       avatarSrc:item.avatar_data||null,
       unread:0,
@@ -2602,12 +2617,28 @@ function handleContactRequestRejected(payload){
 
 function handleContactBlocked(payload){
   const rid=payload?.request_id;
+  const wid=payload?.winkd_id;
   if(rid){
     inboundRequests=inboundRequests.filter(r=>r.request_id!==rid);
-  }else if(payload?.winkd_id){
-    inboundRequests=inboundRequests.filter(r=>r.from_winkd_id!==payload.winkd_id);
+  }
+  if(wid){
+    inboundRequests=inboundRequests.filter(r=>r.from_winkd_id!==wid);
+    // Drop the blocked user from the roster so they disappear from the
+    // buddy list everywhere. The server won't route new messages to or
+    // from them, so leaving a stale entry would just confuse the user.
+    const before=contacts.length;
+    const idx=contacts.findIndex(c=>c.id===wid);
+    if(idx>=0)contacts.splice(idx,1);
+    if(contacts.length<before){
+      buddyUsed=Math.max(0,buddyUsed-1);
+      updateBuddyCounter();
+    }
+    delete convos[wid];
+    saveConvos();
+    if(activeContact===wid)endChat();
   }
   renderInboundRequests();
+  renderContacts(document.getElementById('search-input')?.value||'');
   showToast('User blocked.','info');
 }
 
@@ -3149,13 +3180,31 @@ function closeInkDraw(){document.getElementById('ink-panel').classList.remove('o
 function sendInkDrawing(){
   if(!activeContact)return;
   const canvas=document.getElementById('ink-canvas');const dataUrl=canvas.toDataURL('image/png');
-  if(!convos[activeContact])convos[activeContact]=[];
-  const message={from:'me',text:'',mediaType:'image',mediaData:dataUrl,time:ts()};
-  convos[activeContact].push(message);
-  const contact=contacts.find(x=>x.id===activeContact);
-  addMsg(message,contact,false);sb();
-  saveConvos();
+  const bytes=approxDataUriBytes(dataUrl);
+  if(bytes>supporterLimits.max_media_bytes){
+    showToast(`Drawing is ${humanMb(bytes)} — limit is ${humanMb(supporterLimits.max_media_bytes)}.${upgradeHint()}`,'error');
+    return;
+  }
+  const payload={
+    id:mkMsgId(),
+    conversationId:activeContact,
+    senderId:myWinkdId,
+    type:'text',
+    body:'',
+    sentAt:nowIso(),
+    delivered:false,
+    read:false,
+    media_type:'image',
+    media_data:dataUrl,
+    media_mime:'image/png',
+  };
+  if(!wsSend('send_message',payload)){
+    showToast('Not connected. Drawing not sent.','error');
+    return;
+  }
+  locallyRenderOutgoing(payload);
   closeInkDraw();
+  playMsgSentSound();
 }
 
 // ── CONTACT TINT ──

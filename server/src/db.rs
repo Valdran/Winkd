@@ -360,6 +360,7 @@ pub struct BlockedUser {
 
 #[derive(sqlx::FromRow, Clone, Debug)]
 pub struct ContactRosterEntry {
+    pub user_id: Uuid,
     pub winkd_id: String,
     pub display_name: String,
     pub avatar_data: Option<String>,
@@ -430,7 +431,8 @@ pub async fn list_contact_roster(
     user_id: Uuid,
 ) -> Result<Vec<ContactRosterEntry>, sqlx::Error> {
     sqlx::query_as::<_, ContactRosterEntry>(
-        r#"SELECT u.winkd_id,
+        r#"SELECT u.id         AS user_id,
+                  u.winkd_id,
                   u.display_name,
                   u.avatar_data,
                   u.mood_message,

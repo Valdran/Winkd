@@ -267,20 +267,33 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
         .await;
     broadcast_presence_to_contacts(&state, &user, "online").await;
 
-    // Flush any pending inbound contact requests that arrived while offline.
+    // Flush the roster snapshot, including each contact's live presence so
+    // the client doesn't have to assume everyone is online until a change
+    // event fires. Contacts already online when we connect never generate a
+    // presence event for us, so without this they'd stay stuck on "online"
+    // even if they were actually offline or busy.
     if let Ok(contacts) = db::list_contact_roster(&state.db, user.id).await {
-        let payload = contacts
-            .iter()
-            .map(|c| {
-                json!({
-                    "winkd_id": c.winkd_id,
-                    "display_name": c.display_name,
-                    "avatar_data": c.avatar_data,
-                    "mood_message": c.mood_message,
-                    "request_status": c.request_status,
-                })
-            })
-            .collect::<Vec<_>>();
+        let mut payload = Vec::with_capacity(contacts.len());
+        for c in &contacts {
+            let status = match state.presence.get(&c.user_id.to_string()).await {
+                Some(p) => match p.status {
+                    crate::presence::UserStatus::Online => "online",
+                    crate::presence::UserStatus::Away => "away",
+                    crate::presence::UserStatus::Busy => "busy",
+                    // Invisible peers look offline to their buddies.
+                    crate::presence::UserStatus::Invisible => "offline",
+                },
+                None => "offline",
+            };
+            payload.push(json!({
+                "winkd_id": c.winkd_id,
+                "display_name": c.display_name,
+                "avatar_data": c.avatar_data,
+                "mood_message": c.mood_message,
+                "request_status": c.request_status,
+                "status": status,
+            }));
+        }
         let _ = chan_tx.send(
             json!({
                 "event": "contacts_snapshot",
