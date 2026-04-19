@@ -181,7 +181,7 @@ async fn apply_event_side_effects(
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
 
-            if tier_name.eq_ignore_ascii_case(&state.config.bmac_plus_tier_name) {
+            if is_plus_membership_tier(tier_name, &state.config.bmac_plus_tier_name) {
                 // Default to 35 days (~monthly billing cycle + grace). If BMAC
                 // sends an explicit period_end timestamp, prefer that.
                 let expires =
@@ -228,6 +228,19 @@ async fn apply_event_side_effects(
     }
 }
 
+fn is_plus_membership_tier(incoming_tier_name: &str, configured_plus_tier_name: &str) -> bool {
+    let incoming = incoming_tier_name.trim();
+    let configured = configured_plus_tier_name.trim();
+    if incoming.is_empty() || configured.is_empty() {
+        return false;
+    }
+
+    incoming.eq_ignore_ascii_case(configured)
+        || incoming
+            .to_ascii_lowercase()
+            .starts_with(&format!("{} ", configured.to_ascii_lowercase()))
+}
+
 /// Route a one-off extra purchase to the right DB mutation. Unknown SKUs
 /// still land in `purchased_extras` so later additions (new emoji packs,
 /// seasonal items) don't need code changes to be recorded.
@@ -259,6 +272,21 @@ async fn apply_extra_purchase(state: &AppState, user: &db::User, extra_id: &str,
         }
 
         _ => tracing::debug!("extra_purchase.created without a SKU — nothing to apply"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_plus_membership_tier;
+
+    #[test]
+    fn plus_tier_match_is_exact_or_prefixed() {
+        assert!(is_plus_membership_tier("Winkd Plus!", "Winkd Plus!"));
+        assert!(is_plus_membership_tier("Winkd Plus! Annual", "Winkd Plus!"));
+        assert!(is_plus_membership_tier("winkd plus! annual", "Winkd Plus!"));
+        assert!(!is_plus_membership_tier("Winkd Pro", "Winkd Plus!"));
+        assert!(!is_plus_membership_tier("", "Winkd Plus!"));
+        assert!(!is_plus_membership_tier("Winkd Plus!", ""));
     }
 }
 

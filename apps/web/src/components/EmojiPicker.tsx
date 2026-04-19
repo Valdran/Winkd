@@ -238,7 +238,13 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   const supporter = useAuthStore((s) => s.session?.supporter)
   const [activeCategory, setActiveCategory] = useState(0)
   const [search, setSearch] = useState('')
-  const spikeyUnlocked = supporter?.tier === 'plus' || supporter?.purchasedExtras.includes('emoji-pack-spikey')
+  const supporterTier = supporter?.tier?.trim().toLowerCase()
+  const purchasedExtras = (supporter?.purchasedExtras ?? []).map((extra) => extra.toLowerCase())
+  const spikeyUnlocked =
+    supporterTier === 'plus' ||
+    purchasedExtras.includes('emoji-pack-spikey') ||
+    purchasedExtras.includes('emoji_pack_spikey') ||
+    purchasedExtras.includes('spikey')
   const categories = spikeyUnlocked ? [...CATEGORIES, SPIKEY_CATEGORY] : CATEGORIES
 
   const filtered = useMemo(() => {
