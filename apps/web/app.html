@@ -390,6 +390,30 @@ position:relative;-webkit-user-select:none;user-select:none;-webkit-touch-callou
 .ep-em.fav-glow{outline:2px solid rgba(255,180,0,0.7);outline-offset:0px;}
 .ep-em.long-press-active{background:rgba(100,160,255,0.35);transform:scale(1.15);}
 .ep-no-results{font-size:11px;color:rgba(80,110,180,0.65);font-style:italic;padding:24px;text-align:center;width:100%;}
+.ep-spikey-preview{width:100%;padding:10px 10px 12px;display:flex;flex-direction:column;gap:10px;
+  background:linear-gradient(to bottom,rgba(255,248,220,0.55),rgba(255,236,180,0.35));
+  border:1px solid rgba(220,180,40,0.35);border-radius:6px;}
+.ep-sp-hero{display:flex;align-items:center;gap:10px;}
+.ep-sp-hero-img{width:44px;height:44px;object-fit:contain;flex-shrink:0;
+  filter:drop-shadow(0 2px 4px rgba(160,110,0,0.3));}
+.ep-sp-hero-text{min-width:0;}
+.ep-sp-title{font-size:13px;font-weight:700;color:#5a4500;margin-bottom:2px;}
+.ep-sp-sub{font-size:10.5px;color:#6a5520;line-height:1.35;}
+.ep-sp-previews{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;
+  background:rgba(255,255,255,0.55);border:1px solid rgba(220,180,40,0.3);
+  border-radius:5px;padding:6px;}
+.ep-sp-thumb{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,0.7);border-radius:4px;padding:2px;}
+.ep-sp-thumb img{width:100%;height:100%;object-fit:contain;}
+.ep-sp-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.ep-sp-price{font-size:11px;font-weight:700;color:#5a4500;}
+.ep-sp-buy{font:inherit;font-size:11.5px;font-weight:700;color:#fff;cursor:pointer;
+  padding:7px 12px;border-radius:5px;border:1px solid rgba(180,120,0,0.7);
+  background:linear-gradient(to bottom,#e8a800,#c07000);
+  box-shadow:0 1px 2px rgba(0,0,0,0.15);transition:filter 0.12s;}
+.ep-sp-buy:hover{filter:brightness(1.08);}
+.ep-sp-buy:active{filter:brightness(0.95);}
+.ep-sp-note{font-size:10px;color:#7a6030;font-style:italic;text-align:center;}
 .ep-footer{border-top:1px solid rgba(130,175,240,0.25);padding:3px 9px;
 display:flex;justify-content:space-between;align-items:center;font-size:10px;color:rgba(50,90,180,0.65);flex-shrink:0;}
 .ep-fav-toggle{cursor:pointer;color:rgba(180,130,0,0.8);font-weight:700;}
@@ -1125,6 +1149,7 @@ const EP_CATS = [
   {id:'sign',    label:'👍 Signs'},
   {id:'character',label:'🤖 Characters'},
   {id:'msn',     label:'💬 Classic'},
+  {id:'spikey',  label:'✨ Spikey'},
   {id:'war',     label:'💥 Fighting'},
   {id:'misc',    label:'🌟 Misc'},
 ];
@@ -1147,6 +1172,38 @@ const MSN_CLASSIC = [
   ['Party smile','party-smile'],['Eye-rolling smile','eye-rolling-smile'],['Sleepy smile','sleepy-smile'],['Bunny','bunny'],
 ].map(([name,filename])=>({e:`${MSN_EMOTICON_BASE_URL}/${filename}.png`,n:name,classic:true,filename}));
 
+const SPIKEY_BASE_URL = '/emoji-packs/spikey';
+const SPIKEY_PACK_SKU = 'emoji-pack-spikey';
+const SPIKEY_PACK_PRICE = '$3.99';
+const SPIKEY_BMAC_URL = 'https://buymeacoffee.com/winkd/extras';
+const SPIKEY_PREVIEW_FILES = ['Smile.png','Laugh.png','Love.png','Party.png','King.png','Coffee.gif','Hearts.gif','Headbang.gif'];
+const SPIKEY_PACK = [
+  ['Spikey Smile','Smile.png',':spikey-smile:'],
+  ['Spikey Laugh','Laugh.png',':spikey-laugh:'],
+  ['Spikey Smirk','Smirk.png',':spikey-smirk:'],
+  ['Spikey Excited','Excited.png',':spikey-excited:'],
+  ['Spikey Love','Love.png',':spikey-love:'],
+  ['Spikey Love 2','Love_1.png',':spikey-love-2:'],
+  ['Spikey Heart','Heart.png',':spikey-heart:'],
+  ['Spikey Hug','Hug.png',':spikey-hug:'],
+  ['Spikey Sleep','Sleep.png',':spikey-sleep:'],
+  ['Spikey Idea','Idea.png',':spikey-idea:'],
+  ['Spikey King','King.png',':spikey-king:'],
+  ['Spikey Police','Police.png',':spikey-police:'],
+  ['Spikey Music','Music.png',':spikey-music:'],
+  ['Spikey Drink','Drink.png',':spikey-drink:'],
+  ['Spikey Checklist','Checklist.png',':spikey-checklist:'],
+  ['Spikey Party','Party.png',':spikey-party:'],
+  ['Spikey RIP','RIP.png',':spikey-rip:'],
+  ['Spikey Coffee','Coffee.gif',':spikey-coffee:'],
+  ['Spikey Hearts','Hearts.gif',':spikey-hearts:'],
+  ['Spikey Headbang','Headbang.gif',':spikey-headbang:'],
+  ['Spikey Notes','Notes.gif',':spikey-notes:'],
+  ['Spikey Lightsaber','Lightsaber.gif',':spikey-lightsaber:'],
+  ['Spikey Trophy','Trophy.gif',':spikey-trophy:'],
+  ['Spikey Baseball Bat','Baseball Bat.gif',':spikey-baseball-bat:'],
+].map(([name,filename,trigger])=>({e:`${SPIKEY_BASE_URL}/${encodeURI(filename)}`,n:name,classic:true,filename,pack:'spikey',trigger}));
+
 const EP_DATA = {
   happy:[{e:'😀',n:'grinning'},{e:'😃',n:'big grin'},{e:'😄',n:'grin'},{e:'😁',n:'beaming'},{e:'🙂',n:'smile'},{e:'😊',n:'blushing smile'},{e:'☺️',n:'smiling face'},{e:'😌',n:'relieved'},{e:'🤗',n:'hugging'},{e:'😺',n:'cat smile'},{e:'🥹',n:'holding back tears happy'},{e:'😏',n:'smirk'},{e:'🤩',n:'star eyes starstruck'},{e:'🥳',n:'partying face'},{e:'🤑',n:'money mouth'},{e:'😝',n:'squinting tongue'},{e:'😸',n:'cat grin'},{e:'😻',n:'cat heart eyes'},{e:'🤭',n:'giggling'},{e:'🫠',n:'melting'},{e:'🫡',n:'salute'},{e:'🥸',n:'disguise'},{e:'😶',n:'no mouth'},{e:'😑',n:'expressionless'},{e:'😐',n:'neutral'}],
   wink:[{e:'😉',n:'winking'},{e:'😘',n:'blowing kiss'},{e:'😍',n:'heart eyes'},{e:'🥰',n:'hearts around'},{e:'😚',n:'kissing closed eyes'},{e:'😙',n:'kissing smiling eyes'},{e:'😗',n:'kissing'},{e:'😜',n:'winking tongue'},{e:'🤪',n:'zany wink'},{e:'😛',n:'tongue out wink'},{e:'🫦',n:'lips'},{e:'💋',n:'kiss mark'},{e:'😽',n:'cat kiss'},{e:'🥂',n:'cheers wink'},{e:'😎',n:'cool wink'},{e:'🫣',n:'peeking'},{e:'😲',n:'astonished wink'},{e:'🤫',n:'shushing'},{e:'🤔',n:'thinking'},{e:'🙃',n:'upside down wink'}],
@@ -1166,6 +1223,7 @@ const EP_DATA = {
   sign:[{e:'👍',n:'thumbs up'},{e:'👎',n:'thumbs down'},{e:'👏',n:'clapping'},{e:'🙌',n:'raised hands'},{e:'🤜',n:'right fist bump'},{e:'🤛',n:'left fist bump'},{e:'✊',n:'raised fist'},{e:'👊',n:'oncoming fist'},{e:'🤞',n:'crossed fingers'},{e:'✌️',n:'peace sign'},{e:'🤟',n:'love you gesture'},{e:'🤘',n:'sign of horns rock'},{e:'🤙',n:'call me'},{e:'👈',n:'point left'},{e:'👉',n:'point right'},{e:'👆',n:'point up'},{e:'👇',n:'point down'},{e:'👋',n:'waving hand'},{e:'✋',n:'stop'},{e:'🖐️',n:'splayed hand'},{e:'🖖',n:'vulcan salute'},{e:'👌',n:'ok'},{e:'🤌',n:'pinching'},{e:'✍️',n:'writing hand'},{e:'💪',n:'flex'},{e:'🙏',n:'folded hands pray'},{e:'🫶',n:'heart hands'},{e:'🤝',n:'handshake'},{e:'💅',n:'nail polish'},{e:'🫷',n:'pushing left'},{e:'🫸',n:'nudge push right'}],
   character:[{e:'🤖',n:'robot'},{e:'👾',n:'alien monster game'},{e:'👻',n:'ghost'},{e:'💀',n:'skull'},{e:'☠️',n:'skull crossbones'},{e:'👽',n:'alien'},{e:'🎃',n:'jack o lantern halloween'},{e:'🤡',n:'clown'},{e:'😈',n:'devil smiling'},{e:'👿',n:'devil angry'},{e:'👺',n:'japanese goblin'},{e:'👹',n:'japanese ogre'},{e:'🧌',n:'troll'},{e:'🧟',n:'zombie'},{e:'🧛',n:'vampire'},{e:'🧜',n:'merperson'},{e:'🧝',n:'elf'},{e:'🧞',n:'genie'},{e:'🧚',n:'fairy'},{e:'🧙',n:'mage wizard'},{e:'🦸',n:'superhero'},{e:'🦹',n:'supervillain'},{e:'🕵️',n:'detective spy'},{e:'🥷',n:'ninja'},{e:'👮',n:'police officer'},{e:'🤠',n:'cowboy'},{e:'🎅',n:'santa'},{e:'👑',n:'crown royalty'},{e:'🎭',n:'masks'}],
   msn:MSN_CLASSIC,
+  spikey:SPIKEY_PACK,
   war:[{e:'💥',n:'explosion'},{e:'💢',n:'anger'},{e:'👊',n:'punch'},{e:'🤜',n:'right punch'},{e:'✊',n:'fist fight'},{e:'🗡️',n:'dagger'},{e:'⚔️',n:'swords crossed'},{e:'🛡️',n:'shield'},{e:'🏹',n:'bow arrow'},{e:'💣',n:'bomb'},{e:'🧨',n:'firecracker'},{e:'⚡',n:'thunder strike'},{e:'🌋',n:'volcano'},{e:'🔥',n:'fire war'},{e:'💀',n:'skull war'},{e:'🦈',n:'shark attack'},{e:'🦂',n:'scorpion'},{e:'🕷️',n:'spider attack'},{e:'🦅',n:'eagle strike'},{e:'🐉',n:'dragon attack'},{e:'🏴‍☠️',n:'pirate flag'},{e:'💪',n:'strong fight'},{e:'🥊',n:'boxing glove'},{e:'🥋',n:'martial arts'}],
   misc:[{e:'🌟',n:'star glow'},{e:'💫',n:'dizzy star'},{e:'⭐',n:'star'},{e:'🌈',n:'rainbow'},{e:'☀️',n:'sun'},{e:'🌙',n:'moon'},{e:'⛅',n:'partly cloudy'},{e:'🌊',n:'ocean wave'},{e:'❄️',n:'snowflake'},{e:'⚡',n:'lightning'},{e:'🎵',n:'music note'},{e:'🎶',n:'musical notes'},{e:'💤',n:'sleep zzz'},{e:'💬',n:'speech bubble'},{e:'💭',n:'thought bubble'},{e:'❗',n:'exclamation'},{e:'❓',n:'question'},{e:'💯',n:'hundred percent'},{e:'🔥',n:'fire'},{e:'💧',n:'droplet'},{e:'🌀',n:'cyclone'},{e:'☕',n:'coffee'},{e:'🍕',n:'pizza'},{e:'🎮',n:'video game'},{e:'📱',n:'phone'},{e:'💻',n:'laptop'},{e:'📀',n:'cd disc'},{e:'💾',n:'floppy disk retro'},{e:'📼',n:'vhs tape'},{e:'📺',n:'television'},{e:'📻',n:'radio'},{e:'☎️',n:'old phone'},{e:'🔑',n:'key'},{e:'🚀',n:'rocket'},{e:'🌍',n:'earth'}],
 };
@@ -1186,7 +1244,15 @@ const EP_LONG_MS = 500;
 
 function epSaveFavs(){ localStorage.setItem('winkd-favs', JSON.stringify([...epFavourites])); }
 function epSavePins(){ localStorage.setItem('winkd-pins', JSON.stringify(epPinned)); }
-function isClassicEmojiValue(v){return typeof v==='string'&&v.startsWith(MSN_EMOTICON_BASE_URL+'/');}
+function isClassicEmojiValue(v){
+  if(typeof v!=='string')return false;
+  return v.startsWith(MSN_EMOTICON_BASE_URL+'/')||v.startsWith(SPIKEY_BASE_URL+'/');
+}
+function isSpikeyPurchased(){return Array.isArray(purchasedExtras)&&purchasedExtras.includes(SPIKEY_PACK_SKU);}
+function openSpikeyPurchase(){
+  try{window.open(SPIKEY_BMAC_URL,'_blank','noopener');}
+  catch(e){window.location.href=SPIKEY_BMAC_URL;}
+}
 function createEmojiVisual(value,size){
   if(isClassicEmojiValue(value)){
     const img=document.createElement('img');
@@ -1203,7 +1269,9 @@ function createEmojiVisual(value,size){
 
 function epAllEmojis(){
   const seen = new Set(), arr = [];
+  const skipSpikey = !isSpikeyPurchased();
   for(const cat in EP_DATA){
+    if(cat==='spikey' && skipSpikey) continue;
     EP_DATA[cat].forEach(em=>{ if(!seen.has(em.e)){ seen.add(em.e); arr.push({...em,cat}); } });
   }
   return arr;
@@ -1277,6 +1345,14 @@ function epBuildGrid(list){
   else if(epSearchMode){ return; }
   else { items = EP_DATA[epCurrentTab]||[]; }
 
+  // Spikey pack: when browsing the tab directly (not search) and not purchased,
+  // render a preview panel with a Buy button instead of an interactive grid.
+  if(!list && !epSearchMode && epCurrentTab==='spikey' && !isSpikeyPurchased()){
+    epRenderSpikeyPreview(grid);
+    epUpdateFooter(SPIKEY_PACK.length);
+    return;
+  }
+
   if(!items.length){
     const no = document.createElement('div');
     no.className = 'ep-no-results';
@@ -1305,6 +1381,31 @@ function epBuildGrid(list){
   });
 
   epUpdateFooter(items.length);
+}
+
+function epRenderSpikeyPreview(grid){
+  const wrap=document.createElement('div');
+  wrap.className='ep-spikey-preview';
+  const previews=SPIKEY_PREVIEW_FILES.map(f=>
+    `<div class="ep-sp-thumb"><img src="${SPIKEY_BASE_URL}/${encodeURI(f)}" alt="Spikey preview" loading="lazy"></div>`
+  ).join('');
+  wrap.innerHTML=
+    `<div class="ep-sp-hero">`+
+      `<img class="ep-sp-hero-img" src="${SPIKEY_BASE_URL}/Smile.png" alt="Spikey">`+
+      `<div class="ep-sp-hero-text">`+
+        `<div class="ep-sp-title">✨ Spikey Pack</div>`+
+        `<div class="ep-sp-sub">24 original emojis — the spiky-haired Winkd mascot with big feelings.</div>`+
+      `</div>`+
+    `</div>`+
+    `<div class="ep-sp-previews">${previews}</div>`+
+    `<div class="ep-sp-footer">`+
+      `<div class="ep-sp-price">One-time · ${SPIKEY_PACK_PRICE}</div>`+
+      `<button type="button" class="ep-sp-buy" id="ep-sp-buy-btn">☕ Purchase Spikey Pack</button>`+
+    `</div>`+
+    `<div class="ep-sp-note">Unlocks automatically after purchase on Buy Me a Coffee.</div>`;
+  grid.appendChild(wrap);
+  const btn=document.getElementById('ep-sp-buy-btn');
+  if(btn)btn.onclick=(e)=>{e.stopPropagation();openSpikeyPurchase();};
 }
 
 function epAttachLongPress(el, onLong, onTap, label){
@@ -1808,7 +1909,8 @@ function addMsg(m,contact,animate=true){
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;')
     .replace(/\n/g,'<br>')
-    .replace(/\/msn-emoticons\/[a-z0-9-]+\.(?:png|gif)/gi,(url)=>`<img src="${url}" alt="msn emoji" style="width:20px;height:20px;vertical-align:middle;">`);
+    .replace(/\/msn-emoticons\/[a-z0-9-]+\.(?:png|gif)/gi,(url)=>`<img src="${url}" alt="msn emoji" style="width:20px;height:20px;vertical-align:middle;">`)
+    .replace(/\/emoji-packs\/[a-z0-9_-]+\/[A-Za-z0-9%_. -]+?\.(?:png|gif)/gi,(url)=>`<img src="${url}" alt="winkd emoji" style="width:22px;height:22px;vertical-align:middle;">`);
   const textHtml=txt?`<div style="${styleStr}">${txt}</div>`:'';
   row.innerHTML=`<div class="msg-av" style="background:${bg};">${avInner}</div><div class="msg-body"><div class="msg-meta">${me?myName:c.name} · ${m.time||ts()}</div><div class="${me?'bubble-me':'bubble-them'}">${mediaHtml}${textHtml}</div><div class="msg-reaction-wrap" id="rw-${msgId}"></div></div><div class="reaction-add-btn" onclick="openReactionPopover(event,'${msgId}')">＋</div>`;
   msgs.appendChild(row);
@@ -2216,6 +2318,10 @@ function applyServerLimits(tier,limits,extras,cap,used,groupUnlocked){
   updateCharCounter();
   updateBuddyCounter();
   updatePlusBadge();
+  // Refresh picker so newly-unlocked packs appear (and purchase overlay clears).
+  if(document.getElementById('epGrid')){
+    try{epBuildTabs();epBuildGrid();epBuildFavBar();}catch(e){}
+  }
 }
 function isPlusTier(){return supporterTier==='plus';}
 function upgradeHint(){return isPlusTier()?'':' Winkd Plus! raises this cap.';}
@@ -3043,10 +3149,11 @@ function closeInkDraw(){document.getElementById('ink-panel').classList.remove('o
 function sendInkDrawing(){
   if(!activeContact)return;
   const canvas=document.getElementById('ink-canvas');const dataUrl=canvas.toDataURL('image/png');
-  const msgs=document.getElementById('chat-messages');
-  if(msgs){const row=document.createElement('div');row.className='msg-row me';const avInner=myAvatarSrc?`<img src="${myAvatarSrc}" style="width:100%;height:100%;object-fit:cover;display:block;">`:(myName.slice(0,2).toUpperCase()||'ME');row.innerHTML=`<div class="msg-av" style="background:${avBg(myAvColor,dk(myAvColor),myStatus||'online')};">${avInner}</div><div class="msg-body"><div class="msg-meta">${myName} · ${ts()}</div><img src="${dataUrl}" style="max-width:240px;border-radius:6px;border:1px solid rgba(100,150,220,0.35);display:block;margin-top:2px;box-shadow:0 2px 6px rgba(0,0,0,0.12);" alt="Drawing"></div>`;msgs.appendChild(row);sb();}
   if(!convos[activeContact])convos[activeContact]=[];
-  convos[activeContact].push({from:'me',text:'[Drawing]',time:ts()});
+  const message={from:'me',text:'',mediaType:'image',mediaData:dataUrl,time:ts()};
+  convos[activeContact].push(message);
+  const contact=contacts.find(x=>x.id===activeContact);
+  addMsg(message,contact,false);sb();
   saveConvos();
   closeInkDraw();
 }
@@ -3150,18 +3257,24 @@ function isForeignScriptError(e){
   if(/webkit-masked-url:|chrome-extension:|moz-extension:|safari-extension:/i.test(src))return true;
   return false;
 }
+// The overlay is a boot-failure sentinel. Once the main render has succeeded,
+// an isolated later error (e.g. a stray click handler on a mobile quirk) must
+// not tear the whole UI down — that was causing "Winkd failed to load" to
+// appear in the installed PWA after successful startup.
+let __winkdBooted=false;
+function showFatalIfPreBoot(){if(!__winkdBooted)showFatalErrorOverlay();}
 window.addEventListener('error',(e)=>{
   // Ignore resource load failures (img, script, etc.) — only catch JS runtime errors
   if(e.target&&e.target!==window)return;
   if(isForeignScriptError(e))return;
-  showFatalErrorOverlay();
+  showFatalIfPreBoot();
 });
 window.addEventListener('unhandledrejection',(e)=>{
   // Ignore expected mobile API rejections (AudioContext, AbortError, network issues)
   const msg=String(e.reason?.message||e.reason||'');
-  if(/AudioContext|NotAllowedError|AbortError|NetworkError|WebSocket/i.test(msg))return;
+  if(/AudioContext|NotAllowedError|AbortError|NetworkError|WebSocket|QuotaExceeded|SecurityError|Failed to fetch|Load failed/i.test(msg))return;
   if(/eruda/i.test(msg))return;
-  showFatalErrorOverlay();
+  showFatalIfPreBoot();
 });
 
 // ── INIT ──
@@ -3186,6 +3299,9 @@ registerSW();
 initInstallPrompt();
 initOfflineDetection();
 wsConnect();
+// Synchronous render path completed. Any later error is non-fatal — don't
+// tear the whole UI down with the fatal overlay.
+__winkdBooted=true;
 </script>
 </body>
 </html>
