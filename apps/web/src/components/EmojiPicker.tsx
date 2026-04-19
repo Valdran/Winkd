@@ -395,9 +395,13 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
       >
         {filtered.map((item, i) => (
           <button
-            key={item.type === 'classic' ? item.filename : `${item.value}-${i}`}
+            key={
+              item.type === 'classic' || item.type === 'spikey'
+                ? item.filename
+                : `${item.value}-${i}`
+            }
             type="button"
-            title={item.type === 'classic' ? item.name : item.value}
+            title={item.type === 'classic' || item.type === 'spikey' ? item.name : item.value}
             onClick={() => onSelect(getInsertValue(item))}
             style={{
               width: '100%',
@@ -418,7 +422,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
               e.currentTarget.style.background = 'transparent'
             }}
           >
-            {item.type === 'classic' ? (
+            {item.type === 'classic' || item.type === 'spikey' ? (
               <img
                 src={getPreview(item)}
                 alt={item.name}
