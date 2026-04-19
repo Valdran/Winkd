@@ -104,8 +104,8 @@ $4.99 price. When groups ship:
 1. **BMAC → Integrations → Webhooks**: add `https://<host>/api/bmac/webhook`.
 2. Signing method: **HMAC-SHA256** (header: `X-Signature-Sha256`).
 3. Copy the generated secret into `BMAC_WEBHOOK_SECRET`.
-4. Subscribe to: `membership.started`, `membership.renewed`,
-   `membership.cancelled`, `extra.purchased`.
+4. Subscribe to: `membership.started`, `membership.updated`,
+   `membership.cancelled`, `extra_purchase.created`.
 5. In BMAC → **Extras**, create one product per SKU row in the table above.
    Set the SKU/slug field to match exactly (e.g. `buddy-slots-10`).
 
@@ -120,7 +120,7 @@ later with the same email).
 
 | BMAC event | Server action |
 |---|---|
-| `membership.started` / `membership.renewed` | Set `supporter_tier='plus'`, `supporter_expires_at` = period end + 5 days grace |
+| `membership.started` / `membership.updated` | Set `supporter_tier='plus'`, `supporter_expires_at` = period end + 5 days grace |
 | `membership.cancelled` | Downgrade to `'free'` immediately |
 | Expiry (no renewal) | `User::effective_tier()` auto-downgrades — no cron job needed |
 
