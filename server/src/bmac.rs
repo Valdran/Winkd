@@ -37,6 +37,15 @@ use crate::{db, router::AppState};
 
 type HmacSha256 = Hmac<Sha256>;
 
+fn json_text(v: &Value) -> Option<String> {
+    match v {
+        Value::String(s) => Some(s.clone()),
+        Value::Number(n) => Some(n.to_string()),
+        Value::Bool(b) => Some(b.to_string()),
+        _ => None,
+    }
+}
+
 /// POST /api/bmac/webhook — idempotent entry point for every BMAC event.
 pub async fn webhook(
     State(state): State<AppState>,
@@ -73,9 +82,8 @@ pub async fn webhook(
         .get("transaction_id")
         .or_else(|| data.get("subscription_id"))
         .or_else(|| data.get("id"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
+        .and_then(json_text)
+        .unwrap_or_default();
     if external_id.is_empty() {
         return (StatusCode::BAD_REQUEST, "missing transaction id").into_response();
     }
@@ -83,8 +91,7 @@ pub async fn webhook(
     let email = data
         .get("supporter_email")
         .or_else(|| data.get("payer_email"))
-        .and_then(|v| v.as_str())
-        .map(str::to_string);
+        .and_then(json_text);
 
     let matched_user = match email.as_deref() {
         Some(e) => db::find_user_by_email(&state.db, e).await.ok().flatten(),
@@ -124,9 +131,7 @@ pub async fn webhook(
     if let Some(user) = matched_user {
         apply_event_side_effects(&state, &user, &event_type, data).await;
     } else {
-        tracing::info!(
-            "BMAC event {event_type} for unknown email — stored for later claim"
-        );
+        tracing::info!("BMAC event {event_type} for unknown email — stored for later claim");
     }
 
     Json(json!({ "ok": true })).into_response()
@@ -141,7 +146,9 @@ async fn apply_event_side_effects(
     match event_type {
         // Recurring membership started or renewed. BMAC delivers renewals as
         // `membership.updated`, not `membership.renewed`.
-        "membership.started" | "membership.updated" | "subscription.created"
+        "membership.started"
+        | "membership.updated"
+        | "subscription.created"
         | "subscription.renewed" => {
             let tier_name = data
                 .get("membership_level_name")
@@ -203,12 +210,7 @@ async fn apply_event_side_effects(
 /// Route a one-off extra purchase to the right DB mutation. Unknown SKUs
 /// still land in `purchased_extras` so later additions (new emoji packs,
 /// seasonal items) don't need code changes to be recorded.
-async fn apply_extra_purchase(
-    state: &AppState,
-    user: &db::User,
-    extra_id: &str,
-    quantity: i32,
-) {
+async fn apply_extra_purchase(state: &AppState, user: &db::User, extra_id: &str, quantity: i32) {
     match extra_id {
         // Buddy-slot packs — stackable. Each purchase grants +10 slots, and
         // BMAC's `quantity` field lets a supporter buy several at once.
