@@ -931,9 +931,11 @@ async fn handle_command(
                         "relay_message: recipient '{}' not found",
                         recipient_winkd_id
                     );
+                    send_err(tx, "That buddy couldn't be found. They may have deleted their account.");
                 }
                 Err(e) => {
                     tracing::warn!("relay_message: db error: {e}");
+                    send_err(tx, "Server error — message not sent. Please try again.");
                 }
             }
         }

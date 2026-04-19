@@ -1928,6 +1928,12 @@ function sendMsg(){
     showToast('Not connected. Message not sent.','error');
     return;
   }
+  // Optimistic local render. Prior to this, the sender's own bubble only
+  // appeared after the server echoed the relay back — so if the echo was
+  // delayed, dropped, or the recipient lookup failed, the sender saw their
+  // input clear with no message on screen. handleRelayedMessage dedupes by
+  // payload.id, so the server echo won't double-render.
+  locallyRenderOutgoing(payload);
   inp.value='';inp.style.height='auto';clearComposeAttachment();closeEmoji();
   playMsgSentSound();
 }
@@ -1935,6 +1941,7 @@ function sendWinkd(){
   if(!activeContact)return;
   const payload={id:mkMsgId(),conversationId:activeContact,senderId:myWinkdId,type:'winkd',sentAt:nowIso(),delivered:false,read:false};
   if(!wsSend('send_message',payload)){showToast('Not connected. Winkd not sent.','error');return;}
+  locallyRenderOutgoing(payload);
   doShake();
   playWinkdSound();
 }
@@ -1942,7 +1949,45 @@ function sendNudge(){
   if(!activeContact)return;
   const payload={id:mkMsgId(),conversationId:activeContact,senderId:myWinkdId,type:'nudge',sentAt:nowIso(),delivered:false,read:false};
   if(!wsSend('send_message',payload)){showToast('Not connected. Nudge not sent.','error');return;}
+  locallyRenderOutgoing(payload);
   playNudgeSound();
+}
+
+// Render an outgoing payload into the active conversation without waiting for
+// the server relay echo. Keeps the same shape as handleRelayedMessage so the
+// dedup check (by payload.id) collapses the server echo into the same entry.
+function locallyRenderOutgoing(payload){
+  const conversationId=payload?.conversationId;
+  if(!conversationId)return;
+  if(!convos[conversationId])convos[conversationId]=[];
+  const msgId=payload?.id||null;
+  if(msgId&&convos[conversationId].some(m=>m&&m.id===msgId))return;
+  const contact=contacts.find(x=>x.id===conversationId);
+  const kind=payload?.type||'text';
+  const msgTime=payload?.sentAt||ts();
+  let message;
+  if(kind==='winkd')message={type:'winkd',from:'me',time:msgTime};
+  else if(kind==='nudge')message={type:'nudge',from:'me',time:msgTime};
+  else message={
+    from:'me',
+    text:payload?.body||'',
+    time:msgTime,
+    color:payload?.color||null,
+    bold:!!payload?.bold,
+    italic:!!payload?.italic,
+    underline:!!payload?.underline,
+    font:payload?.font||null,
+    mediaType:payload?.media_type||null,
+    mediaUrl:payload?.media_url||null,
+    mediaData:payload?.media_data||null,
+  };
+  if(msgId)message.id=msgId;
+  convos[conversationId].push(message);
+  saveConvos();
+  if(activeContact===conversationId&&contact){
+    addMsg(message,contact,false);
+    sb();
+  }
 }
 
 const WINK_PACKS=[
