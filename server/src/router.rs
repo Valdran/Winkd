@@ -106,6 +106,8 @@ pub async fn build_router(config: Config, db: DbPool) -> Router {
         )
         // Audit log (authenticated user's own events)
         .route("/api/security/audit-log", get(auth::get_audit_log))
+        // Buy Me a Coffee webhook — grants Max tier / emoji-pack extras.
+        .route("/api/bmac/webhook", post(crate::bmac::webhook))
         // WebSocket messaging endpoint (token sent as first message, NOT in URL)
         .route("/ws", get(ws_handler))
         // Root: serve landing page
@@ -144,7 +146,13 @@ async fn health(State(state): State<AppState>) -> Json<serde_json::Value> {
 // message loop, or closes with code 4001 if auth fails / times out.
 
 async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
+    // Raise frame/message caps so Max-tier supporters can send ~10 MB
+    // attachments (which inflate to ~13 MB after base64) without tripping
+    // tokio-tungstenite's 16 MiB default. The tier-aware payload validator
+    // still enforces the actual per-user attachment limit.
+    ws.max_frame_size(crate::limits::WS_MAX_FRAME_BYTES)
+        .max_message_size(crate::limits::WS_MAX_MESSAGE_BYTES)
+        .on_upgrade(move |socket| handle_socket(socket, state))
 }
 
 async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
@@ -201,9 +209,27 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
     };
 
     // ── Step 2: Confirm authentication ─────────────────────────────────────
+    // Echo the user's effective supporter tier and the matching limits so the
+    // web client can render the right character counter and pre-flight-check
+    // attachment sizes before even attempting a send. The server still
+    // validates on every inbound command — these values are only a UX hint.
+    let effective_tier = user.effective_tier().to_string();
+    let tier_limits = crate::limits::limits_for(&effective_tier);
+    let buddy_cap = user.buddy_cap(); // None = unlimited (Plus!)
+    let buddy_used = db::count_roster(&state.db, user.id).await.unwrap_or(0);
     if ws_tx
         .send(Message::Text(
-            json!({ "type": "auth_ok" }).to_string().into(),
+            json!({
+                "type": "auth_ok",
+                "tier": effective_tier,
+                "limits": tier_limits,
+                "purchased_extras": user.purchased_extras,
+                "buddy_cap": buddy_cap,       // null = unlimited
+                "buddy_used": buddy_used,
+                "group_chat_unlocked": user.group_chat_unlocked,
+            })
+            .to_string()
+            .into(),
         ))
         .await
         .is_err()
@@ -278,6 +304,20 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
             });
             let _ = chan_tx.send(event.to_string());
         }
+    }
+
+    // Flush any messages that were queued while this user was offline. Each
+    // stored row is the exact payload that would have been sent live, so the
+    // client handles them identically to real-time messages.
+    match db::drain_pending_messages(&state.db, user.id).await {
+        Ok(queued) => {
+            for payload in queued {
+                let _ = chan_tx.send(
+                    json!({ "event": "message", "payload": payload }).to_string(),
+                );
+            }
+        }
+        Err(e) => tracing::warn!("drain_pending_messages: {e}"),
     }
 
     // Spawn a task that forwards channel messages to the WebSocket.
@@ -359,6 +399,29 @@ async fn handle_command(
             if target_id == user.winkd_id {
                 send_err(tx, "You can't add yourself.");
                 return;
+            }
+
+            // Buddy-cap check: count the sender's current roster size and
+            // refuse if they've hit their effective cap. Plus! subscribers
+            // have no cap; free users start at 25 and can buy +10 packs.
+            if let Some(cap) = user.buddy_cap() {
+                match db::count_roster(&state.db, user.id).await {
+                    Ok(n) if n >= cap => {
+                        let hint = if user.effective_tier() == crate::limits::SUPPORTER_FREE {
+                            format!(" Your limit is {cap}. Grab a buddy-slot pack or Winkd Plus! to add more.")
+                        } else {
+                            String::new()
+                        };
+                        send_err(tx, &format!("Buddy list is full ({n}/{cap}).{hint}"));
+                        return;
+                    }
+                    Err(e) => {
+                        tracing::warn!("count_roster error: {e}");
+                        send_err(tx, "Server error. Please try again.");
+                        return;
+                    }
+                    _ => {}
+                }
             }
 
             match db::find_user_by_winkd_id(&state.db, &target_id).await {
@@ -773,6 +836,16 @@ async fn handle_command(
         | ClientCommandType::SendWinkd
         | ClientCommandType::SendNudge
         | ClientCommandType::SendWink => {
+            // Enforce the sender's tier-aware size caps before we do anything
+            // else. A tampered client can send huge payloads even though the
+            // web UI won't let them compose one, so this is the real gate.
+            let tier = user.effective_tier();
+            let limits = crate::limits::limits_for(tier);
+            if let Err(violation) = crate::limits::validate_send_payload(&cmd.payload, &limits) {
+                send_err(tx, &violation.user_message(tier));
+                return;
+            }
+
             // The client sets conversationId = the other person's winkd_id.
             let recipient_winkd_id = cmd
                 .payload
@@ -794,26 +867,56 @@ async fn handle_command(
                     sender_payload["conversationId"] = json!(recipient_winkd_id.clone());
                     sender_payload["senderId"] = json!(user.winkd_id.clone());
 
-                    if let Some(recipient_session) =
-                        state.clients.read().await.get(&recipient.id).cloned()
-                    {
-                        // Rewrite conversationId to the sender's winkd_id so the
-                        // recipient's client routes it to the right conversation.
-                        let mut forwarded = cmd.payload.clone();
-                        forwarded["conversationId"] = json!(user.winkd_id);
-                        forwarded["senderId"] = json!(user.winkd_id);
-                        forwarded["delivered"] = json!(true);
-                        let _ = recipient_session.sender.send(
-                            json!({
-                                "event": "message",
-                                "payload": forwarded,
-                            })
-                            .to_string(),
-                        );
-                        sender_payload["delivered"] = json!(true);
-                    } else {
-                        sender_payload["delivered"] = json!(false);
+                    // Build the forwarded payload once — used either for live
+                    // delivery or for the offline queue, so the recipient sees
+                    // the same shape in both cases.
+                    let mut forwarded = cmd.payload.clone();
+                    forwarded["conversationId"] = json!(user.winkd_id);
+                    forwarded["senderId"] = json!(user.winkd_id);
+                    forwarded["delivered"] = json!(true);
+
+                    let client_msg_id = cmd
+                        .payload
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string);
+
+                    let live_session =
+                        state.clients.read().await.get(&recipient.id).cloned();
+
+                    let delivered_live = match live_session {
+                        Some(session) => session
+                            .sender
+                            .send(
+                                json!({
+                                    "event": "message",
+                                    "payload": forwarded.clone(),
+                                })
+                                .to_string(),
+                            )
+                            .is_ok(),
+                        None => false,
+                    };
+
+                    if !delivered_live {
+                        // Either no connection, or the channel was closed
+                        // between the lookup and the send (e.g. the recipient
+                        // is mid-reconnect). Either way, queue it so they
+                        // receive it on next auth instead of dropping it.
+                        if let Err(e) = db::queue_pending_message(
+                            &state.db,
+                            recipient.id,
+                            user.id,
+                            client_msg_id.as_deref(),
+                            &forwarded,
+                        )
+                        .await
+                        {
+                            tracing::warn!("queue_pending_message: {e}");
+                        }
                     }
+
+                    sender_payload["delivered"] = json!(delivered_live);
 
                     let _ = tx.send(
                         json!({

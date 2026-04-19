@@ -26,6 +26,44 @@ pub struct User {
     pub totp_secret: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    #[sqlx(default)]
+    pub supporter_tier: String,
+    #[sqlx(default)]
+    pub supporter_expires_at: Option<DateTime<Utc>>,
+    #[sqlx(default)]
+    pub purchased_extras: Vec<String>,
+    #[sqlx(default)]
+    pub extra_buddy_slots: i32,
+    #[sqlx(default)]
+    pub group_chat_unlocked: bool,
+}
+
+impl User {
+    /// Effective supporter tier after expiry check. Memberships auto-downgrade
+    /// to "free" once `supporter_expires_at` passes so a lapsed subscriber
+    /// loses Plus! caps without needing a background job.
+    pub fn effective_tier(&self) -> &str {
+        if self.supporter_tier == crate::limits::SUPPORTER_PLUS {
+            if let Some(exp) = self.supporter_expires_at {
+                if exp < Utc::now() {
+                    return crate::limits::SUPPORTER_FREE;
+                }
+            }
+            crate::limits::SUPPORTER_PLUS
+        } else {
+            crate::limits::SUPPORTER_FREE
+        }
+    }
+
+    /// Effective buddy-list cap. `None` means "no cap" (Plus! subscriber);
+    /// otherwise base free cap plus any purchased slot packs.
+    pub fn buddy_cap(&self) -> Option<i64> {
+        if self.effective_tier() == crate::limits::SUPPORTER_PLUS {
+            None
+        } else {
+            Some(crate::limits::FREE_BUDDY_CAP + self.extra_buddy_slots as i64)
+        }
+    }
 }
 
 // ── Connection + migration ─────────────────────────────────────────────────
@@ -813,6 +851,202 @@ pub async fn revoke_device(
 
     tx.commit().await?;
     Ok(res.rows_affected() > 0)
+}
+
+// ── Pending (offline) message queue ────────────────────────────────────────
+//
+// When a message is relayed to a recipient who has no live WebSocket session,
+// we stash the outbound payload here so it can be flushed on their next
+// authenticated connection. This is what prevents "sometimes messages arrive,
+// sometimes they don't" — without this, the server silently dropped messages
+// for anyone not currently connected.
+
+/// Enqueue a message for later delivery. `client_msg_id` (when supplied) makes
+/// the insert idempotent per (recipient, client_msg_id) so a retrying sender
+/// won't queue the same message twice.
+pub async fn queue_pending_message(
+    pool: &DbPool,
+    recipient_id: Uuid,
+    sender_id: Uuid,
+    client_msg_id: Option<&str>,
+    payload: &serde_json::Value,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"INSERT INTO pending_messages
+               (recipient_id, sender_id, client_msg_id, payload)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT DO NOTHING"#,
+    )
+    .bind(recipient_id)
+    .bind(sender_id)
+    .bind(client_msg_id)
+    .bind(payload)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Atomically drain every queued message for a recipient, oldest first.
+/// Returning via a CTE preserves the original send order — `DELETE ...
+/// RETURNING` alone does not.
+pub async fn drain_pending_messages(
+    pool: &DbPool,
+    recipient_id: Uuid,
+) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+    sqlx::query_scalar::<_, serde_json::Value>(
+        r#"WITH drained AS (
+               DELETE FROM pending_messages
+               WHERE recipient_id = $1
+               RETURNING payload, created_at
+           )
+           SELECT payload FROM drained ORDER BY created_at ASC"#,
+    )
+    .bind(recipient_id)
+    .fetch_all(pool)
+    .await
+}
+
+// ── Supporter tier & extras ────────────────────────────────────────────────
+
+/// Grant (or renew) Plus!-tier supporter status for a user. `expires_at`
+/// should be the end of the billing period reported by BMAC so the tier
+/// auto-downgrades if the supporter cancels.
+pub async fn set_supporter_plus(
+    pool: &DbPool,
+    user_id: Uuid,
+    expires_at: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET supporter_tier = 'plus',
+               supporter_expires_at = $2,
+               updated_at = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .bind(expires_at)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Permanently add extra buddy-list slots (stackable — each pack bumps the
+/// cap by `BUDDY_SLOT_PACK_SIZE`).
+pub async fn add_buddy_slots(
+    pool: &DbPool,
+    user_id: Uuid,
+    extra: i32,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET extra_buddy_slots = extra_buddy_slots + $2,
+               updated_at = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .bind(extra)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Unlock group-conversation hosting for a user (one-off purchase; guests
+/// they invite don't need their own unlock).
+pub async fn unlock_group_chat(pool: &DbPool, user_id: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET group_chat_unlocked = TRUE,
+               updated_at = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Count the buddies (accepted + outbound-pending) that currently occupy a
+/// slot in the user's roster. Matches the rows surfaced by
+/// `list_contact_roster` so the cap check agrees with what the UI shows.
+pub async fn count_roster(pool: &DbPool, user_id: Uuid) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar::<_, i64>(
+        r#"SELECT COUNT(*)::BIGINT FROM (
+               SELECT to_id AS other_id FROM contact_requests
+                   WHERE from_id = $1 AND status IN ('pending','accepted')
+               UNION
+               SELECT from_id FROM contact_requests
+                   WHERE to_id = $1 AND status = 'accepted'
+           ) s"#,
+    )
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn set_supporter_free(pool: &DbPool, user_id: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET supporter_tier = 'free',
+               supporter_expires_at = NULL,
+               updated_at = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn add_purchased_extra(
+    pool: &DbPool,
+    user_id: Uuid,
+    extra_id: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE users
+           SET purchased_extras = ARRAY(
+                   SELECT DISTINCT unnest(array_append(purchased_extras, $2))
+               ),
+               updated_at = NOW()
+           WHERE id = $1"#,
+    )
+    .bind(user_id)
+    .bind(extra_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Record a BMAC webhook event. Returns `Ok(true)` if this is the first time
+/// we've seen `external_id` (and therefore the caller should apply side
+/// effects like granting a tier) or `Ok(false)` if it was a replay.
+pub async fn record_bmac_event(
+    pool: &DbPool,
+    external_id: &str,
+    event_type: &str,
+    supporter_email: Option<&str>,
+    user_id: Option<Uuid>,
+    amount_cents: Option<i32>,
+    currency: Option<&str>,
+    raw: &serde_json::Value,
+) -> Result<bool, sqlx::Error> {
+    let res = sqlx::query(
+        r#"INSERT INTO bmac_events
+               (external_id, event_type, supporter_email, user_id,
+                amount_cents, currency, raw_payload)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (external_id) DO NOTHING"#,
+    )
+    .bind(external_id)
+    .bind(event_type)
+    .bind(supporter_email)
+    .bind(user_id)
+    .bind(amount_cents)
+    .bind(currency)
+    .bind(raw)
+    .execute(pool)
+    .await?;
+    Ok(res.rows_affected() == 1)
 }
 
 // ── Audit Log ──────────────────────────────────────────────────────────────
