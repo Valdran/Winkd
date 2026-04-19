@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#1a3a5c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https://i.imgur.com data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none';">
+<meta name="referrer" content="no-referrer">
 <title>Winkd Messenger — Sign In</title>
 <link rel="icon" href="https://i.imgur.com/cg6eejI.png">
 <link rel="manifest" href="manifest.json">
@@ -420,6 +422,7 @@ html,body{
 
         </div>
 
+        <div style="font-size:10px;color:var(--text-muted);text-align:center;margin-bottom:6px;line-height:1.5;">Winkd is independent and not affiliated with these providers. Clicking a provider takes you to their official login page.</div>
         <div class="sso-hint">Work or school account? <span class="sso-link" onclick="switchTab('email');document.getElementById('email-sso-hint').style.display='block';">Sign in with SSO →</span></div>
       </div>
 
@@ -792,7 +795,10 @@ function doOAuth(event, provider){
   }
 
   const orig = btn.innerHTML;
-  btn.innerHTML = `<span class="spinner"></span> Redirecting to ${provider}…`;
+  const spinEl = document.createElement('span');
+  spinEl.className = 'spinner';
+  btn.textContent = ` Redirecting to ${provider}…`;
+  btn.insertBefore(spinEl, btn.firstChild);
   btn.style.pointerEvents='none';
 
   window.location.href = `/api/auth/oauth/${slug}/start`;
@@ -1051,35 +1057,57 @@ function simulateSuccess(msg){
   card.style.opacity='0.5';card.style.pointerEvents='none';
   const overlay=document.createElement('div');
   overlay.style.cssText='position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:999;';
-  overlay.innerHTML=`
-    <div style="width:64px;height:64px;animation:spin 1.2s linear infinite;"><img src="https://i.imgur.com/cg6eejI.png" style="width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 2px 12px rgba(100,160,255,0.6));"></div>
-    <div style="font-size:14px;font-weight:600;color:rgba(220,235,255,0.95);text-shadow:0 1px 3px rgba(0,0,0,0.5);">${msg}</div>
-    <div style="font-size:11px;color:rgba(180,210,255,0.7);">Opening Winkd Messenger…</div>
-  `;
+
+  const spin=document.createElement('div');
+  spin.style.cssText='width:64px;height:64px;animation:spin 1.2s linear infinite;';
+  const icon=document.createElement('img');
+  icon.src='https://i.imgur.com/cg6eejI.png';
+  icon.alt='';
+  icon.style.cssText='width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 2px 12px rgba(100,160,255,0.6));';
+  spin.appendChild(icon);
+
+  const msgEl=document.createElement('div');
+  msgEl.style.cssText='font-size:14px;font-weight:600;color:rgba(220,235,255,0.95);text-shadow:0 1px 3px rgba(0,0,0,0.5);';
+  msgEl.textContent=msg;
+
+  const sub=document.createElement('div');
+  sub.style.cssText='font-size:11px;color:rgba(180,210,255,0.7);';
+  sub.textContent='Opening Winkd Messenger…';
+
+  overlay.appendChild(spin);
+  overlay.appendChild(msgEl);
+  overlay.appendChild(sub);
   document.body.appendChild(overlay);
   setTimeout(function(){ window.location.href='app.html'; }, 1800);
 }
 
 
-function handleOAuthCallback(){
+async function handleOAuthCallback(){
   if(!window.location.hash) return;
   const params = new URLSearchParams(window.location.hash.slice(1));
   if(params.get('oauth') !== 'success') return;
 
-  const token = params.get('session_token');
-  const winkdId = params.get('winkd_id');
-  const displayName = params.get('display_name') || '';
-  if(!token || !winkdId) return;
-
-  saveSession(
-    token, winkdId, displayName,
-    params.get('mood_message') || '',
-    params.get('avatar_data') || '',
-    params.get('display_name_color') || '',
-    params.get('av_color') || ''
-  );
+  // Immediately clear the hash so the code never lingers in browser history.
   window.history.replaceState({}, document.title, window.location.pathname);
-  simulateSuccess('OAuth sign-in complete. Opening Winkd…');
+
+  // The server passes a short-lived one-time code, never the session token itself.
+  const code = params.get('code');
+  if(!code) return;
+
+  try {
+    const res = await fetch('/api/auth/oauth/exchange', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ code }),
+    });
+    if(!res.ok) return;
+    const data = await res.json();
+    saveSession(data.session_token, data.winkd_id, data.display_name,
+      data.mood_message, data.avatar_data, data.display_name_color, data.av_color);
+    simulateSuccess('OAuth sign-in complete. Opening Winkd…');
+  } catch(_) {
+    // Exchange failed — user stays on login page to try again.
+  }
 }
 
 handleOAuthCallback();
