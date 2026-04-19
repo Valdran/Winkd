@@ -1289,6 +1289,7 @@ body {
         <img src="https://i.imgur.com/cg6eejI.png" class="tb-icon" alt="">
         Winkd Mobile
       </div>
+      <div class="tb-btn" id="tb-mute" onclick="toggleSound()" title="Toggle demo sounds" style="min-width:32px;padding:0 10px;font-size:15px;letter-spacing:0;opacity:0.7;">🔇</div>
     </div>
     <a href="login.html" class="tb-btn tb-signin" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);margin-left:0;">Sign In →</a>
   </div>
@@ -1622,6 +1623,7 @@ body {
           <div class="lp-nav-link" onclick="lpShow('security',this)">Security</div>
           <div class="lp-nav-link" onclick="lpShow('support',this)">Support</div>
           <div class="lp-nav-link" onclick="lpShow('about',this)">About</div>
+          <div class="lp-nav-link" onclick="lpShow('plus',this)" style="color:#ffd040;font-weight:700;">✨ Plus!</div>
         </div>
         <!-- Content panels -->
         <div class="lp-main-area">
@@ -1629,7 +1631,7 @@ body {
           <!-- HOME -->
           <div class="lp-content" id="lp-panel-home">
             <div class="lp-section-title">Welcome to Winkd Messenger</div>
-            <div class="lp-p">Winkd brings back everything you loved about instant messaging: buddy lists, away messages, custom emoticons, and the legendary <strong>Winkd (Nudge)</strong>, rebuilt on modern infrastructure with end-to-end encryption. Free to download, no ads, no subscription, ever.</div>
+            <div class="lp-p">Winkd brings back everything you loved about instant messaging: buddy lists, away messages, custom emoticons, and the legendary <strong>Winkd (Nudge)</strong>, rebuilt on modern infrastructure with end-to-end encryption. Core features free to download, no ads, ever.</div>
             <div class="lp-p">Version 1.0 is available for Windows Vista/7/10/11, Mac OS X, Linux, and Windows Mobile.</div>
             <div class="lp-section-title" style="margin-top:16px;">Latest News</div>
             <div class="news-item">
@@ -1811,20 +1813,54 @@ body {
               <div class="feat-box-desc">Winkd is open source and welcomes contributions. Pull requests, feature ideas, and feedback are all welcome on GitHub.</div>
             </div>
             <div class="lp-section-title" style="margin-top:16px;">Support Development</div>
-            <div class="lp-p">Winkd is free and open source, maintained by volunteers. If you enjoy using it, consider buying us a coffee. Every contribution helps keep the servers running and development moving forward.</div>
+            <div class="lp-p">Winkd is free and open source, maintained by volunteers. If you enjoy using it, consider subscribing to Plus! or buying us a coffee. Every contribution helps keep the servers running and development moving forward.</div>
+            <div class="feat-box" style="border-color:rgba(200,160,0,0.45);background:linear-gradient(to bottom,rgba(255,248,200,0.4),rgba(255,228,80,0.22));margin-bottom:10px;">
+              <div class="feat-box-title">✨ Winkd Plus! — Support &amp; Unlock Extras</div>
+              <div class="feat-box-desc">Subscribe to Plus! to get unlimited buddies, longer messages, bigger attachments, group chats, and exclusive emoji packs — while keeping the project alive. Core features are always free. <span style="color:#b08000;font-weight:700;cursor:pointer;" onclick="lpShow('plus',null)">See what's included →</span></div>
+            </div>
             <a href="https://buymeacoffee.com/winkd" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(to bottom,#ffdd57,#ffca00);border:1px solid #d4a800;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:700;color:#1a0f00;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,0.18);margin-bottom:14px;font-family:'Segoe UI',sans-serif;">☕ Buy Me a Coffee</a>
           </div>
 
           <!-- ABOUT -->
           <div class="lp-content" id="lp-panel-about" style="display:none">
             <div class="lp-section-title">About Winkd</div>
-            <div class="lp-p">Winkd is a free, open-source (MIT) instant messenger built with privacy at its core. No advertisements. No user data sold. No subscription tiers. Just messaging with personality.</div>
+            <div class="lp-p">Winkd is a free, open-source (MIT) instant messenger built with privacy at its core. No advertisements. No user data sold. Core messaging is free forever. Just messaging with personality.</div>
             <div class="lp-p">Built with Tauri (desktop), React Native (mobile), and a Rust WebSocket server. Self-hostable via Docker Compose. Inspired by the design language of MSN Messenger, not a clone, not affiliated with Microsoft.</div>
             <div class="lp-section-title" style="margin-top:16px;">Licence</div>
             <div class="lp-p">Winkd is MIT licensed. Full source code at <a href="https://github.com/valdran/winkd" style="color:#1a5acc;">github.com/valdran/winkd</a>.</div>
             <div class="lp-section-title" style="margin-top:16px;">Support the Project</div>
             <div class="lp-p">Winkd is volunteer-maintained and free forever. If you'd like to support ongoing development and server costs, you can buy us a coffee.</div>
             <a href="https://buymeacoffee.com/winkd" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(to bottom,#ffdd57,#ffca00);border:1px solid #d4a800;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:700;color:#1a0f00;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,0.18);margin-bottom:14px;font-family:'Segoe UI',sans-serif;">☕ Buy Me a Coffee</a>
+          </div>
+
+          <!-- PLUS -->
+          <div class="lp-content" id="lp-panel-plus" style="display:none">
+            <div class="lp-section-title">✨ Winkd Plus!</div>
+            <div class="lp-p">Core messaging is <strong>free forever</strong> — no time limits, no feature walls. Winkd Plus! is an optional supporter membership that unlocks extras and helps keep the project running.</div>
+            <div class="feat-box" style="border-color:rgba(200,160,0,0.4);background:linear-gradient(to bottom,rgba(255,248,200,0.35),rgba(255,230,80,0.18));">
+              <div class="feat-box-title">👥 Unlimited Buddy List</div>
+              <div class="feat-box-desc">Free accounts cap at 25 contacts. Plus! removes the limit entirely — add as many friends as you like.</div>
+            </div>
+            <div class="feat-box" style="border-color:rgba(200,160,0,0.4);background:linear-gradient(to bottom,rgba(255,248,200,0.35),rgba(255,230,80,0.18));">
+              <div class="feat-box-title">💬 Longer Messages &amp; Bigger Attachments</div>
+              <div class="feat-box-desc">Free: 2,000 chars · 3 MB attachments. Plus!: 6,000 chars · 10 MB — enough for anything you'd actually send in a chat.</div>
+            </div>
+            <div class="feat-box" style="border-color:rgba(200,160,0,0.4);background:linear-gradient(to bottom,rgba(255,248,200,0.35),rgba(255,230,80,0.18));">
+              <div class="feat-box-title">🗨 Group Chats</div>
+              <div class="feat-box-desc">Small, intimate group conversations. Not Discord-style servers — just a close group of friends in one window.</div>
+            </div>
+            <div class="feat-box" style="border-color:rgba(200,160,0,0.4);background:linear-gradient(to bottom,rgba(255,248,200,0.35),rgba(255,230,80,0.18));">
+              <div class="feat-box-title">✨ Exclusive Emoji &amp; Wink Packs</div>
+              <div class="feat-box-desc">Cosmetic extras unlocked for Plus! members — starting with the <strong>Spikey</strong> mascot pack. More packs coming regularly.</div>
+            </div>
+            <div class="feat-box" style="border-color:rgba(200,160,0,0.4);background:linear-gradient(to bottom,rgba(255,248,200,0.35),rgba(255,230,80,0.18));">
+              <div class="feat-box-title">🏅 Plus! Supporter Badge</div>
+              <div class="feat-box-desc">A badge shown on your profile. Purely cosmetic — it never affects how the app works for anyone.</div>
+            </div>
+            <div class="lp-section-title" style="margin-top:16px;">How to Get It</div>
+            <div class="lp-p">Subscribe to <strong>Winkd Plus!</strong> on Buy Me a Coffee. Your account upgrades automatically within minutes of subscribing.</div>
+            <a href="https://buymeacoffee.com/winkd" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(to bottom,#ffdd57,#ffca00);border:1px solid #d4a800;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:700;color:#1a0f00;text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,0.18);margin-bottom:14px;font-family:'Segoe UI',sans-serif;">☕ Subscribe on Buy Me a Coffee</a>
+            <div class="lp-p" style="font-size:11px;color:#668;">Buddy lists, Winks, Nudges, E2EE, away messages, buddy icons — all free forever. Plus! is optional support, never a requirement to use Winkd.</div>
           </div>
 
           <!-- RIGHT SIDEBAR (always visible) -->
@@ -1844,7 +1880,7 @@ body {
               <strong>RAM:</strong> 256 MB minimum<br>
               <strong>Disk:</strong> 30 MB free space<br>
               <strong>Net:</strong> Broadband recommended<br><br>
-              <strong>100% Free.</strong> No ads.<br>No premium tiers.<br>No data sold. Ever.
+              <strong>Core features free.</strong> No ads.<br>No data sold. Ever.<br><span style="color:#b08000;font-weight:700;font-size:10px;cursor:pointer;" onclick="lpShow('plus',null)">✨ Plus! available</span>
             </div>
             <div class="online-pill">
               <div style="font-weight:700;color:#1a4a1a;margin-bottom:2px;">🟢 Online Now</div>
@@ -2165,6 +2201,19 @@ function show(id) {
     document.getElementById('pn-'+t).classList.toggle('on', t===id);
     document.getElementById('tb-'+t).classList.toggle('on', t===id);
   });
+  clearDemoTimers();
+  var fn = id==='lp' ? window._runShowcaseDemo : id==='dt' ? window._runDemoDT : window._runDemoMB;
+  _demoTimers.push(setTimeout(fn, 400));
+}
+
+// ── GLOBALS ──
+var soundEnabled = false;
+var _demoTimers = [];
+function clearDemoTimers() { _demoTimers.forEach(clearTimeout); _demoTimers = []; }
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  var btn = document.getElementById('tb-mute');
+  if (btn) { btn.textContent = soundEnabled ? '🔊' : '🔇'; btn.style.opacity = soundEnabled ? '1' : '0.7'; }
 }
 
 // ── AUDIO ──
@@ -2175,6 +2224,7 @@ function getAudioCtx() {
   return _audioCtx;
 }
 function playWinkdSound() {
+  if (!soundEnabled) return;
   try {
     var ctx = getAudioCtx();
     var t = ctx.currentTime;
@@ -2187,6 +2237,7 @@ function playWinkdSound() {
   } catch(e) {}
 }
 function playNudgeSound() {
+  if (!soundEnabled) return;
   try {
     var ctx = getAudioCtx();
     var t = ctx.currentTime;
@@ -2199,6 +2250,7 @@ function playNudgeSound() {
   } catch(e) {}
 }
 function playMsgSentSound() {
+  if (!soundEnabled) return;
   try {
     var ctx = getAudioCtx();
     var osc = ctx.createOscillator(); var g = ctx.createGain();
@@ -2209,6 +2261,7 @@ function playMsgSentSound() {
   } catch(e) {}
 }
 function playMsgRecvSound() {
+  if (!soundEnabled) return;
   try {
     var ctx = getAudioCtx();
     var osc = ctx.createOscillator(); var g = ctx.createGain();
@@ -2278,7 +2331,7 @@ function playMsgRecvSound() {
     setDot(-1);
 
     var t = 0;
-    function at(delay, fn) { t += delay; setTimeout(fn, t); }
+    function at(delay, fn) { t += delay; _demoTimers.push(setTimeout(fn, t)); }
 
     function setDot(n) {
       dots.forEach(function(d, i) { d.classList.toggle('active', i === n); });
@@ -2581,8 +2634,8 @@ function playMsgRecvSound() {
     // Reset dynamic messages
     Array.from(msgs.querySelectorAll('.demo-mb-dyn')).forEach(function(el){ el.remove(); });
 
-    var t = 0, timers = [];
-    function at(delay, fn){ t += delay; timers.push(setTimeout(fn, t)); }
+    var t = 0;
+    function at(delay, fn){ t += delay; _demoTimers.push(setTimeout(fn, t)); }
 
     // 1. New message from CryptoFox
     at(2000, function(){
@@ -2648,7 +2701,7 @@ function playMsgRecvSound() {
     if (input) { input.textContent = 'Type your message and press Enter to send...'; input.style.color = '#5a7a9a'; }
 
     var t = 0;
-    function at(delay, fn){ t += delay; setTimeout(fn, t); }
+    function at(delay, fn){ t += delay; _demoTimers.push(setTimeout(fn, t)); }
 
     // 1. Type a message into the input
     at(1800, function(){
@@ -2709,18 +2762,21 @@ function playMsgRecvSound() {
     at(3500, function(){ runDemoDT(); });
   }
 
-  // Start demos after page load
+  // Expose to global scope so show() can restart them after a tab switch
+  window._runShowcaseDemo = runShowcaseDemo;
+  window._runDemoMB = runDemoMB;
+  window._runDemoDT = runDemoDT;
+
+  // Start only the active (landing) demo on load
   window.addEventListener('DOMContentLoaded', function(){
-    setTimeout(runShowcaseDemo, 600);
-    setTimeout(runDemoMB, 1200);
-    setTimeout(runDemoDT, 1600);
+    _demoTimers.push(setTimeout(runShowcaseDemo, 600));
   });
 
 })();
 </script>
 <script>
 function lpShow(panel,el){
-  ['home','download','features','security','support','about'].forEach(function(p){
+  ['home','download','features','security','support','about','plus'].forEach(function(p){
     var d=document.getElementById('lp-panel-'+p);
     if(d)d.style.display=(p===panel)?'block':'none';
   });
