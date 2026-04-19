@@ -64,8 +64,10 @@ export function useSocket() {
               group_chat_unlocked?: unknown
               supporter_expires_at?: unknown
             }
+            const normalizedTier =
+              typeof authPayload.tier === 'string' ? authPayload.tier.trim().toLowerCase() : ''
             setSupporterState({
-              tier: authPayload.tier === 'plus' ? 'plus' : 'free',
+              tier: normalizedTier === 'plus' ? 'plus' : 'free',
               purchasedExtras: Array.isArray(authPayload.purchased_extras)
                 ? authPayload.purchased_extras
                     .filter((item): item is string => typeof item === 'string')

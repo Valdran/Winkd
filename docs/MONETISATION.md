@@ -36,6 +36,11 @@ Winkd Plus! is intentionally cheaper than both.*
 | Sound Pack — MSN Era | **$1.99** | `sound-pack-msn` | Swap nudge/message sounds to classic MSN-style audio |
 | Founding Member | **$9.99** (one-off) | `founding-member` | Permanent badge; limited to first 500 supporters |
 
+Emoji-pack access rules:
+- Active **Winkd Plus!** members get all emoji packs while the subscription is active.
+- If Plus! lapses/cancels, pack access falls back to only the packs listed in `purchased_extras[]`.
+- Buying an emoji pack as a one-off Extra keeps it unlocked permanently (independent of Plus! status).
+
 ---
 
 ## What Plus! unlocks
@@ -97,7 +102,7 @@ $4.99 price. When groups ship:
 | Variable | Default | Purpose |
 |---|---|---|
 | `BMAC_WEBHOOK_SECRET` | *(required)* | HMAC-SHA256 key — unset disables the endpoint |
-| `BMAC_PLUS_TIER_NAME` | `Winkd Plus!` | Membership level name in BMAC dashboard |
+| `BMAC_PLUS_TIER_NAME` | `Winkd Plus!` | Base Plus tier name; exact match or prefix match (e.g. `Winkd Plus! Annual`) grants Plus access |
 
 ### Dashboard setup
 
