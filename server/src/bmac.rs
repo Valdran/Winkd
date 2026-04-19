@@ -37,6 +37,38 @@ use crate::{db, router::AppState};
 
 type HmacSha256 = Hmac<Sha256>;
 
+fn json_text(v: &Value) -> Option<String> {
+    match v {
+        Value::String(s) => Some(s.clone()),
+        Value::Number(n) => Some(n.to_string()),
+        Value::Bool(b) => Some(b.to_string()),
+        _ => None,
+    }
+}
+
+fn parse_bmac_data<'a>(payload: &'a Value) -> Option<Value> {
+    let data = payload.get("data")?;
+    match data {
+        Value::Object(_) => Some(data.clone()),
+        Value::String(s) => serde_json::from_str::<Value>(s).ok(),
+        _ => None,
+    }
+}
+
+fn parse_period_end_utc(data: &Value) -> Option<chrono::DateTime<Utc>> {
+    let v = data.get("current_period_end")?;
+    if let Some(s) = v.as_str() {
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+            return Some(dt.with_timezone(&Utc));
+        }
+        if let Ok(ts) = s.parse::<i64>() {
+            return chrono::DateTime::<Utc>::from_timestamp(ts, 0);
+        }
+    }
+    v.as_i64()
+        .and_then(|ts| chrono::DateTime::<Utc>::from_timestamp(ts, 0))
+}
+
 /// POST /api/bmac/webhook — idempotent entry point for every BMAC event.
 pub async fn webhook(
     State(state): State<AppState>,
@@ -67,15 +99,16 @@ pub async fn webhook(
         .and_then(|v| v.as_str())
         .unwrap_or("unknown")
         .to_string();
-    let data = payload.get("data").unwrap_or(&payload);
+    let data_owned = parse_bmac_data(&payload);
+    let data = data_owned.as_ref().unwrap_or(&payload);
 
     let external_id = data
         .get("transaction_id")
         .or_else(|| data.get("subscription_id"))
         .or_else(|| data.get("id"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
+        .or_else(|| payload.get("event_id"))
+        .and_then(json_text)
+        .unwrap_or_default();
     if external_id.is_empty() {
         return (StatusCode::BAD_REQUEST, "missing transaction id").into_response();
     }
@@ -83,8 +116,7 @@ pub async fn webhook(
     let email = data
         .get("supporter_email")
         .or_else(|| data.get("payer_email"))
-        .and_then(|v| v.as_str())
-        .map(str::to_string);
+        .and_then(json_text);
 
     let matched_user = match email.as_deref() {
         Some(e) => db::find_user_by_email(&state.db, e).await.ok().flatten(),
@@ -124,9 +156,7 @@ pub async fn webhook(
     if let Some(user) = matched_user {
         apply_event_side_effects(&state, &user, &event_type, data).await;
     } else {
-        tracing::info!(
-            "BMAC event {event_type} for unknown email — stored for later claim"
-        );
+        tracing::info!("BMAC event {event_type} for unknown email — stored for later claim");
     }
 
     Json(json!({ "ok": true })).into_response()
@@ -141,7 +171,9 @@ async fn apply_event_side_effects(
     match event_type {
         // Recurring membership started or renewed. BMAC delivers renewals as
         // `membership.updated`, not `membership.renewed`.
-        "membership.started" | "membership.updated" | "subscription.created"
+        "membership.started"
+        | "membership.updated"
+        | "subscription.created"
         | "subscription.renewed" => {
             let tier_name = data
                 .get("membership_level_name")
@@ -152,12 +184,8 @@ async fn apply_event_side_effects(
             if tier_name.eq_ignore_ascii_case(&state.config.bmac_plus_tier_name) {
                 // Default to 35 days (~monthly billing cycle + grace). If BMAC
                 // sends an explicit period_end timestamp, prefer that.
-                let expires = data
-                    .get("current_period_end")
-                    .and_then(|v| v.as_str())
-                    .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|| Utc::now() + Duration::days(35));
+                let expires =
+                    parse_period_end_utc(data).unwrap_or_else(|| Utc::now() + Duration::days(35));
 
                 if let Err(e) = db::set_supporter_plus(&state.db, user.id, expires).await {
                     tracing::warn!("set_supporter_plus failed: {e}");
@@ -203,12 +231,7 @@ async fn apply_event_side_effects(
 /// Route a one-off extra purchase to the right DB mutation. Unknown SKUs
 /// still land in `purchased_extras` so later additions (new emoji packs,
 /// seasonal items) don't need code changes to be recorded.
-async fn apply_extra_purchase(
-    state: &AppState,
-    user: &db::User,
-    extra_id: &str,
-    quantity: i32,
-) {
+async fn apply_extra_purchase(state: &AppState, user: &db::User, extra_id: &str, quantity: i32) {
     match extra_id {
         // Buddy-slot packs — stackable. Each purchase grants +10 slots, and
         // BMAC's `quantity` field lets a supporter buy several at once.
