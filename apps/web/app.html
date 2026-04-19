@@ -994,6 +994,41 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
   </div>
 </div>
 
+<!-- Plus Modal -->
+<div class="modal-overlay" id="plus-modal">
+  <div class="modal-box" style="width:min(420px,92vw);">
+    <div class="modal-titlebar">
+      <div class="modal-title">✨ Winkd Plus!</div>
+      <div class="modal-close" onclick="closeModal('plus-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div style="text-align:center;margin-bottom:14px;">
+        <img src="https://i.imgur.com/cg6eejI.png" alt="Winkd" style="width:48px;height:48px;object-fit:contain;">
+        <div style="margin-top:8px;font-size:13px;font-weight:700;color:#1a4a8a;">Support Winkd and unlock perks</div>
+        <div style="font-size:11px;color:#5a7a9a;margin-top:3px;">Monthly membership via Buy Me a Coffee</div>
+      </div>
+      <div style="background:linear-gradient(to bottom,rgba(200,220,255,0.25),rgba(180,205,255,0.2));border:1px solid rgba(120,160,230,0.35);border-radius:6px;padding:12px 14px;margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;color:#1a4a8a;margin-bottom:8px;letter-spacing:0.03em;">WHAT YOU GET</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;"><span>👥</span><div><span style="font-weight:600;color:#1a3a6a;">Unlimited buddies</span><span style="color:#5a7a9a;"> — free tier caps at 25</span></div></div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;"><span>💬</span><div><span style="font-weight:600;color:#1a3a6a;">Longer messages</span><span style="color:#5a7a9a;"> — up to 6,000 characters (free: 2,000)</span></div></div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;"><span>🖼</span><div><span style="font-weight:600;color:#1a3a6a;">Bigger attachments</span><span style="color:#5a7a9a;"> — up to 10 MB (free: 3 MB)</span></div></div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;"><span>🗨</span><div><span style="font-weight:600;color:#1a3a6a;">Group chats</span><span style="color:#5a7a9a;"> — small intimate group conversations</span></div></div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;"><span>✨</span><div><span style="font-weight:600;color:#1a3a6a;">Exclusive emoji &amp; Wink packs</span><span style="color:#5a7a9a;"> — cosmetic extras for Plus members</span></div></div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;"><span>🏅</span><div><span style="font-weight:600;color:#1a3a6a;">Plus! supporter badge</span><span style="color:#5a7a9a;"> shown on your profile</span></div></div>
+        </div>
+      </div>
+      <div style="background:linear-gradient(to bottom,rgba(255,245,200,0.5),rgba(255,228,80,0.2));border:1px solid rgba(220,180,40,0.4);border-radius:6px;padding:9px 14px;margin-bottom:14px;font-size:11px;color:#5a4500;line-height:1.5;">
+        <strong>How to unlock:</strong> Subscribe to the <strong>Winkd Plus!</strong> tier on Buy Me a Coffee. Your perks activate automatically within a few minutes of subscribing.
+      </div>
+      <div class="modal-btn-row" style="justify-content:flex-end;">
+        <div class="modal-btn-cancel" onclick="closeModal('plus-modal')">Maybe later</div>
+        <div class="modal-btn" style="background:linear-gradient(to bottom,#e8a800,#c07000);border-color:rgba(200,140,0,0.6);" onclick="window.open('https://buymeacoffee.com/winkd','_blank','noopener');closeModal('plus-modal');">☕ Go to Buy Me a Coffee</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- PWA Banner -->
 <div id="install-banner">
   <div id="install-banner-icon">
@@ -1094,7 +1129,7 @@ const EP_CATS = [
   {id:'misc',    label:'🌟 Misc'},
 ];
 
-const MSN_EMOTICON_BASE_URL = 'https://github.com/bernzrdo/msn-emoticons/raw/main/original';
+const MSN_EMOTICON_BASE_URL = '/msn-emoticons';
 const MSN_CLASSIC = [
   ['Smile','smile'],['Open-mouthed smile','open-mouthed-smile'],['Winking smile','winking-smile'],['Surprised smile','surprised-smile'],
   ['Smile with tongue out','smile-with-tongue-out'],['Hot smile','hot-smile'],['Angry smile','angry-smile'],['Embarrassed smile','embarrassed-smile'],
@@ -1773,7 +1808,7 @@ function addMsg(m,contact,animate=true){
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;')
     .replace(/\n/g,'<br>')
-    .replace(/https:\/\/github\.com\/bernzrdo\/msn-emoticons\/raw\/main\/original\/[a-z0-9-]+\.png/gi,(url)=>`<img src="${url}" alt="msn emoji" style="width:20px;height:20px;vertical-align:middle;">`);
+    .replace(/\/msn-emoticons\/[a-z0-9-]+\.(?:png|gif)/gi,(url)=>`<img src="${url}" alt="msn emoji" style="width:20px;height:20px;vertical-align:middle;">`);
   const textHtml=txt?`<div style="${styleStr}">${txt}</div>`:'';
   row.innerHTML=`<div class="msg-av" style="background:${bg};">${avInner}</div><div class="msg-body"><div class="msg-meta">${me?myName:c.name} · ${m.time||ts()}</div><div class="${me?'bubble-me':'bubble-them'}">${mediaHtml}${textHtml}</div><div class="msg-reaction-wrap" id="rw-${msgId}"></div></div><div class="reaction-add-btn" onclick="openReactionPopover(event,'${msgId}')">＋</div>`;
   msgs.appendChild(row);
@@ -2192,9 +2227,7 @@ function updatePlusBadge(){
   badge.classList.toggle('visible',isPlusTier());
 }
 function openPlusPage(){
-  // Opens the BMAC membership page. Update the URL with the real BMAC slug
-  // before going live (set via BMAC_PLUS_PAGE_URL build/env var in future).
-  window.open('https://buymeacoffee.com/winkd','_blank','noopener');
+  openModal('plus-modal');
 }
 
 function wsGetToken(){
@@ -3059,8 +3092,17 @@ function showFatalErrorOverlay(){
   const el=document.getElementById('fatal-error-overlay');
   if(el)el.style.display='flex';
 }
-window.addEventListener('error',()=>showFatalErrorOverlay());
-window.addEventListener('unhandledrejection',()=>showFatalErrorOverlay());
+window.addEventListener('error',(e)=>{
+  // Ignore resource load failures (img, script, etc.) — only catch JS runtime errors
+  if(e.target&&e.target!==window)return;
+  showFatalErrorOverlay();
+});
+window.addEventListener('unhandledrejection',(e)=>{
+  // Ignore expected mobile API rejections (AudioContext, AbortError, network issues)
+  const msg=String(e.reason?.message||e.reason||'');
+  if(/AudioContext|NotAllowedError|AbortError|NetworkError|WebSocket/i.test(msg))return;
+  showFatalErrorOverlay();
+});
 
 // ── INIT ──
 // Restore full profile from session to DOM before first render
