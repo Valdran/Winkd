@@ -68,7 +68,9 @@ export function Sidebar({ send }: SidebarProps) {
   const [addContactSent, setAddContactSent] = useState(false)
 
   if (!session) return null
-  const { profile } = session
+  const { profile, supporter } = session
+  const plusManageUrl = (import.meta.env.VITE_BMAC_MEMBERSHIP_URL as string | undefined) ?? 'https://buymeacoffee.com'
+  const plusBuyUrl = (import.meta.env.VITE_BMAC_PLUS_URL as string | undefined) ?? plusManageUrl
 
   const cycleStatus = () => {
     const idx = STATUS_CYCLE.indexOf(profile.status)
@@ -194,6 +196,7 @@ export function Sidebar({ send }: SidebarProps) {
             }}
           >
             {profile.displayName}
+            {supporter.tier === 'plus' ? ' ✨' : ''}
           </div>
           <div
             onClick={cycleStatus}
@@ -222,6 +225,64 @@ export function Sidebar({ send }: SidebarProps) {
             }}
           >
             {profile.moodMessage || 'Set a mood…'}
+          </div>
+          <div
+            style={{
+              marginTop: 6,
+              borderTop: '1px solid rgba(255,255,255,0.12)',
+              paddingTop: 6,
+              fontSize: 10,
+              color: '#d6e8ff',
+            }}
+          >
+            {supporter.tier === 'plus' ? (
+              <>
+                <div style={{ fontWeight: 700, color: '#ffe59a' }}>My Plus! Perks</div>
+                {supporter.supporterExpiresAt && (
+                  <div style={{ marginTop: 2 }}>
+                    Renews:{' '}
+                    {new Date(supporter.supporterExpiresAt).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => window.open(plusManageUrl, '_blank', 'noopener,noreferrer')}
+                  style={{
+                    marginTop: 4,
+                    border: '1px solid rgba(255,255,255,0.25)',
+                    borderRadius: 3,
+                    background: 'rgba(255,255,255,0.1)',
+                    color: '#eef6ff',
+                    fontSize: 10,
+                    padding: '2px 6px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Manage / Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => window.open(plusBuyUrl, '_blank', 'noopener,noreferrer')}
+                style={{
+                  border: '1px solid rgba(255,215,128,0.45)',
+                  borderRadius: 3,
+                  background: 'rgba(255,200,80,0.16)',
+                  color: '#ffe7ad',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  cursor: 'pointer',
+                }}
+              >
+                Get Plus!
+              </button>
+            )}
           </div>
         </div>
       </div>
