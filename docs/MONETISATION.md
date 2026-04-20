@@ -1,5 +1,7 @@
 # Winkd Monetisation
 
+> Maintenance rule: if a PR changes monetisation scope, pricing, or unlock status, `ROADMAP.md` must be updated in the same PR.
+
 Winkd is free, open source (MIT), and will never show ads or sell user
 data. Revenue comes from two sources: a monthly supporter subscription
 (**Winkd Plus!**) and one-off lifetime unlocks sold as BMAC Extras.

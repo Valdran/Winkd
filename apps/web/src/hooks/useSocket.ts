@@ -14,6 +14,7 @@ export function useSocket() {
   const wsRef = useRef<WebSocket | null>(null)
   const session = useAuthStore((s) => s.session)
   const receiveMessage = useChatStore((s) => s.receiveMessage)
+  const markMessageDelivered = useChatStore((s) => s.markMessageDelivered)
   const setSupporterState = useAuthStore((s) => s.setSupporterState)
   const activeConversationId = useChatStore((s) => s.activeConversationId)
   const updateContactStatus = useContactsStore((s) => s.updateContactStatus)
@@ -233,6 +234,14 @@ export function useSocket() {
             unreadCount: 0,
             lastMessageAt: null,
           })
+        } else if (envelope.event === 'delivery_receipt') {
+          const payload = envelope.payload as {
+            message_id: string
+            conversation_id: string
+          }
+          if (payload.message_id && payload.conversation_id) {
+            markMessageDelivered(payload.conversation_id, payload.message_id)
+          }
         }
       } catch {
         // ignore malformed server messages
@@ -262,6 +271,7 @@ export function useSocket() {
   }, [
     session,
     receiveMessage,
+    markMessageDelivered,
     updateContactStatus,
     incrementUnread,
     upsertPendingInvitation,

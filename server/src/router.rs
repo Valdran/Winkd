@@ -325,10 +325,41 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
     // client handles them identically to real-time messages.
     match db::drain_pending_messages(&state.db, user.id).await {
         Ok(queued) => {
-            for payload in queued {
+            for queued_msg in queued {
                 let _ = chan_tx.send(
-                    json!({ "event": "message", "payload": payload }).to_string(),
+                    json!({ "event": "message", "payload": queued_msg.payload.clone() })
+                        .to_string(),
                 );
+
+                // Notify the original sender (if they're online) that this
+                // previously-queued message has now reached a live recipient.
+                // This upgrades the sender's local bubble from delivered=false
+                // to delivered=true after an offline replay.
+                if let Some(message_id) = queued_msg
+                    .payload
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string)
+                {
+                    if let Some(sender_session) = state
+                        .clients
+                        .read()
+                        .await
+                        .get(&queued_msg.sender_id)
+                        .cloned()
+                    {
+                        let _ = sender_session.sender.send(
+                            json!({
+                                "event": "delivery_receipt",
+                                "payload": {
+                                    "message_id": message_id,
+                                    "conversation_id": user.winkd_id,
+                                }
+                            })
+                            .to_string(),
+                        );
+                    }
+                }
             }
         }
         Err(e) => tracing::warn!("drain_pending_messages: {e}"),
@@ -908,8 +939,7 @@ async fn handle_command(
                         .and_then(|v| v.as_str())
                         .map(str::to_string);
 
-                    let live_session =
-                        state.clients.read().await.get(&recipient.id).cloned();
+                    let live_session = state.clients.read().await.get(&recipient.id).cloned();
 
                     let delivered_live = match live_session {
                         Some(session) => session
@@ -958,7 +988,10 @@ async fn handle_command(
                         "relay_message: recipient '{}' not found",
                         recipient_winkd_id
                     );
-                    send_err(tx, "That buddy couldn't be found. They may have deleted their account.");
+                    send_err(
+                        tx,
+                        "That buddy couldn't be found. They may have deleted their account.",
+                    );
                 }
                 Err(e) => {
                     tracing::warn!("relay_message: db error: {e}");

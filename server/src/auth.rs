@@ -21,8 +21,8 @@ use axum::{
 };
 use oauth2::{
     basic::BasicClient, reqwest::async_http_client, AuthUrl, AuthorizationCode, ClientId,
-    ClientSecret, CsrfToken, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse,
-    TokenUrl,
+    ClientSecret, CsrfToken, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope,
+    TokenResponse, TokenUrl,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -103,8 +103,14 @@ pub async fn login(
     let user = match user {
         Some(u) => u,
         None => {
-            audit::log(pool, None, audit::Action::LoginFailed, Some(&ip),
-                serde_json::json!({ "reason": "unknown_user" })).await;
+            audit::log(
+                pool,
+                None,
+                audit::Action::LoginFailed,
+                Some(&ip),
+                serde_json::json!({ "reason": "unknown_user" }),
+            )
+            .await;
             return Err(AppError::Unauthorized);
         }
     };
@@ -113,8 +119,14 @@ pub async fn login(
     let hash = match user.password_hash.as_deref() {
         Some(h) => h.to_string(),
         None => {
-            audit::log(pool, Some(user.id), audit::Action::LoginFailed, Some(&ip),
-                serde_json::json!({ "reason": "oauth_only_account" })).await;
+            audit::log(
+                pool,
+                Some(user.id),
+                audit::Action::LoginFailed,
+                Some(&ip),
+                serde_json::json!({ "reason": "oauth_only_account" }),
+            )
+            .await;
             return Err(AppError::Unauthorized);
         }
     };
@@ -125,8 +137,14 @@ pub async fn login(
         .verify_password(body.password.as_bytes(), &parsed)
         .is_err()
     {
-        audit::log(pool, Some(user.id), audit::Action::LoginFailed, Some(&ip),
-            serde_json::json!({ "reason": "wrong_password" })).await;
+        audit::log(
+            pool,
+            Some(user.id),
+            audit::Action::LoginFailed,
+            Some(&ip),
+            serde_json::json!({ "reason": "wrong_password" }),
+        )
+        .await;
         return Err(AppError::Unauthorized);
     }
 
@@ -135,8 +153,14 @@ pub async fn login(
         let challenge_token = db::create_totp_challenge(pool, user.id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
-        audit::log(pool, Some(user.id), audit::Action::TotpChallengeIssued, Some(&ip),
-            serde_json::json!({})).await;
+        audit::log(
+            pool,
+            Some(user.id),
+            audit::Action::TotpChallengeIssued,
+            Some(&ip),
+            serde_json::json!({}),
+        )
+        .await;
         return Ok(Json(serde_json::json!({
             "totp_required": true,
             "challenge_token": challenge_token,
@@ -149,8 +173,14 @@ pub async fn login(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    audit::log(pool, Some(user.id), audit::Action::Login, Some(&ip),
-        serde_json::json!({})).await;
+    audit::log(
+        pool,
+        Some(user.id),
+        audit::Action::Login,
+        Some(&ip),
+        serde_json::json!({}),
+    )
+    .await;
 
     Ok(Json(LoginResponse {
         session_token: token,
@@ -232,18 +262,35 @@ pub async fn register(
         body.display_name.trim().to_string()
     };
 
-    let user = db::create_user(pool, &username, &winkd_id, &display_name, email, Some(&hash))
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let user = db::create_user(
+        pool,
+        &username,
+        &winkd_id,
+        &display_name,
+        email,
+        Some(&hash),
+    )
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
 
     let token = db::create_session(pool, user.id)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    tracing::info!("Registered new user: {} ({})", user.display_name, user.winkd_id);
+    tracing::info!(
+        "Registered new user: {} ({})",
+        user.display_name,
+        user.winkd_id
+    );
     let ip = extract_ip(&headers).to_string();
-    audit::log(&state.db, Some(user.id), audit::Action::Register, Some(&ip),
-        serde_json::json!({ "winkd_id": user.winkd_id })).await;
+    audit::log(
+        &state.db,
+        Some(user.id),
+        audit::Action::Register,
+        Some(&ip),
+        serde_json::json!({ "winkd_id": user.winkd_id }),
+    )
+    .await;
 
     Ok(Json(LoginResponse {
         session_token: token,
@@ -264,7 +311,9 @@ pub async fn password_reset_request(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let email = body.email.trim();
     if email.is_empty() || !email.contains('@') {
-        return Err(AppError::Internal("Please enter a valid email address".into()));
+        return Err(AppError::Internal(
+            "Please enter a valid email address".into(),
+        ));
     }
 
     let normalized = email.to_lowercase();
@@ -274,7 +323,11 @@ pub async fn password_reset_request(
 
     if let Some(u) = user {
         // TODO: wire SMTP / provider-backed transactional email delivery.
-        tracing::info!("Password reset requested for {} ({})", u.winkd_id, normalized);
+        tracing::info!(
+            "Password reset requested for {} ({})",
+            u.winkd_id,
+            normalized
+        );
     } else {
         tracing::info!("Password reset requested for unknown email {}", normalized);
     }
@@ -319,9 +372,10 @@ pub async fn oauth_start(Path(provider): Path<String>) -> Result<Response, AppEr
     let auth_request = provider
         .scopes()
         .iter()
-        .fold(oauth_client.authorize_url(CsrfToken::new_random), |req, s| {
-            req.add_scope(Scope::new(s.to_string()))
-        })
+        .fold(
+            oauth_client.authorize_url(CsrfToken::new_random),
+            |req, s| req.add_scope(Scope::new(s.to_string())),
+        )
         .set_pkce_challenge(pkce_challenge);
 
     let (auth_url, csrf_token) = auth_request.url();
@@ -364,8 +418,7 @@ pub async fn oauth_callback(
     let cfg = provider.load_env()?;
 
     // Validate and unpack the state cookie
-    let cookie =
-        parse_cookie(&headers, "winkd_oauth_state").ok_or(AppError::Unauthorized)?;
+    let cookie = parse_cookie(&headers, "winkd_oauth_state").ok_or(AppError::Unauthorized)?;
     let decoded = urlencoding::decode(&cookie).map_err(|_| AppError::Unauthorized)?;
     let parts: Vec<&str> = decoded.split('|').collect();
     if parts.len() != 4 {
@@ -397,9 +450,7 @@ pub async fn oauth_callback(
     let userinfo = provider.fetch_userinfo(&access_token, &cfg).await?;
 
     if userinfo.provider_user_id.is_empty() {
-        return Err(AppError::Internal(
-            "Provider returned empty user ID".into(),
-        ));
+        return Err(AppError::Internal("Provider returned empty user ID".into()));
     }
 
     let pool = &state.db;
@@ -566,10 +617,7 @@ impl OAuthProvider {
                 )
                 .await?;
                 Ok(OAuthUserInfo {
-                    provider_user_id: v["id"]
-                        .as_u64()
-                        .map(|n| n.to_string())
-                        .unwrap_or_default(),
+                    provider_user_id: v["id"].as_u64().map(|n| n.to_string()).unwrap_or_default(),
                     email: v["email"].as_str().map(str::to_string),
                     display_name: v["name"]
                         .as_str()
@@ -666,13 +714,8 @@ impl OAuthProvider {
                 })
             }
             Self::Spotify => {
-                let v = get_json(
-                    &client,
-                    "https://api.spotify.com/v1/me",
-                    access_token,
-                    None,
-                )
-                .await?;
+                let v =
+                    get_json(&client, "https://api.spotify.com/v1/me", access_token, None).await?;
                 Ok(OAuthUserInfo {
                     provider_user_id: str_field(&v, "id"),
                     email: v["email"].as_str().map(str::to_string),
@@ -853,9 +896,7 @@ impl OAuthProvider {
             Self::Discord => "https://discord.com/oauth2/authorize",
             Self::Google => "https://accounts.google.com/o/oauth2/v2/auth",
             Self::Apple => "https://appleid.apple.com/auth/authorize",
-            Self::Microsoft => {
-                "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-            }
+            Self::Microsoft => "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
             Self::Facebook => "https://www.facebook.com/v18.0/dialog/oauth",
             Self::Github => "https://github.com/login/oauth/authorize",
             Self::Twitter => "https://twitter.com/i/oauth2/authorize",
@@ -872,17 +913,13 @@ impl OAuthProvider {
             Self::Discord => "https://discord.com/api/oauth2/token",
             Self::Google => "https://oauth2.googleapis.com/token",
             Self::Apple => "https://appleid.apple.com/auth/token",
-            Self::Microsoft => {
-                "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-            }
+            Self::Microsoft => "https://login.microsoftonline.com/common/oauth2/v2.0/token",
             Self::Facebook => "https://graph.facebook.com/v18.0/oauth/access_token",
             Self::Github => "https://github.com/login/oauth/access_token",
             Self::Twitter => "https://api.twitter.com/2/oauth2/token",
             Self::Twitch => "https://id.twitch.tv/oauth2/token",
             Self::Reddit => "https://www.reddit.com/api/v1/access_token",
-            Self::Steam => {
-                "https://api.steampowered.com/ISteamUserOAuth/GetTokenDetails/v1/"
-            }
+            Self::Steam => "https://api.steampowered.com/ISteamUserOAuth/GetTokenDetails/v1/",
             Self::Spotify => "https://accounts.spotify.com/api/token",
             Self::Linkedin => "https://www.linkedin.com/oauth/v2/accessToken",
         }
@@ -1005,8 +1042,8 @@ fn env_var_first(keys: &[&str]) -> Option<String> {
 // Substantially stronger than the library defaults (64 MB / 3 iterations).
 
 fn make_argon2() -> Result<Argon2<'static>, argon2::password_hash::Error> {
-    let params = Params::new(131_072, 4, 4, None)
-        .map_err(|_| argon2::password_hash::Error::Algorithm)?;
+    let params =
+        Params::new(131_072, 4, 4, None).map_err(|_| argon2::password_hash::Error::Algorithm)?;
     Ok(Argon2::new(Algorithm::Argon2id, Version::V0x13, params))
 }
 
@@ -1035,10 +1072,7 @@ fn validate_password(password: &str) -> Result<(), AppError> {
 
 /// Extract and validate the Bearer session token from the Authorization header.
 /// Returns the authenticated User or 401.
-pub async fn require_auth(
-    headers: &HeaderMap,
-    pool: &db::DbPool,
-) -> Result<db::User, AppError> {
+pub async fn require_auth(headers: &HeaderMap, pool: &db::DbPool) -> Result<db::User, AppError> {
     let token = headers
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
@@ -1145,10 +1179,7 @@ pub async fn totp_challenge(
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or(AppError::Unauthorized)?;
 
-    let secret = user
-        .totp_secret
-        .as_deref()
-        .ok_or(AppError::Unauthorized)?;
+    let secret = user.totp_secret.as_deref().ok_or(AppError::Unauthorized)?;
 
     // Try TOTP code first, then backup code.
     let using_recovery_code = !is_totp_code(&normalize_2fa_code(&body.code));
@@ -1159,8 +1190,14 @@ pub async fn totp_challenge(
     }
 
     if !verified {
-        audit::log(pool, Some(user_id), audit::Action::TotpChallengeFailed, Some(&ip),
-            serde_json::json!({})).await;
+        audit::log(
+            pool,
+            Some(user_id),
+            audit::Action::TotpChallengeFailed,
+            Some(&ip),
+            serde_json::json!({}),
+        )
+        .await;
         return Err(AppError::Unauthorized);
     }
 
@@ -1169,8 +1206,14 @@ pub async fn totp_challenge(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    audit::log(pool, Some(user_id), audit::Action::TotpChallengePassed, Some(&ip),
-        serde_json::json!({})).await;
+    audit::log(
+        pool,
+        Some(user_id),
+        audit::Action::TotpChallengePassed,
+        Some(&ip),
+        serde_json::json!({}),
+    )
+    .await;
 
     Ok(Json(LoginResponse {
         session_token,
@@ -1248,10 +1291,18 @@ pub async fn totp_confirm(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    audit::log(pool, Some(user.id), audit::Action::TotpEnabled, Some(&ip),
-        serde_json::json!({})).await;
+    audit::log(
+        pool,
+        Some(user.id),
+        audit::Action::TotpEnabled,
+        Some(&ip),
+        serde_json::json!({}),
+    )
+    .await;
 
-    Ok(Json(TotpConfirmResponse { backup_codes: plaintext }))
+    Ok(Json(TotpConfirmResponse {
+        backup_codes: plaintext,
+    }))
 }
 
 // ── TOTP: disable ──────────────────────────────────────────────────────────
@@ -1288,8 +1339,14 @@ pub async fn totp_disable(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    audit::log(pool, Some(user.id), audit::Action::TotpDisabled, Some(&ip),
-        serde_json::json!({})).await;
+    audit::log(
+        pool,
+        Some(user.id),
+        audit::Action::TotpDisabled,
+        Some(&ip),
+        serde_json::json!({}),
+    )
+    .await;
 
     Ok(Json(serde_json::json!({ "ok": true })))
 }
@@ -1342,10 +1399,19 @@ pub async fn recovery_codes_generate(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    audit::log(pool, Some(user.id), audit::Action::RecoveryCodesRegenerated, Some(&ip),
-        serde_json::json!({ "previous_remaining": remaining_before })).await;
+    audit::log(
+        pool,
+        Some(user.id),
+        audit::Action::RecoveryCodesRegenerated,
+        Some(&ip),
+        serde_json::json!({ "previous_remaining": remaining_before }),
+    )
+    .await;
 
-    Ok(Json(RegenerateCodesResponse { backup_codes: plaintext, remaining_before }))
+    Ok(Json(RegenerateCodesResponse {
+        backup_codes: plaintext,
+        remaining_before,
+    }))
 }
 
 // ── Recovery codes: status ─────────────────────────────────────────────────
@@ -1396,8 +1462,14 @@ pub async fn revoke_device(
         return Err(AppError::NotFound("Device not found".into()));
     }
 
-    audit::log(pool, Some(user.id), audit::Action::DeviceRevoked, Some(&ip),
-        serde_json::json!({ "device_id": device_id })).await;
+    audit::log(
+        pool,
+        Some(user.id),
+        audit::Action::DeviceRevoked,
+        Some(&ip),
+        serde_json::json!({ "device_id": device_id }),
+    )
+    .await;
 
     Ok(Json(serde_json::json!({ "ok": true })))
 }
@@ -1475,11 +1547,17 @@ pub async fn upload_pre_key_bundle(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    audit::log(pool, Some(user.id), audit::Action::DeviceRegistered, Some(&ip),
+    audit::log(
+        pool,
+        Some(user.id),
+        audit::Action::DeviceRegistered,
+        Some(&ip),
         serde_json::json!({
             "device_id": body.device_id,
             "device_name": body.device_name,
-        })).await;
+        }),
+    )
+    .await;
 
     Ok(Json(serde_json::json!({ "ok": true })))
 }

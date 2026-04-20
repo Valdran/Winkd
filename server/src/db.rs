@@ -912,18 +912,24 @@ pub async fn queue_pending_message(
 pub async fn drain_pending_messages(
     pool: &DbPool,
     recipient_id: Uuid,
-) -> Result<Vec<serde_json::Value>, sqlx::Error> {
-    sqlx::query_scalar::<_, serde_json::Value>(
+) -> Result<Vec<PendingMessageDelivery>, sqlx::Error> {
+    sqlx::query_as::<_, PendingMessageDelivery>(
         r#"WITH drained AS (
                DELETE FROM pending_messages
                WHERE recipient_id = $1
-               RETURNING payload, created_at
+               RETURNING sender_id, payload, created_at
            )
-           SELECT payload FROM drained ORDER BY created_at ASC"#,
+           SELECT sender_id, payload FROM drained ORDER BY created_at ASC"#,
     )
     .bind(recipient_id)
     .fetch_all(pool)
     .await
+}
+
+#[derive(sqlx::FromRow, Clone, Debug)]
+pub struct PendingMessageDelivery {
+    pub sender_id: Uuid,
+    pub payload: serde_json::Value,
 }
 
 // ── Supporter tier & extras ────────────────────────────────────────────────
@@ -952,11 +958,7 @@ pub async fn set_supporter_plus(
 
 /// Permanently add extra buddy-list slots (stackable — each pack bumps the
 /// cap by `BUDDY_SLOT_PACK_SIZE`).
-pub async fn add_buddy_slots(
-    pool: &DbPool,
-    user_id: Uuid,
-    extra: i32,
-) -> Result<(), sqlx::Error> {
+pub async fn add_buddy_slots(pool: &DbPool, user_id: Uuid, extra: i32) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"UPDATE users
            SET extra_buddy_slots = extra_buddy_slots + $2,

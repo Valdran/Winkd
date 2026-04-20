@@ -30,6 +30,7 @@ interface ChatState {
     send: (p: object) => void,
   ) => void
   receiveMessage: (message: Message) => void
+  markMessageDelivered: (conversationId: string, messageId: string) => void
   clearShaking: (conversationId: string) => void
 }
 
@@ -146,6 +147,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
         },
       },
     }))
+  },
+
+  markMessageDelivered: (conversationId, messageId) => {
+    set((s) => {
+      const conv = s.conversations[conversationId]
+      if (!conv) return s
+      return {
+        conversations: {
+          ...s.conversations,
+          [conversationId]: {
+            ...conv,
+            messages: conv.messages.map((m) =>
+              m.id === messageId ? { ...m, delivered: true } : m,
+            ),
+          },
+        },
+      }
+    })
   },
 
   clearShaking: (conversationId) => {

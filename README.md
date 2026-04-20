@@ -4,6 +4,11 @@
 
 **Free. Open source (MIT). No ads. No data sold. Ever.**
 
+## Contribution Rule
+
+- Every PR must update `ROADMAP.md` when project status/scope changes.
+- If a PR does not require roadmap edits, explicitly note: **"Roadmap reviewed; no update required."**
+
 ---
 
 ## Security Architecture

@@ -46,21 +46,21 @@ pub enum Action {
 impl Action {
     fn as_str(&self) -> &'static str {
         match self {
-            Action::Login                    => "login",
-            Action::LoginFailed              => "login_failed",
-            Action::Register                 => "register",
-            Action::Logout                   => "logout",
-            Action::AllSessionsRevoked       => "all_sessions_revoked",
-            Action::TotpEnabled              => "totp_enabled",
-            Action::TotpDisabled             => "totp_disabled",
-            Action::TotpChallengeIssued      => "totp_challenge_issued",
-            Action::TotpChallengePassed      => "totp_challenge_passed",
-            Action::TotpChallengeFailed      => "totp_challenge_failed",
-            Action::RecoveryCodeUsed         => "recovery_code_used",
+            Action::Login => "login",
+            Action::LoginFailed => "login_failed",
+            Action::Register => "register",
+            Action::Logout => "logout",
+            Action::AllSessionsRevoked => "all_sessions_revoked",
+            Action::TotpEnabled => "totp_enabled",
+            Action::TotpDisabled => "totp_disabled",
+            Action::TotpChallengeIssued => "totp_challenge_issued",
+            Action::TotpChallengePassed => "totp_challenge_passed",
+            Action::TotpChallengeFailed => "totp_challenge_failed",
+            Action::RecoveryCodeUsed => "recovery_code_used",
             Action::RecoveryCodesRegenerated => "recovery_codes_regenerated",
-            Action::DeviceRegistered         => "device_registered",
-            Action::DeviceRevoked            => "device_revoked",
-            Action::PasswordChanged          => "password_changed",
+            Action::DeviceRegistered => "device_registered",
+            Action::DeviceRevoked => "device_revoked",
+            Action::PasswordChanged => "password_changed",
         }
     }
 }

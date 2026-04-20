@@ -2,6 +2,8 @@
 
 > Last updated: April 2026. Tracks what has shipped, what is in progress, and what is coming.
 
+> Process rule (effective April 20, 2026): every pull request must update this roadmap to reflect any feature, status, or scope changes before merge.
+
 ---
 
 ## Legend
@@ -86,7 +88,7 @@ The web app as a fully functional instant messenger.
 | Unread message badges | ✅ | Orange pill, per-contact count |
 | Contact search bar | ✅ | Filters by display name in real time |
 | Pending invitations modal | ✅ | Inbound requests with accept/reject |
-| QR code contact adding | 🔲 | Planned for launch; not yet implemented |
+| QR code contact adding | 🔧 | QR code generation + payload parsing flow added in Add Contact modal; camera scanning + rotation still pending |
 
 ### User Profile & Status
 
@@ -117,7 +119,7 @@ The web app as a fully functional instant messenger.
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Pre-key bundle upload and consumption | ✅ | One-time pre-keys, server-tracked |
-| Pending message queue | 🔧 | `pending_messages` table exists; delivery logic partial |
+| Pending message queue | ✅ | Offline queue + reconnect drain + sender delivery receipts implemented |
 | Presence broadcasts to contacts | ✅ | Real-time via WebSocket |
 | Supporter/premium tier system | ✅ | Free vs Plus; buddy slot limits; group chat flag |
 | Buy Me a Coffee integration | ✅ | BMAC URLs for purchase/renewal |
@@ -171,9 +173,17 @@ Quality-of-life additions post-launch.
 | Typing indicators | 🔲 | |
 | Message editing and deletion | 🔲 | |
 | Message search | 🔲 | No search UI or backend indexing yet |
-| Offline message queuing (complete) | 🔧 | Table exists; delivery logic needs finishing |
+| Offline message queuing (complete) | ✅ | Delivery path is complete with reconnect replay + sender delivery receipts |
 | Animated GIF avatar verification | 🔲 | Infrastructure present; needs end-to-end test |
-| QR code contact adding (web) | 🔲 | Was a Phase 1 launch requirement; carry forward |
+| QR code contact adding (web) | 🔧 | Add Contact modal supports personal QR + payload parse flow; camera scanner still pending |
+
+---
+
+## Roadmap Maintenance Rule
+
+- Every PR **must** include any required updates to `ROADMAP.md` before merge.
+- If a PR changes scope, status, delivery confidence, or introduces/removes features, the roadmap must be updated in the same PR.
+- If no roadmap line changes are needed, the PR description should explicitly state that it was reviewed and no roadmap update was required.
 
 ---
 

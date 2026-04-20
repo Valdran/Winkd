@@ -65,6 +65,9 @@ export function Sidebar({ send }: SidebarProps) {
   const [showPendingModal, setShowPendingModal] = useState(false)
   const [showAddContact, setShowAddContact] = useState(false)
   const [addContactInput, setAddContactInput] = useState('')
+  const [addContactMode, setAddContactMode] = useState<'id' | 'qr'>('id')
+  const [qrScanInput, setQrScanInput] = useState('')
+  const [qrScanHint, setQrScanHint] = useState('')
   const [addContactError, setAddContactError] = useState('')
   const [addContactSent, setAddContactSent] = useState(false)
 
@@ -132,13 +135,16 @@ export function Sidebar({ send }: SidebarProps) {
 
   const closeAddContact = () => {
     setShowAddContact(false)
+    setAddContactMode('id')
     setAddContactInput('')
+    setQrScanInput('')
+    setQrScanHint('')
     setAddContactError('')
     setAddContactSent(false)
   }
 
-  const handleAddContact = () => {
-    const trimmed = addContactInput.trim()
+  const sendContactRequest = (candidate: string) => {
+    const trimmed = candidate.trim()
     if (!/^[^#]+#\d{4}$/.test(trimmed)) {
       setAddContactError('Must be in format username#1234')
       return
@@ -147,6 +153,36 @@ export function Sidebar({ send }: SidebarProps) {
     setAddContactSent(true)
     setAddContactError('')
   }
+
+  const parseQrToWinkdId = (raw: string): string | null => {
+    const text = raw.trim()
+    if (!text) return null
+    if (/^[^#]+#\d{4}$/.test(text)) return text
+    const prefix = 'winkd://add/'
+    if (text.toLowerCase().startsWith(prefix)) {
+      const decoded = decodeURIComponent(text.slice(prefix.length))
+      return /^[^#]+#\d{4}$/.test(decoded) ? decoded : null
+    }
+    return null
+  }
+
+  const handleAddContact = () => sendContactRequest(addContactInput)
+
+  const handleUseQrPayload = () => {
+    const parsed = parseQrToWinkdId(qrScanInput)
+    if (!parsed) {
+      setAddContactError('That QR payload is invalid. Expected winkd://add/username%231234')
+      setQrScanHint('')
+      return
+    }
+    setAddContactInput(parsed)
+    setQrScanHint(`Parsed Winkd ID: ${parsed}`)
+    setAddContactError('')
+    setAddContactMode('id')
+  }
+
+  const myQrData = `winkd://add/${encodeURIComponent(profile.winkdId)}`
+  const myQrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=176x176&data=${encodeURIComponent(myQrData)}`
 
   return (
     <div
@@ -562,29 +598,140 @@ export function Sidebar({ send }: SidebarProps) {
                 </div>
               ) : (
                 <>
-                  <div style={{ color: 'rgba(200,225,255,0.8)', fontSize: 11, marginBottom: 8 }}>
-                    Enter your buddy's Winkd ID:
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                    <button
+                      onClick={() => {
+                        setAddContactMode('id')
+                        setAddContactError('')
+                      }}
+                      style={{
+                        flex: 1,
+                        height: 26,
+                        borderRadius: 6,
+                        border: `1px solid ${addContactMode === 'id' ? 'rgba(150,200,255,0.7)' : 'rgba(255,255,255,0.2)'}`,
+                        background: addContactMode === 'id' ? 'rgba(80,140,220,0.35)' : 'rgba(255,255,255,0.08)',
+                        color: '#eaf4ff',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Winkd ID
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAddContactMode('qr')
+                        setAddContactError('')
+                      }}
+                      style={{
+                        flex: 1,
+                        height: 26,
+                        borderRadius: 6,
+                        border: `1px solid ${addContactMode === 'qr' ? 'rgba(150,200,255,0.7)' : 'rgba(255,255,255,0.2)'}`,
+                        background: addContactMode === 'qr' ? 'rgba(80,140,220,0.35)' : 'rgba(255,255,255,0.08)',
+                        color: '#eaf4ff',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      QR Code
+                    </button>
                   </div>
-                  <input
-                    type="text"
-                    autoFocus
-                    placeholder="username#1234"
-                    value={addContactInput}
-                    onChange={(e) => { setAddContactInput(e.target.value); setAddContactError('') }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddContact() }}
-                    style={{
-                      width: '100%',
-                      height: 28,
-                      borderRadius: 5,
-                      border: `1px solid ${addContactError ? 'rgba(255,100,100,0.7)' : 'rgba(100,150,220,0.5)'}`,
-                      background: 'rgba(255,255,255,0.09)',
-                      color: '#ddeeff',
-                      fontSize: 11,
-                      padding: '0 8px',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
-                  />
+                  {addContactMode === 'id' ? (
+                    <>
+                      <div style={{ color: 'rgba(200,225,255,0.8)', fontSize: 11, marginBottom: 8 }}>
+                        Enter your buddy&apos;s Winkd ID:
+                      </div>
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="username#1234"
+                        value={addContactInput}
+                        onChange={(e) => { setAddContactInput(e.target.value); setAddContactError('') }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddContact() }}
+                        style={{
+                          width: '100%',
+                          height: 28,
+                          borderRadius: 5,
+                          border: `1px solid ${addContactError ? 'rgba(255,100,100,0.7)' : 'rgba(100,150,220,0.5)'}`,
+                          background: 'rgba(255,255,255,0.09)',
+                          color: '#ddeeff',
+                          fontSize: 11,
+                          padding: '0 8px',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ color: 'rgba(200,225,255,0.8)', fontSize: 11, marginBottom: 8 }}>
+                        Show this QR to friends:
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                        <img
+                          src={myQrImageUrl}
+                          alt="Your Winkd contact QR code"
+                          style={{
+                            width: 176,
+                            height: 176,
+                            borderRadius: 8,
+                            border: '1px solid rgba(255,255,255,0.22)',
+                            background: '#fff',
+                            padding: 6,
+                          }}
+                        />
+                      </div>
+                      <div style={{ color: 'rgba(195,225,255,0.86)', fontSize: 10, marginBottom: 8, textAlign: 'center' }}>
+                        {profile.winkdId}
+                      </div>
+                      <div style={{ color: 'rgba(200,225,255,0.8)', fontSize: 10, marginBottom: 6 }}>
+                        Paste scanned QR payload:
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="winkd://add/username%231234"
+                        value={qrScanInput}
+                        onChange={(e) => { setQrScanInput(e.target.value); setAddContactError('') }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleUseQrPayload() }}
+                        style={{
+                          width: '100%',
+                          height: 28,
+                          borderRadius: 5,
+                          border: `1px solid ${addContactError ? 'rgba(255,100,100,0.7)' : 'rgba(100,150,220,0.5)'}`,
+                          background: 'rgba(255,255,255,0.09)',
+                          color: '#ddeeff',
+                          fontSize: 11,
+                          padding: '0 8px',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      {qrScanHint && (
+                        <div style={{ color: '#9fe6b6', fontSize: 10, marginTop: 6 }}>
+                          {qrScanHint}
+                        </div>
+                      )}
+                      <button
+                        onClick={handleUseQrPayload}
+                        style={{
+                          marginTop: 8,
+                          width: '100%',
+                          height: 26,
+                          borderRadius: 6,
+                          border: '1px solid rgba(120,180,245,0.7)',
+                          background: 'rgba(70,120,200,0.35)',
+                          color: '#eff7ff',
+                          fontWeight: 700,
+                          fontSize: 10,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Use Scanned QR Payload
+                      </button>
+                    </>
+                  )}
                   {addContactError && (
                     <div style={{ color: '#ff9090', fontSize: 10, marginTop: 4 }}>
                       {addContactError}

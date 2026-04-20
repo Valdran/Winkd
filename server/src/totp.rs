@@ -74,8 +74,7 @@ pub fn verify(secret_b32: &str, code: &str) -> bool {
 // ── HOTP core (RFC 4226) ───────────────────────────────────────────────────
 
 fn hotp(secret: &[u8], counter: u64) -> u32 {
-    let mut mac = HmacSha1::new_from_slice(secret)
-        .expect("HMAC-SHA1 accepts any key length");
+    let mut mac = HmacSha1::new_from_slice(secret).expect("HMAC-SHA1 accepts any key length");
     mac.update(&counter.to_be_bytes());
     let result = mac.finalize().into_bytes();
 
