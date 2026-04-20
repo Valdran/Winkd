@@ -1181,7 +1181,7 @@ const MSN_CLASSIC = [
   ['Island with a palm tree','island-with-a-palm-tree'],['Computer','computer'],['Mobile phone','mobile-phone'],['Be right back','be-right-back'],['Storm cloud','storm-cloud'],
   ['High five','high-five'],['Money','money'],['Black sheep','black-sheep'],["I don't know smile",'i-dont-know-smile'],['Thinking smile','thinking-smile'],['Lightning','lightning'],
   ['Party smile','party-smile'],['Eye-rolling smile','eye-rolling-smile'],['Sleepy smile','sleepy-smile'],['Bunny','bunny'],
-].map(([name,filename])=>({e:`${MSN_EMOTICON_BASE_URL}/${filename}.png`,n:name,classic:true,filename}));
+].map(([name,filename])=>({e:`${MSN_EMOTICON_BASE_URL}/${filename}.png`,n:name,classic:true,filename,trigger:`:classic-${filename}:`}));
 
 const SPIKEY_BASE_URL = '/emoji-packs/spikey';
 const SPIKEY_PACK_SKU = 'emoji-pack-spikey';
@@ -1255,6 +1255,38 @@ const EP_LONG_MS = 500;
 
 function epSaveFavs(){ localStorage.setItem('winkd-favs', JSON.stringify([...epFavourites])); }
 function epSavePins(){ localStorage.setItem('winkd-pins', JSON.stringify(epPinned)); }
+function isEmojiToken(v){
+  return typeof v==='string'&&/^:[a-z0-9-]+:$/i.test(v.trim());
+}
+function emojiTokenToAsset(token){
+  if(!isEmojiToken(token))return null;
+  const t=token.trim().toLowerCase();
+  if(t.startsWith(':classic-')&&t.endsWith(':')){
+    const slug=t.slice(':classic-'.length,-1);
+    return slug?`${MSN_EMOTICON_BASE_URL}/${slug}.png`:null;
+  }
+  if(t.startsWith(':spikey-')&&t.endsWith(':')){
+    const hit=SPIKEY_PACK.find(item=>item.trigger.toLowerCase()===t);
+    if(hit)return hit.e;
+    const slug=t.slice(':spikey-'.length,-1);
+    return slug?`${SPIKEY_BASE_URL}/${slug}.png`:null;
+  }
+  return null;
+}
+function emojiAssetToToken(value){
+  if(typeof value!=='string')return null;
+  if(value.startsWith(MSN_EMOTICON_BASE_URL+'/')){
+    const m=value.match(/^\/msn-emoticons\/([a-z0-9-]+)\.(?:png|gif)$/i);
+    return m?`:classic-${m[1].toLowerCase()}:`:null;
+  }
+  if(value.startsWith(SPIKEY_BASE_URL+'/')){
+    const hit=SPIKEY_PACK.find(item=>item.e===value);
+    if(hit)return hit.trigger;
+    const m=value.match(/^\/emoji-packs\/spikey\/(.+?)\.(?:png|gif)$/i);
+    return m?`:spikey-${decodeURIComponent(m[1]).replace(/\s+/g,'-').toLowerCase()}:`:null;
+  }
+  return null;
+}
 function isClassicEmojiValue(v){
   if(typeof v!=='string')return false;
   return v.startsWith(MSN_EMOTICON_BASE_URL+'/')||v.startsWith(SPIKEY_BASE_URL+'/');
@@ -1269,9 +1301,10 @@ function openSpikeyPurchase(){
   catch(e){window.location.href=SPIKEY_BMAC_URL;}
 }
 function createEmojiVisual(value,size){
-  if(isClassicEmojiValue(value)){
+  const asset=emojiTokenToAsset(value)||value;
+  if(isClassicEmojiValue(asset)){
     const img=document.createElement('img');
-    img.src=value;
+    img.src=asset;
     img.alt='msn emoji';
     img.loading='lazy';
     img.width=size;img.height=size;
@@ -1553,7 +1586,9 @@ function epCtxOutside(e){ if(!document.getElementById('ep-ctx-menu').contains(e.
 function epInsertEmoji(em){
   const inp = document.getElementById('chat-input');
   if(!inp) return;
-  const token = isClassicEmojiValue(em)?`${em} `:em;
+  const emojiToken = emojiAssetToToken(em);
+  const insertValue = emojiToken||em;
+  const token = emojiToken?`${insertValue} `:insertValue;
   const pos = inp.selectionStart||inp.value.length;
   inp.value = inp.value.slice(0,pos)+token+inp.value.slice(pos);
   inp.selectionStart = inp.selectionEnd = pos+token.length;
@@ -1737,9 +1772,18 @@ function renderMoodText(el,mood){
   if(!el)return;
   const text=(mood||'').trim();
   el.dataset.rawMood=text;
-  const m=text.match(/^(https:\/\/github\.com\/bernzrdo\/msn-emoticons\/raw\/main\/original\/[a-z0-9-]+\.png)\s*(.*)$/i);
+  const m=text.match(/^((:[a-z0-9-]+:)|(https?:\/\/[^\s]+\.(?:png|gif|webp))|(\/(?:msn-emoticons|emoji-packs)\/[^\s]+\.(?:png|gif|webp))|(\p{Emoji_Presentation}|\p{Emoji}\uFE0F))\s*(.*)$/iu);
   if(!m){el.textContent=text;return;}
-  el.innerHTML=`<img src="${m[1]}" alt="mood emoji" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;margin-right:4px;">${(m[2]||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}`;
+  const leading=m[1];
+  const rest=(m[6]||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const tokenAsset=emojiTokenToAsset(leading);
+  const isAsset=!!tokenAsset||isClassicEmojiValue(leading)||/^https?:\/\/[^\s]+\.(?:png|gif|webp)$/i.test(leading);
+  if(isAsset){
+    const src=tokenAsset||leading;
+    el.innerHTML=`<img src="${src}" alt="mood emoji" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;margin-right:4px;">${rest}`;
+    return;
+  }
+  el.textContent=text;
 }
 
 function renderContacts(f=''){
@@ -1925,6 +1969,10 @@ function addMsg(m,contact,animate=true){
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;')
     .replace(/\n/g,'<br>')
+    .replace(/:[a-z0-9-]+:/gi,(token)=>{
+      const src=emojiTokenToAsset(token);
+      return src?`<img src="${src}" alt="winkd emoji" style="width:22px;height:22px;vertical-align:middle;">`:token;
+    })
     .replace(/\/msn-emoticons\/[a-z0-9-]+\.(?:png|gif)/gi,(url)=>`<img src="${url}" alt="msn emoji" style="width:20px;height:20px;vertical-align:middle;">`)
     .replace(/\/emoji-packs\/[a-z0-9_-]+\/[A-Za-z0-9%_. -]+?\.(?:png|gif)/gi,(url)=>`<img src="${url}" alt="winkd emoji" style="width:22px;height:22px;vertical-align:middle;">`);
   const textHtml=txt?`<div style="${styleStr}">${txt}</div>`:'';
@@ -3033,7 +3081,7 @@ function initProfile(){
   document.getElementById('profile-name-input').value=myName==='You'?'':myName;
   const moodEl=document.getElementById('my-mood');
   const _rawMood=moodEl?.dataset?.rawMood||moodEl?.textContent||'';
-  const _moodMatch=_rawMood.match(/^((https:\/\/github\.com\/bernzrdo\/msn-emoticons\/raw\/main\/original\/[a-z0-9-]+\.png)|(\p{Emoji_Presentation}|\p{Emoji}\uFE0F))\s*/u);
+  const _moodMatch=_rawMood.match(/^((:[a-z0-9-]+:)|(https?:\/\/[^\s]+\.(?:png|gif|webp))|(\/(?:msn-emoticons|emoji-packs)\/[^\s]+\.(?:png|gif|webp))|(\p{Emoji_Presentation}|\p{Emoji}\uFE0F))\s*/u);
   if(_moodMatch&&_moodMatch[1]!=' '){moodPickerEmoji=_moodMatch[1];document.getElementById('profile-mood-text').value=_rawMood.slice(_moodMatch[0].length);}
   else{moodPickerEmoji='';document.getElementById('profile-mood-text').value=_rawMood;}
   const _md=document.getElementById('mood-emoji-display');
