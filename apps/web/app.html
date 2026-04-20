@@ -1249,6 +1249,10 @@ function isClassicEmojiValue(v){
   return v.startsWith(MSN_EMOTICON_BASE_URL+'/')||v.startsWith(SPIKEY_BASE_URL+'/');
 }
 function isSpikeyPurchased(){return Array.isArray(purchasedExtras)&&purchasedExtras.includes(SPIKEY_PACK_SKU);}
+// Spikey is unlocked for active Plus! subscribers OR anyone who bought the pack
+// as a one-off Extra. If Plus! lapses the server downgrades supporterTier to
+// "free" (see effective_tier in db.rs), so access falls back to purchasedExtras.
+function isSpikeyUnlocked(){return isPlusTier()||isSpikeyPurchased();}
 function openSpikeyPurchase(){
   try{window.open(SPIKEY_BMAC_URL,'_blank','noopener');}
   catch(e){window.location.href=SPIKEY_BMAC_URL;}
@@ -1269,7 +1273,7 @@ function createEmojiVisual(value,size){
 
 function epAllEmojis(){
   const seen = new Set(), arr = [];
-  const skipSpikey = !isSpikeyPurchased();
+  const skipSpikey = !isSpikeyUnlocked();
   for(const cat in EP_DATA){
     if(cat==='spikey' && skipSpikey) continue;
     EP_DATA[cat].forEach(em=>{ if(!seen.has(em.e)){ seen.add(em.e); arr.push({...em,cat}); } });
@@ -1347,7 +1351,7 @@ function epBuildGrid(list){
 
   // Spikey pack: when browsing the tab directly (not search) and not purchased,
   // render a preview panel with a Buy button instead of an interactive grid.
-  if(!list && !epSearchMode && epCurrentTab==='spikey' && !isSpikeyPurchased()){
+  if(!list && !epSearchMode && epCurrentTab==='spikey' && !isSpikeyUnlocked()){
     epRenderSpikeyPreview(grid);
     epUpdateFooter(SPIKEY_PACK.length);
     return;
