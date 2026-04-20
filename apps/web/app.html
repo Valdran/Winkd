@@ -842,7 +842,10 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
       <div id="sec-2fa-disable" style="display:none;margin-top:8px;">
         <div style="font-size:10px;color:#5a7a9a;margin-bottom:6px;">Disable 2FA (requires current code):</div>
         <input id="sec-disable-code" class="modal-input" type="text" maxlength="6" placeholder="6-digit code" style="margin-bottom:8px;">
-        <div class="modal-btn-row"><div class="modal-btn-cancel" onclick="disableTotp()">Disable 2FA</div><div class="modal-btn" onclick="regenerateRecoveryCodes()">Regenerate backup codes</div></div>
+        <div class="modal-btn-row"><div class="modal-btn-cancel" onclick="disableTotp()">Disable 2FA</div></div>
+        <div style="font-size:10px;color:#5a7a9a;margin:12px 0 6px;">Regenerate backup codes (invalidates old codes immediately):</div>
+        <input id="sec-regen-code" class="modal-input" type="text" maxlength="6" placeholder="6-digit code" style="margin-bottom:8px;">
+        <div class="modal-btn-row"><div class="modal-btn" onclick="regenerateRecoveryCodes()">Regenerate backup codes</div></div>
       </div>
       <div id="sec-backup-codes" style="display:none;white-space:pre-wrap;font-family:monospace;font-size:11px;background:#fff;border:1px solid rgba(100,150,220,0.28);border-radius:6px;padding:8px;margin-top:8px;"></div>
 
@@ -2787,7 +2790,15 @@ function renderSecurity2fa(enabled,recoveryRemaining){
   const setup=document.getElementById('sec-2fa-setup');
   const disable=document.getElementById('sec-2fa-disable');
   const qr=document.getElementById('sec-2fa-qr');
-  if(status)status.textContent=enabled?`🔐 2FA enabled (${recoveryRemaining??0} backup code${recoveryRemaining===1?'':'s'} remaining)`:'🔓 2FA disabled';
+  if(status){
+    if(enabled){
+      const n=recoveryRemaining??0;
+      const low=n<=2;
+      status.innerHTML=`🔐 2FA enabled <span style=\"color:${low?'#c05000':'#3a5a3a'};font-weight:${low?'700':'400'};\">(${n} backup code${n===1?'':'s'} remaining${low?' — regenerate soon':''})</span>`;
+    }else{
+      status.textContent='🔓 2FA disabled';
+    }
+  }
   if(setup)setup.style.display=enabled?'none':'block';
   if(disable)disable.style.display=enabled?'block':'none';
   if(qr)qr.style.display='none';
@@ -2828,7 +2839,7 @@ async function disableTotp(){
   }catch{flashSecurity('Could not disable 2FA.',true);}
 }
 async function regenerateRecoveryCodes(){
-  const code=document.getElementById('sec-disable-code')?.value?.trim()||'';
+  const code=document.getElementById('sec-regen-code')?.value?.trim()||'';
   if(code.length!==6){flashSecurity('Enter your current 6-digit code first.',true);return;}
   try{
     const res=await fetch('/api/auth/recovery-codes/generate',{method:'POST',headers:authHeaders(),body:JSON.stringify({code})});
@@ -2836,7 +2847,8 @@ async function regenerateRecoveryCodes(){
     const d=await res.json();
     const out=document.getElementById('sec-backup-codes');
     if(out){out.style.display='block';out.textContent=(d?.backup_codes||[]).join('\n');}
-    flashSecurity('Backup codes regenerated.');
+    const regenInput=document.getElementById('sec-regen-code');if(regenInput)regenInput.value='';
+    flashSecurity('Backup codes regenerated. Save them now — old codes are no longer valid.');
     loadSecuritySettings();
   }catch{flashSecurity('Could not generate backup codes.',true);}
 }
@@ -2848,7 +2860,9 @@ function renderSecurityDevices(devices){
     const row=document.createElement('div');
     row.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border:1px solid rgba(100,150,220,0.25);border-radius:6px;background:rgba(255,255,255,0.8);';
     const meta=document.createElement('div');
-    meta.innerHTML=`<div style=\"font-size:11px;font-weight:700;color:#1a2a40;\">💻 ${device.device_name||'Unknown device'}</div><div style=\"font-size:10px;color:#5a7a9a;\">Last seen: ${device.last_seen_at||'unknown'}</div>`;
+    const regAt=device.registered_at?fmtSecurityDate(device.registered_at):'unknown';
+    const lastSeen=device.last_seen||device.last_seen_at?fmtSecurityDate(device.last_seen||device.last_seen_at):'unknown';
+    meta.innerHTML=`<div style=\"font-size:11px;font-weight:700;color:#1a2a40;\">💻 ${escapeSecurityHtml(device.device_name||'Unknown device')}</div><div style=\"font-size:10px;color:#5a7a9a;\">Registered ${escapeSecurityHtml(regAt)} · Last seen ${escapeSecurityHtml(lastSeen)}</div>`;
     const btn=document.createElement('button');
     btn.type='button';btn.textContent='Revoke';
     btn.style.cssText='height:24px;padding:0 10px;border-radius:4px;border:1px solid rgba(180,80,80,0.45);background:linear-gradient(to bottom,#d06060,#a03030);color:#fff;font-size:11px;font-weight:700;cursor:pointer;';
@@ -2864,6 +2878,24 @@ async function revokeDevice(deviceId){
     loadSecuritySettings();
   }catch{flashSecurity('Could not revoke device.',true);}
 }
+const AUDIT_ACTION_LABELS={
+  login:'✅ Login',
+  login_failed:'❌ Login failed',
+  register:'🆕 Account created',
+  logout:'👋 Logged out',
+  totp_enabled:'🔐 2FA enabled',
+  totp_disabled:'🔓 2FA disabled',
+  totp_challenge_issued:'🔑 2FA challenge issued',
+  totp_challenge_passed:'✅ 2FA passed',
+  totp_challenge_failed:'❌ 2FA failed',
+  recovery_code_used:'🔑 Backup code used',
+  recovery_codes_regenerated:'🔄 Backup codes regenerated',
+  device_registered:'💻 Device registered',
+  device_revoked:'🗑️ Device revoked',
+  password_changed:'🔒 Password changed',
+};
+function fmtSecurityDate(s){if(!s)return '';try{return new Date(s).toLocaleString(undefined,{dateStyle:'short',timeStyle:'short'});}catch{return s;}}
+function escapeSecurityHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
 async function loadSecurityAuditLog(){
   const wrap=document.getElementById('sec-audit-log');if(!wrap)return;
   wrap.innerHTML='<div style=\"font-size:10px;color:#6a86a6;\">Loading…</div>';
@@ -2873,10 +2905,13 @@ async function loadSecurityAuditLog(){
     const d=await res.json();const events=Array.isArray(d?.events)?d.events:[];
     if(!events.length){wrap.innerHTML='<div style=\"font-size:10px;color:#6a86a6;\">No audit events yet.</div>';return;}
     wrap.innerHTML='';
+    wrap.style.cssText='display:flex;flex-direction:column;gap:0;max-height:220px;overflow-y:auto;border:1px solid rgba(100,150,220,0.22);border-radius:6px;background:rgba(255,255,255,0.7);';
     events.forEach(entry=>{
       const row=document.createElement('div');
-      row.style.cssText='padding:8px 10px;border:1px solid rgba(100,150,220,0.2);border-radius:6px;background:rgba(255,255,255,0.75);';
-      row.innerHTML=`<div style=\"font-size:11px;font-weight:700;color:#1a2a40;\">${entry.action||'event'}</div><div style=\"font-size:10px;color:#5a7a9a;\">${entry.created_at||''}</div>`;
+      row.style.cssText='padding:6px 10px;border-bottom:1px solid rgba(100,150,220,0.12);display:flex;justify-content:space-between;align-items:flex-start;gap:8px;';
+      const label=AUDIT_ACTION_LABELS[entry.action]||escapeSecurityHtml(entry.action||'event');
+      const ip=entry.ip_address?`<div style=\"font-size:9px;color:#7a9ab0;\">IP: ${escapeSecurityHtml(entry.ip_address)}</div>`:'';
+      row.innerHTML=`<div><div style=\"font-size:11px;color:#1a2a40;\">${label}</div>${ip}</div><div style=\"font-size:9px;color:#7a9ab0;white-space:nowrap;\">${escapeSecurityHtml(fmtSecurityDate(entry.created_at))}</div>`;
       wrap.appendChild(row);
     });
   }catch{
