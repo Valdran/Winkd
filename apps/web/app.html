@@ -1694,6 +1694,14 @@ let selNameColor=myNameColor;
 // bursts of messages.
 const CONVOS_STORAGE_KEY=myWinkdId?`winkd-convos:${myWinkdId}`:null;
 let _convosSaveTimer=null;
+function normalizeWinkdId(id){
+  return String(id||'').trim().toLowerCase();
+}
+function hasContactByWinkdId(id){
+  const normalized=normalizeWinkdId(id);
+  if(!normalized)return false;
+  return contacts.some(c=>normalizeWinkdId(c.id)===normalized);
+}
 function loadConvos(){
   if(!CONVOS_STORAGE_KEY)return;
   try{
@@ -2811,7 +2819,7 @@ function handlePresence(payload){
 function handleContactRequestSent(payload){
   // Server confirmed the request — add the contact in a pending state.
   const wid=payload.to_winkd_id;if(!wid)return;
-  if(contacts.find(x=>x.id===wid))return;
+  if(hasContactByWinkdId(wid))return;
   const name=payload.to_display_name||wid.split('#')[0];
   const nc={id:wid,initials:name.slice(0,2).toUpperCase(),name,mood:'Pending acceptance\u2026',status:'offline',color:'#406080',avatarSrc:payload.to_avatar_data||null,unread:0};
   contacts.push(nc);
@@ -2833,7 +2841,7 @@ function handleContactAccepted(payload){
   const avatarSrc=payload.avatar_data||null;
   const mood=payload.mood_message||'';
   // Case A: we sent the request and they accepted — update the pending contact.
-  const existing=contacts.find(x=>x.id===wid);
+  const existing=contacts.find(x=>normalizeWinkdId(x.id)===normalizeWinkdId(wid));
   if(existing){
     existing.name=name;existing.initials=name.slice(0,2).toUpperCase();
     existing.mood=mood;existing.status='online';existing.avatarSrc=avatarSrc;
@@ -2844,7 +2852,7 @@ function handleContactAccepted(payload){
   // Case B: we accepted their inbound request — clear the notification, add contact.
   const idx=inboundRequests.findIndex(r=>r.from_winkd_id===wid);
   if(idx>=0){inboundRequests.splice(idx,1);renderInboundRequests();}
-  if(!contacts.find(x=>x.id===wid)){
+  if(!hasContactByWinkdId(wid)){
     const nc={id:wid,initials:name.slice(0,2).toUpperCase(),name,mood:mood,status:'online',color:'#406080',avatarSrc:avatarSrc,unread:0};
     contacts.push(nc);
     convos[wid]=[{type:'system',text:`You are now connected with ${name}!`}];
@@ -3198,6 +3206,8 @@ function addContact(){
   const errEl=document.getElementById('add-id-error');
   if(!/^[^#\s]+#\d{4}$/.test(v)){if(errEl)errEl.style.display='block';return;}
   if(errEl)errEl.style.display='none';
+  if(normalizeWinkdId(v)===normalizeWinkdId(myWinkdId)){showToast('That’s your own Winkd ID.','info');return;}
+  if(hasContactByWinkdId(v)){showToast('That contact is already in your list.','info');return;}
   if(!ws||ws.readyState!==WebSocket.OPEN){showToast('Not connected to server. Please try again.','error');return;}
   wsSend('add_contact',{winkd_id:v});
   closeModal('add-contact-modal');
@@ -3410,6 +3420,8 @@ function handleQRDetect(value){
   const winkdId=parseWinkdQR(value);
   const status=document.getElementById('qr-scanner-status');
   if(!winkdId){status.textContent='Invalid QR code — not a Winkd contact QR.';return;}
+  if(normalizeWinkdId(winkdId)===normalizeWinkdId(myWinkdId)){status.textContent='That QR code is your own Winkd ID.';return;}
+  if(hasContactByWinkdId(winkdId)){status.textContent='That contact is already in your buddy list.';return;}
   detectedQRValue=winkdId;
   document.getElementById('qr-detected-id').textContent=winkdId;
   document.getElementById('qr-result-box').style.display='block';
@@ -3441,6 +3453,8 @@ async function handleQRFile(input){
 function clearQRResult(){detectedQRValue=null;document.getElementById('qr-result-box').style.display='none';}
 function addFromQR(){
   if(!detectedQRValue)return;
+  if(normalizeWinkdId(detectedQRValue)===normalizeWinkdId(myWinkdId)){showToast('That’s your own Winkd ID.','info');return;}
+  if(hasContactByWinkdId(detectedQRValue)){showToast('That contact is already in your list.','info');return;}
   if(!ws||ws.readyState!==WebSocket.OPEN){showToast('Not connected to server. Please try again.','error');return;}
   wsSend('add_contact',{winkd_id:detectedQRValue});
   closeModal('add-contact-modal');
