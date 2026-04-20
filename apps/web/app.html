@@ -834,8 +834,16 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
         <div class="modal-btn" onclick="startTotpSetup()" style="display:inline-flex;">Enable 2FA</div>
       </div>
       <div id="sec-2fa-qr" style="display:none;margin-top:8px;padding:10px;border:1px solid rgba(100,150,220,0.28);border-radius:6px;background:rgba(255,255,255,0.75);">
-        <div style="font-size:11px;color:#1a3a6a;margin-bottom:6px;">Scan this URI in your authenticator app:</div>
-        <div id="sec-setup-uri" style="font-size:10px;word-break:break-all;color:#406090;margin-bottom:8px;"></div>
+        <div style="font-size:11px;color:#1a3a6a;margin-bottom:8px;">Scan this QR code with your authenticator app:</div>
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:8px;">
+          <canvas id="sec-totp-qr-canvas" width="160" height="160" style="flex:0 0 160px;background:#fff;border:1px solid rgba(100,150,220,0.28);border-radius:4px;"></canvas>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;color:#5a7a9a;margin-bottom:4px;">Can't scan? Enter this secret manually:</div>
+            <div id="sec-setup-secret" style="font-family:monospace;font-size:11px;letter-spacing:0.08em;color:#1a2a40;background:#f0f4ff;border:1px solid rgba(100,150,220,0.2);border-radius:4px;padding:6px 8px;word-break:break-all;margin-bottom:6px;"></div>
+            <div style="font-size:9px;color:#7a9ab0;margin-bottom:4px;">Raw URI:</div>
+            <div id="sec-setup-uri" style="font-size:9px;word-break:break-all;color:#406090;"></div>
+          </div>
+        </div>
         <input id="sec-confirm-code" class="modal-input" type="text" maxlength="6" placeholder="Enter 6-digit code" style="margin-bottom:8px;">
         <div class="modal-btn-row"><div class="modal-btn-cancel" onclick="cancelTotpSetup()">Cancel</div><div class="modal-btn" onclick="confirmTotpSetup()">Confirm 2FA</div></div>
       </div>
@@ -2793,6 +2801,20 @@ function renderSecurity2fa(enabled,recoveryRemaining){
   if(qr)qr.style.display='none';
 }
 function cancelTotpSetup(){const q=document.getElementById('sec-2fa-qr');if(q)q.style.display='none';}
+function drawTotpQr(uri,_retries){
+  const retries=_retries||0;
+  const canvas=document.getElementById('sec-totp-qr-canvas');if(!canvas||!uri)return;
+  const paintFallback=()=>{const ctx=canvas.getContext('2d');if(!ctx)return;ctx.fillStyle='#f0f4ff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#8aabcc';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText('QR unavailable',canvas.width/2,canvas.height/2-6);ctx.fillText('use secret below',canvas.width/2,canvas.height/2+10);};
+  if(typeof QRCode==='undefined'){
+    if(retries<30)setTimeout(()=>drawTotpQr(uri,retries+1),200);
+    else paintFallback();
+    return;
+  }
+  requestAnimationFrame(()=>{
+    QRCode.toCanvas(canvas,uri,{width:160,margin:1,color:{dark:'#1a2a40',light:'#ffffff'}})
+      .catch(err=>{console.error('TOTP QR render failed:',err);paintFallback();});
+  });
+}
 async function startTotpSetup(){
   try{
     const res=await fetch('/api/auth/totp/setup',{method:'POST',headers:authHeaders()});
@@ -2800,8 +2822,11 @@ async function startTotpSetup(){
     const d=await res.json();
     const box=document.getElementById('sec-2fa-qr');
     const uri=document.getElementById('sec-setup-uri');
+    const secret=document.getElementById('sec-setup-secret');
     if(uri)uri.textContent=d?.uri||'';
+    if(secret)secret.textContent=d?.secret||'';
     if(box)box.style.display='block';
+    drawTotpQr(d?.uri||'');
   }catch{flashSecurity('TOTP setup failed.',true);}
 }
 async function confirmTotpSetup(){
