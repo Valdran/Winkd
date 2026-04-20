@@ -2378,6 +2378,8 @@ function renderReactions(msgId){
 
 // ── WEBSOCKET ──
 let ws=null,wsReconnectDelay=2000,wsAuthenticated=false;
+const OFFLINE_SEND_QUEUE_KEY=myWinkdId?`winkd-offline-send-queue:${myWinkdId}`:'winkd-offline-send-queue';
+let offlineSendQueue=[];
 
 // Tier + size limits. Defaults match the server's free-tier caps so the UI
 // behaves correctly before the auth_ok frame arrives. Once we authenticate
@@ -2472,6 +2474,39 @@ function wsGetToken(){
   try{const auth=JSON.parse(localStorage.getItem('winkd-auth')||'{}');return auth?.state?.session?.token||'';}
   catch{return '';}
 }
+function loadOfflineSendQueue(){
+  try{
+    const raw=localStorage.getItem(OFFLINE_SEND_QUEUE_KEY);
+    const parsed=raw?JSON.parse(raw):[];
+    offlineSendQueue=Array.isArray(parsed)?parsed:[];
+  }catch{
+    offlineSendQueue=[];
+  }
+}
+function persistOfflineSendQueue(){
+  try{localStorage.setItem(OFFLINE_SEND_QUEUE_KEY,JSON.stringify(offlineSendQueue));}catch{}
+}
+function enqueueOfflineMessage(payload){
+  offlineSendQueue.push(payload);
+  persistOfflineSendQueue();
+}
+function flushOfflineSendQueue(){
+  if(!(ws?.readyState===WebSocket.OPEN&&wsAuthenticated))return;
+  if(offlineSendQueue.length===0)return;
+  let sent=0;
+  while(offlineSendQueue.length>0){
+    const payload=offlineSendQueue[0];
+    try{
+      ws.send(JSON.stringify({command:'send_message',payload}));
+      offlineSendQueue.shift();
+      sent++;
+    }catch{
+      break;
+    }
+  }
+  persistOfflineSendQueue();
+  if(sent>0)showToast(`Sent ${sent} queued message${sent===1?'':'s'}.`,'info');
+}
 
 function wsConnect(){
   const token=wsGetToken();if(!token)return;
@@ -2492,6 +2527,7 @@ function wsConnect(){
             m.tier, m.limits, m.purchased_extras,
             m.buddy_cap, m.buddy_used, m.group_chat_unlocked
           );
+          flushOfflineSendQueue();
         }
         return;
       }
@@ -2505,6 +2541,10 @@ function wsConnect(){
 function wsSend(command,payload){
   if(ws?.readyState===WebSocket.OPEN&&wsAuthenticated){
     ws.send(JSON.stringify({command,payload}));
+    return true;
+  }
+  if(command==='send_message'&&payload){
+    enqueueOfflineMessage(payload);
     return true;
   }
   return false;
@@ -3148,12 +3188,29 @@ function drawQR(text,_retries){
 // ── QR SCANNER ──
 let qrStream=null,qrScanInterval=null,detectedQRValue=null;
 let _qrScanCanvas=null,_qrScanCtx=null;
+function decodeQrFrameWithJsQr(){
+  if(!_qrScanCanvas||!_qrScanCtx||typeof jsQR==='undefined')return null;
+  const width=_qrScanCanvas.width,height=_qrScanCanvas.height;
+  if(width===0||height===0)return null;
+  // Try full-frame first.
+  let imgData=_qrScanCtx.getImageData(0,0,width,height);
+  let result=jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'attemptBoth'});
+  if(result)return result;
+  // Fallback: center crop helps when the code is small in a busy frame.
+  const cropW=Math.floor(width*0.72),cropH=Math.floor(height*0.72);
+  const cropX=Math.floor((width-cropW)/2),cropY=Math.floor((height-cropH)/2);
+  imgData=_qrScanCtx.getImageData(cropX,cropY,cropW,cropH);
+  return jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'attemptBoth'});
+}
 function initQRPanel(){document.getElementById('qr-result-box').style.display='none';document.getElementById('qr-scanner-status').textContent='Point your camera at a contact\u2019s QR code';}
 async function startQRScan(){
   const video=document.getElementById('qr-video'),idle=document.getElementById('qr-idle-state'),status=document.getElementById('qr-scanner-status'),startBtn=document.getElementById('qr-start-btn'),stopBtn=document.getElementById('qr-stop-btn'),scanline=document.getElementById('qr-scanline');
   try{
     qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false});
     video.srcObject=qrStream;
+    video.setAttribute('playsinline','true');
+    video.playsInline=true;
+    video.muted=true;
     await video.play();
     video.style.display='block';
     idle.style.display='none';
@@ -3168,10 +3225,12 @@ async function startQRScan(){
     if(typeof jsQR!=='undefined'){
       qrScanInterval=setInterval(()=>{
         if(video.readyState<2||video.videoWidth===0)return;
-        _qrScanCanvas.width=video.videoWidth;_qrScanCanvas.height=video.videoHeight;
+        const maxScanWidth=960;
+        const scale=Math.min(1,maxScanWidth/video.videoWidth);
+        _qrScanCanvas.width=Math.max(1,Math.floor(video.videoWidth*scale));
+        _qrScanCanvas.height=Math.max(1,Math.floor(video.videoHeight*scale));
         _qrScanCtx.drawImage(video,0,0);
-        const imgData=_qrScanCtx.getImageData(0,0,_qrScanCanvas.width,_qrScanCanvas.height);
-        const result=jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'dontInvert'});
+        const result=decodeQrFrameWithJsQr();
         if(result)handleQRDetect(result.data);
       },250);
     }
@@ -3471,6 +3530,7 @@ initDidYouKnow();
 registerSW();
 initInstallPrompt();
 initOfflineDetection();
+loadOfflineSendQueue();
 wsConnect();
 // Synchronous render path completed. Any later error is non-fatal — don't
 // tear the whole UI down with the fatal overlay.
