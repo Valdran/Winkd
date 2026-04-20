@@ -424,6 +424,20 @@ export function Sidebar({ send }: SidebarProps) {
             ))}
           </div>
         )}
+
+        {filteredAccepted.length === 0 && filteredPendingOut.length === 0 && (
+          <div
+            style={{
+              padding: '16px 12px',
+              color: 'rgba(175,205,245,0.55)',
+              fontSize: 11,
+              textAlign: 'center',
+              fontStyle: 'italic',
+            }}
+          >
+            No contacts right now.
+          </div>
+        )}
       </div>
 
       {/* Footer */}
