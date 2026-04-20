@@ -1786,6 +1786,24 @@ function renderMoodText(el,mood){
   el.textContent=text;
 }
 
+function escapeHtml(v){
+  return (v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function moodToInlineHtml(mood,size=14){
+  const text=(mood||'').trim();
+  if(!text)return '';
+  const m=text.match(/^((:[a-z0-9-]+:)|(https?:\/\/[^\s]+\.(?:png|gif|webp))|(\/(?:msn-emoticons|emoji-packs)\/[^\s]+\.(?:png|gif|webp))|(\p{Emoji_Presentation}|\p{Emoji}️))\s*(.*)$/iu);
+  if(!m)return escapeHtml(text);
+  const leading=m[1];
+  const rest=escapeHtml(m[6]||'');
+  const tokenAsset=emojiTokenToAsset(leading);
+  const isAsset=!!tokenAsset||isClassicEmojiValue(leading)||/^https?:\/\/[^\s]+\.(?:png|gif|webp)$/i.test(leading);
+  if(!isAsset)return escapeHtml(text);
+  const src=tokenAsset||leading;
+  return `<img src="${src}" alt="mood emoji" style="width:${size}px;height:${size}px;vertical-align:middle;object-fit:contain;margin-right:4px;">${rest}`;
+}
+
 function renderContacts(f=''){
   const list=document.getElementById('contact-list');list.innerHTML='';
   [{key:'online',label:'Online',col:'rgba(160,230,160,0.97)'},{key:'away',label:'Away',col:'rgba(255,220,100,0.97)'},{key:'busy',label:'Busy',col:'rgba(255,140,140,0.97)'},{key:'offline',label:'Offline',col:'rgba(200,215,235,0.90)'}]
@@ -1800,7 +1818,7 @@ function renderContacts(f=''){
     ms.forEach(c=>{
       const it=document.createElement('div');it.className='contact-item'+(activeContact===c.id?' active':'');
       const avatarInner=c.avatarSrc?`<img src="${c.avatarSrc}" alt="${c.initials}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;display:block;">`:c.initials;
-      it.innerHTML=`<div class="c-av" style="background:${avBg(c.color,dk(c.color),c.status)};">${avatarInner}<div class="c-dot" style="background:${SC[c.status]};"></div></div><div style="flex:1;min-width:0;"><div class="c-name">${c.name}</div><div class="c-mood">${c.mood}</div></div>${c.unread>0?`<div class="c-badge">${c.unread}</div>`:''}`;
+      it.innerHTML=`<div class="c-av" style="background:${avBg(c.color,dk(c.color),c.status)};">${avatarInner}<div class="c-dot" style="background:${SC[c.status]};"></div></div><div style="flex:1;min-width:0;"><div class="c-name">${escapeHtml(c.name)}</div><div class="c-mood">${moodToInlineHtml(c.mood,13)}</div></div>${c.unread>0?`<div class="c-badge">${c.unread}</div>`:''}`;
       it.onclick=()=>selectContact(c.id);ge.appendChild(it);
     });
     list.appendChild(ge);
@@ -1826,7 +1844,7 @@ function buildChat(c){
     const imgTag=imgSrc?`<img src="${imgSrc}" alt="${initials}">`:`<span>${initials}</span>`;
     const dot=!isMe&&statusKey?`<div class="dp-status-dot" style="background:${SC[statusKey]};"></div>`:'';
     const statusLine=!isMe&&statusKey?`<div class="dp-contact-status" style="color:${SC[statusKey]};">● ${statusKey}</div>`:'';
-    const moodLine=mood?`<div class="dp-contact-mood">${mood}</div>`:'';
+    const moodLine=mood?`<div class="dp-contact-mood">${moodToInlineHtml(mood,14)}</div>`:'';
     return `<div class="dp-frame" style="background:${avBg(colorA,colorB,statusKey||'offline')};" title="${label}">${imgTag}${dot}</div>
             <div class="dp-info"><div class="dp-contact-name">${label}</div>${statusLine}${moodLine}</div>`;
   }
@@ -1879,8 +1897,10 @@ function buildChat(c){
     <div id="chat-input-area">
       <textarea id="chat-input" placeholder="Type a message…" rows="1"></textarea>
       <div id="input-file-btns">
-        <div class="tbtn" onclick="sendFile()" title="Photo">📷</div>
-        <div class="tbtn" onclick="sendFile()" title="File">📁</div>
+        <div class="tbtn" onclick="openPhotoPicker()" title="Photo">📷</div>
+        <div class="tbtn" onclick="openFilePicker()" title="File">📁</div>
+        <input id="photo-upload-input" type="file" accept="image/*" style="display:none;" onchange="handlePhotoSelected(this)">
+        <input id="file-upload-input" type="file" style="display:none;" onchange="handleFileSelected(this)">
       </div>
       <div id="send-btn" onclick="sendMsg()">Send</div>
     </div>
@@ -2214,7 +2234,61 @@ function showWinkOverlay(pack,fromMe){
 function closeWinkOverlay(){clearTimeout(winkDismissTimer);const overlay=document.getElementById('wink-overlay');if(!overlay)return;overlay.classList.remove('active');setTimeout(()=>overlay.classList.remove('playing'),220);}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeWinkOverlay();closeActionSheet();}});
 
-function sendFile(){const msgs=document.getElementById('chat-messages');if(!msgs)return;const el=document.createElement('div');el.className='system-msg';el.textContent='📁 File sharing coming in a future update.';msgs.appendChild(el);sb();}
+
+function openPhotoPicker(){
+  const input=document.getElementById('photo-upload-input');
+  if(input)input.click();
+}
+
+function openFilePicker(){
+  const input=document.getElementById('file-upload-input');
+  if(input)input.click();
+}
+
+function setComposeImageFromFile(file){
+  if(!file)return;
+  if(!(file.type||'').startsWith('image/')){
+    showToast('That file is not an image. Use 📁 to add a file note.','error');
+    return;
+  }
+  if(file.size>supporterLimits.max_media_bytes){
+    showToast(`Image is ${humanMb(file.size)} — limit is ${humanMb(supporterLimits.max_media_bytes)}.${upgradeHint()}`,'error');
+    return;
+  }
+  const fr=new FileReader();
+  fr.onload=ev=>{
+    composeAttachment={kind:'image',data:ev.target.result,mime:file.type||'image/png'};
+    renderComposePreview();
+  };
+  fr.readAsDataURL(file);
+}
+
+function handlePhotoSelected(input){
+  const file=input?.files?.[0];
+  if(file)setComposeImageFromFile(file);
+  if(input)input.value='';
+}
+
+function handleFileSelected(input){
+  const file=input?.files?.[0];
+  if(!file){if(input)input.value='';return;}
+  if((file.type||'').startsWith('image/')){
+    setComposeImageFromFile(file);
+  }else{
+    const inp=document.getElementById('chat-input');
+    if(inp){
+      const sizeLabel=(file.size/1024)<1024?`${Math.max(1,Math.round(file.size/1024))}KB`:`${(file.size/(1024*1024)).toFixed(1)}MB`;
+      const snippet=`📎 ${file.name} (${sizeLabel})`;
+      inp.value=inp.value?`${inp.value}
+${snippet}`:snippet;
+      inp.dispatchEvent(new Event('input'));
+      inp.focus();
+    }
+    showToast('File attached as a message note. Image files send inline.','info');
+  }
+  if(input)input.value='';
+}
+
 function blockActiveContact(){
   if(!activeContact)return;
   const contact=contacts.find(c=>c.id===activeContact);
