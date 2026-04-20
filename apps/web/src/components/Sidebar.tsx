@@ -243,9 +243,12 @@ export function Sidebar({ send }: SidebarProps) {
               color: STATUS_COLORS[profile.status],
               cursor: 'pointer',
               userSelect: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
             }}
           >
-            {STATUS_LABELS[profile.status]}
+            {renderRichEmojiText(STATUS_LABELS[profile.status], 12)}
           </div>
           <div
             onClick={() => setShowProfileEdit(true)}
@@ -379,7 +382,9 @@ export function Sidebar({ send }: SidebarProps) {
                 }}
               >
                 <span style={{ fontSize: 7 }}>{isCollapsed ? '▶' : '▼'}</span>
-                {label} ({group.length})
+                <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  {renderRichEmojiText(label, 12)} ({group.length})
+                </span>
               </div>
 
               {!isCollapsed &&
