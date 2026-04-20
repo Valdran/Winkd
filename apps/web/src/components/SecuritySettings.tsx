@@ -2,7 +2,7 @@
 // Lets the authenticated user manage their 2FA, backup codes, devices,
 // and view their security audit log. Rendered inside the app as a modal/pane.
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuthStore } from '../stores/authStore'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
@@ -104,7 +104,10 @@ interface Props {
 export function SecuritySettings({ onClose }: Props) {
   const session = useAuthStore((s) => s.session)
   const token = session?.token ?? ''
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+  const headers = useMemo(
+    () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }),
+    [token],
+  )
 
   // ── 2FA state
   const [totpEnabled, setTotpEnabled] = useState(false)
@@ -119,6 +122,8 @@ export function SecuritySettings({ onClose }: Props) {
 
   // ── Device state
   const [devices, setDevices] = useState<Device[]>([])
+  const [devicesLoading, setDevicesLoading] = useState(false)
+  const [devicesError, setDevicesError] = useState('')
 
   // ── Audit state
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
@@ -128,6 +133,22 @@ export function SecuritySettings({ onClose }: Props) {
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const loadDevices = useCallback(async () => {
+    if (!token) return
+    setDevicesLoading(true)
+    setDevicesError('')
+    try {
+      const res = await fetch(`${API_URL}/api/devices`, { headers })
+      if (!res.ok) throw new Error('Device list request failed')
+      const d = await res.json() as { devices: Device[] }
+      setDevices(d.devices ?? [])
+    } catch {
+      setDevicesError('Could not load connected devices right now.')
+    } finally {
+      setDevicesLoading(false)
+    }
+  }, [headers, token])
 
   // Load 2FA status and devices on mount
   useEffect(() => {
@@ -140,11 +161,8 @@ export function SecuritySettings({ onClose }: Props) {
       })
       .catch(() => {})
 
-    fetch(`${API_URL}/api/devices`, { headers })
-      .then(r => r.json() as Promise<{ devices: Device[] }>)
-      .then(d => setDevices(d.devices ?? []))
-      .catch(() => {})
-  }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
+    loadDevices()
+  }, [loadDevices, token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const flash = (m: string, isErr = false) => {
     isErr ? setErr(m) : setMsg(m)
@@ -401,8 +419,20 @@ export function SecuritySettings({ onClose }: Props) {
 
       {/* ── Connected Devices ─────────────────────────────────────── */}
       <div style={sectionTitle}>Connected Devices</div>
-      {devices.length === 0 ? (
-        <div style={{ fontSize: 10, color: '#7a9ab0', marginBottom: 8 }}>No registered devices.</div>
+      {devicesLoading ? (
+        <div style={{ fontSize: 10, color: '#7a9ab0', marginBottom: 8 }}>Loading devices…</div>
+      ) : devicesError ? (
+        <div style={{ ...cardStyle }}>
+          <div style={{ fontSize: 10, color: '#b03030', marginBottom: 8 }}>{devicesError}</div>
+          <button style={btnGhost} onClick={loadDevices} disabled={loading}>Retry</button>
+        </div>
+      ) : devices.length === 0 ? (
+        <div style={{ ...cardStyle, marginBottom: 8 }}>
+          <div style={{ fontSize: 10, color: '#5a7a9a', marginBottom: 8 }}>
+            No registered devices yet. Devices appear here after a successful sign-in.
+          </div>
+          <button style={btnGhost} onClick={loadDevices} disabled={loading}>Refresh List</button>
+        </div>
       ) : (
         devices.map(d => (
           <div key={d.id} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
