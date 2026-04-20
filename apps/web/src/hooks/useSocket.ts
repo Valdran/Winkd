@@ -27,6 +27,7 @@ export function useSocket() {
   const addAcceptedContact = useContactsStore((s) => s.addAcceptedContact)
   const setContacts = useContactsStore((s) => s.setContacts)
   const removeContact = useContactsStore((s) => s.removeContact)
+  const closeConversation = useChatStore((s) => s.closeConversation)
 
   const send = useCallback((payload: object) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -207,6 +208,9 @@ export function useSocket() {
             avatarData: payload.avatar_data ?? null,
             blockedAt: payload.blocked_at,
           })
+          if (activeConversationId === payload.winkd_id) {
+            closeConversation()
+          }
           removeContact(payload.winkd_id)
         } else if (envelope.event === 'contact_unblocked') {
           const payload = envelope.payload as { user_id: string }
@@ -269,6 +273,7 @@ export function useSocket() {
     addAcceptedContact,
     setContacts,
     removeContact,
+    closeConversation,
     setSupporterState,
   ])
 

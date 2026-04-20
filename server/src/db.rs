@@ -448,6 +448,12 @@ pub async fn list_contact_roster(
              END
            WHERE (cr.from_id = $1 OR cr.to_id = $1)
              AND (cr.status = 'accepted' OR (cr.status = 'pending' AND cr.from_id = $1))
+             AND NOT EXISTS (
+               SELECT 1
+               FROM blocks b
+               WHERE (b.blocker_id = $1 AND b.blocked_id = u.id)
+                  OR (b.blocker_id = u.id AND b.blocked_id = $1)
+             )
            ORDER BY cr.created_at DESC"#,
     )
     .bind(user_id)
@@ -467,7 +473,19 @@ pub async fn list_accepted_contact_user_ids(
              END AS contact_user_id
            FROM contact_requests cr
            WHERE (cr.from_id = $1 OR cr.to_id = $1)
-             AND cr.status = 'accepted'"#,
+             AND cr.status = 'accepted'
+             AND NOT EXISTS (
+               SELECT 1
+               FROM blocks b
+               WHERE (b.blocker_id = $1 AND b.blocked_id = CASE
+                       WHEN cr.from_id = $1 THEN cr.to_id
+                       ELSE cr.from_id
+                     END)
+                  OR (b.blocker_id = CASE
+                       WHEN cr.from_id = $1 THEN cr.to_id
+                       ELSE cr.from_id
+                     END AND b.blocked_id = $1)
+             )"#,
     )
     .bind(user_id)
     .fetch_all(pool)
