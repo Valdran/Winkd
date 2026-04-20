@@ -281,6 +281,8 @@ export function SecuritySettings({ onClose }: Props) {
     password_changed: '🔒 Password changed',
   }
 
+  const currentDeviceId = devices.length > 0 ? devices[0]?.device_id : null
+
   // ── Render ─────────────────────────────────────────────────────────────
 
   return (
@@ -419,6 +421,14 @@ export function SecuritySettings({ onClose }: Props) {
 
       {/* ── Connected Devices ─────────────────────────────────────── */}
       <div style={sectionTitle}>Connected Devices</div>
+      <div style={{ ...cardStyle, marginBottom: 8 }}>
+        <div style={{ fontSize: 10, color: '#4a6788', marginBottom: 4 }}>
+          This list shows every device that can access your account and receive encrypted messages.
+        </div>
+        <div style={{ fontSize: 9, color: '#6f8ca8' }}>
+          The top entry is marked as your current device (based on most recent activity).
+        </div>
+      </div>
       {devicesLoading ? (
         <div style={{ fontSize: 10, color: '#7a9ab0', marginBottom: 8 }}>Loading devices…</div>
       ) : devicesError ? (
@@ -437,7 +447,23 @@ export function SecuritySettings({ onClose }: Props) {
         devices.map(d => (
           <div key={d.id} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 11 }}>💻 {d.device_name}</div>
+              <div style={{ fontWeight: 600, fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>💻 {d.device_name}</span>
+                {currentDeviceId !== null && d.device_id === currentDeviceId && (
+                  <span style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    color: '#1a5a1a',
+                    background: 'rgba(40,140,60,0.12)',
+                    border: '1px solid rgba(40,140,60,0.25)',
+                    borderRadius: 999,
+                    padding: '1px 6px',
+                  }}
+                  >
+                    Current device
+                  </span>
+                )}
+              </div>
               <div style={{ fontSize: 9, color: '#7a9ab0', marginTop: 1 }}>
                 Registered {fmtDate(d.registered_at)} · Last seen {fmtDate(d.last_seen)}
               </div>
