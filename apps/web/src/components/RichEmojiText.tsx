@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 const INLINE_TOKEN_REGEX = /(https?:\/\/[^\s]+|\/(?:emoji-packs|msn-emoticons)\/[^\s]+)/gi
+const TRAILING_PUNCTUATION_REGEX = /[),.;:!?'"`]+$/
 
 function isInlineEmojiAsset(token: string): boolean {
   const normalized = token.toLowerCase()
@@ -14,26 +15,46 @@ function isInlineEmojiAsset(token: string): boolean {
   )
 }
 
+function splitInlineEmojiToken(rawToken: string): { asset: string | null; trailingText: string } {
+  const trimmed = rawToken.trim()
+  if (isInlineEmojiAsset(trimmed)) {
+    return { asset: trimmed, trailingText: '' }
+  }
+
+  const withoutPunctuation = trimmed.replace(TRAILING_PUNCTUATION_REGEX, '')
+  if (!withoutPunctuation || !isInlineEmojiAsset(withoutPunctuation)) {
+    return { asset: null, trailingText: '' }
+  }
+
+  return {
+    asset: withoutPunctuation,
+    trailingText: trimmed.slice(withoutPunctuation.length),
+  }
+}
+
 export function renderRichEmojiText(text: string, size = 16): ReactNode[] {
   const tokens = text.split(INLINE_TOKEN_REGEX)
   return tokens
     .filter((token) => token.length > 0)
     .map((token, index) => {
-      if (!isInlineEmojiAsset(token)) return <span key={`text-${index}`}>{token}</span>
+      const { asset, trailingText } = splitInlineEmojiToken(token)
+      if (!asset) return <span key={`text-${index}`}>{token}</span>
 
       return (
-        <img
-          key={`emoji-${index}`}
-          src={token}
-          alt="emoji"
-          style={{
-            width: size,
-            height: size,
-            verticalAlign: 'text-bottom',
-            objectFit: 'contain',
-            margin: '0 2px',
-          }}
-        />
+        <span key={`emoji-${index}`}>
+          <img
+            src={asset}
+            alt="emoji"
+            style={{
+              width: size,
+              height: size,
+              verticalAlign: 'text-bottom',
+              objectFit: 'contain',
+              margin: '0 2px',
+            }}
+          />
+          {trailingText}
+        </span>
       )
     })
 }

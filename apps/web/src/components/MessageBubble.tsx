@@ -2,6 +2,7 @@ import type { Message } from '@winkd/types'
 import { renderRichEmojiText } from './RichEmojiText'
 
 const URL_REGEX = /(https?:\/\/[^\s]+|\/(?:emoji-packs|msn-emoticons)\/[^\s]+)/g
+const TRAILING_PUNCTUATION_REGEX = /[),.;:!?'"`]+$/
 
 function isImageAssetUrl(rawUrl: string): boolean {
   const normalized = rawUrl.toLowerCase()
@@ -24,6 +25,23 @@ function isInlineEmojiAsset(rawUrl: string): boolean {
     normalized.includes('/msn-emoticons/') ||
     normalized.includes('/msn-emoticons/raw/main/original/')
   )
+}
+
+function splitInlineEmojiToken(rawUrl: string): { asset: string | null; trailingText: string } {
+  const trimmed = rawUrl.trim()
+  if (isInlineEmojiAsset(trimmed) && isImageAssetUrl(trimmed)) {
+    return { asset: trimmed, trailingText: '' }
+  }
+
+  const withoutPunctuation = trimmed.replace(TRAILING_PUNCTUATION_REGEX, '')
+  if (!withoutPunctuation || !isInlineEmojiAsset(withoutPunctuation) || !isImageAssetUrl(withoutPunctuation)) {
+    return { asset: null, trailingText: '' }
+  }
+
+  return {
+    asset: withoutPunctuation,
+    trailingText: trimmed.slice(withoutPunctuation.length),
+  }
 }
 
 interface MessageBubbleProps {
@@ -133,8 +151,14 @@ export function MessageBubble({ message, isMe }: MessageBubbleProps) {
         }
 
         if (isImageAssetUrl(part)) {
-          if (isInlineEmojiAsset(part)) {
-            return <span key={`inline-image-${index}`}>{renderRichEmojiText(part, 20)}</span>
+          const { asset, trailingText } = splitInlineEmojiToken(part)
+          if (asset) {
+            return (
+              <span key={`inline-image-${index}`}>
+                {renderRichEmojiText(asset, 20)}
+                {trailingText}
+              </span>
+            )
           }
           return (
             <img
