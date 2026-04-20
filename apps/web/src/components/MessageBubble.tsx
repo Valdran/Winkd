@@ -1,14 +1,29 @@
 import type { Message } from '@winkd/types'
+import { renderRichEmojiText } from './RichEmojiText'
 
-const URL_REGEX = /(https?:\/\/[^\s]+)/g
+const URL_REGEX = /(https?:\/\/[^\s]+|\/(?:emoji-packs|msn-emoticons)\/[^\s]+)/g
 
 function isImageAssetUrl(rawUrl: string): boolean {
   const normalized = rawUrl.toLowerCase()
-  return /(\.gif|\.webp|\.png|\.jpg|\.jpeg)(\?|$)/.test(normalized) || normalized.includes('/media')
+  return (
+    /(\.gif|\.webp|\.png|\.jpg|\.jpeg)(\?|$)/.test(normalized) ||
+    normalized.includes('/media')
+  )
 }
 
 function shouldHideCompanionGifLink(rawUrl: string): boolean {
   return /https?:\/\/(?:www\.)?(?:giphy\.com|tenor\.com)\//i.test(rawUrl)
+}
+
+function isInlineEmojiAsset(rawUrl: string): boolean {
+  const normalized = rawUrl.toLowerCase()
+  return (
+    normalized.startsWith('/emoji-packs/') ||
+    normalized.startsWith('/msn-emoticons/') ||
+    normalized.includes('/emoji-packs/') ||
+    normalized.includes('/msn-emoticons/') ||
+    normalized.includes('/msn-emoticons/raw/main/original/')
+  )
 }
 
 interface MessageBubbleProps {
@@ -118,6 +133,9 @@ export function MessageBubble({ message, isMe }: MessageBubbleProps) {
         }
 
         if (isImageAssetUrl(part)) {
+          if (isInlineEmojiAsset(part)) {
+            return <span key={`inline-image-${index}`}>{renderRichEmojiText(part, 20)}</span>
+          }
           return (
             <img
               key={`image-${index}`}

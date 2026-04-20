@@ -7,6 +7,7 @@ import { MessageBubble } from './MessageBubble'
 import { WinkdToolbar } from './WinkdToolbar'
 import { StatusBar } from './StatusBar'
 import { EmojiPicker } from './EmojiPicker'
+import { renderRichEmojiText } from './RichEmojiText'
 
 interface ChatWindowProps {
   send: (payload: object) => void
@@ -127,7 +128,7 @@ export function ChatWindow({ send }: ChatWindowProps) {
           </div>
           {contact.moodMessage && (
             <div style={{ fontSize: 10, color: 'rgba(190,215,255,0.5)' }}>
-              {contact.moodMessage}
+              {renderRichEmojiText(contact.moodMessage, 13)}
             </div>
           )}
         </div>
@@ -223,7 +224,7 @@ export function ChatWindow({ send }: ChatWindowProps) {
           </span>
           {session.profile.moodMessage && (
             <span style={{ fontSize: 10, color: 'rgba(170,200,255,0.35)', fontStyle: 'italic' }}>
-              — {session.profile.moodMessage}
+              — {renderRichEmojiText(session.profile.moodMessage, 13)}
             </span>
           )}
         </div>

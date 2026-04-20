@@ -7,6 +7,7 @@ import { useChatStore } from '../stores/chatStore'
 import { ContactItem } from './ContactItem'
 import { StatusBar } from './StatusBar'
 import { SecuritySettings } from './SecuritySettings'
+import { renderRichEmojiText } from './RichEmojiText'
 
 const STATUS_LABELS: Record<UserStatus, string> = {
   online: '● Online',
@@ -224,7 +225,7 @@ export function Sidebar({ send }: SidebarProps) {
               cursor: 'pointer',
             }}
           >
-            {profile.moodMessage || 'Set a mood…'}
+            {profile.moodMessage ? renderRichEmojiText(profile.moodMessage, 14) : 'Set a mood…'}
           </div>
           <div
             style={{
