@@ -143,6 +143,35 @@ body {
   text-shadow: 0 1px 3px rgba(0,0,40,0.7);
 }
 
+.demo-actionbar {
+  background: linear-gradient(to bottom, rgba(210,228,255,0.18) 0%, rgba(160,200,255,0.1) 100%);
+  border-bottom: 1px solid rgba(120,170,240,0.24);
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.demo-action-btn {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 3px;
+  border: 1px solid rgba(100,150,220,0.38);
+  background: linear-gradient(180deg, rgba(220,235,255,0.88) 0%, rgba(180,210,255,0.75) 100%);
+  font-size: 11px;
+  color: #1a2a40;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.demo-action-btn.wink { background: linear-gradient(180deg, #fff8d0 0%, #ffe880 100%); }
+.demo-action-btn.nudge { background: linear-gradient(180deg, #d8ffd8 0%, #a0f0a0 100%); }
+.demo-action-sep {
+  width: 1px;
+  height: 18px;
+  background: rgba(120,170,240,0.35);
+  margin: 0 2px;
+}
+
 /* Aero window buttons */
 .aero-winbtns { display: flex; gap: 2px; }
 .aero-wb {
@@ -1328,12 +1357,16 @@ body {
                   <div class="aero-wb aero-wb-close">✕</div>
                 </div>
               </div>
-              <div style="background:linear-gradient(to bottom,rgba(220,235,255,0.97) 0%,rgba(200,220,255,0.95) 100%);border-bottom:1px solid rgba(120,170,240,0.3);padding:1px 4px;display:flex;">
-                <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;font-family:'Segoe UI',sans-serif;">File</div>
-                <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;font-family:'Segoe UI',sans-serif;">Contacts</div>
-                <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;font-family:'Segoe UI',sans-serif;">Actions</div>
-                <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;font-family:'Segoe UI',sans-serif;">Tools</div>
-                <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;font-family:'Segoe UI',sans-serif;">Help</div>
+              <div class="demo-actionbar">
+                <div class="demo-action-btn wink">💥 Winkd!</div>
+                <div class="demo-action-btn nudge">🫸 Nudge</div>
+                <div class="demo-action-sep"></div>
+                <div class="demo-action-btn">✨ Winks</div>
+                <div class="demo-action-btn">😄 Emoticons</div>
+                <div class="demo-action-btn">A</div>
+                <div class="demo-action-sep"></div>
+                <div class="demo-action-btn">🖼️ BG</div>
+                <div class="demo-action-btn">✏️ Draw</div>
               </div>
               <div style="display:flex;height:480px;">
                 <!-- SIDEBAR -->
@@ -1913,13 +1946,17 @@ body {
           <div class="aero-wb aero-wb-close">✕</div>
         </div>
       </div>
-      <!-- Menu bar -->
-      <div style="background:linear-gradient(to bottom,rgba(220,235,255,0.97) 0%,rgba(200,220,255,0.95) 100%);border-bottom:1px solid rgba(120,170,240,0.3);padding:1px 4px;display:flex;">
-        <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;border-radius:3px;font-family:'Segoe UI',sans-serif;">File</div>
-        <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;border-radius:3px;font-family:'Segoe UI',sans-serif;">Contacts</div>
-        <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;border-radius:3px;font-family:'Segoe UI',sans-serif;">Actions</div>
-        <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;border-radius:3px;font-family:'Segoe UI',sans-serif;">Tools</div>
-        <div style="padding:3px 8px;font-size:11px;color:#1a2a50;cursor:pointer;border-radius:3px;font-family:'Segoe UI',sans-serif;">Help</div>
+      <!-- Action toolbar -->
+      <div class="demo-actionbar">
+        <div class="demo-action-btn wink">💥 Winkd!</div>
+        <div class="demo-action-btn nudge">🫸 Nudge</div>
+        <div class="demo-action-sep"></div>
+        <div class="demo-action-btn">✨ Winks</div>
+        <div class="demo-action-btn">😄 Emoticons</div>
+        <div class="demo-action-btn">A</div>
+        <div class="demo-action-sep"></div>
+        <div class="demo-action-btn">🖼️ BG</div>
+        <div class="demo-action-btn">✏️ Draw</div>
       </div>
       <div style="display:flex;height:540px;">
         <!-- SIDEBAR -->
