@@ -344,17 +344,17 @@ export function SecuritySettings({ onClose }: Props) {
 
           {/* Disable 2FA */}
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 10, color: '#5a7a9a', marginBottom: 4 }}>Disable 2FA (requires current TOTP code):</div>
+            <div style={{ fontSize: 10, color: '#5a7a9a', marginBottom: 4 }}>Disable 2FA (requires current TOTP or backup code):</div>
             <div style={{ display: 'flex', gap: 6 }}>
               <input
-                style={{ ...inputStyle, width: 90, textAlign: 'center', letterSpacing: '0.15em' }}
-                placeholder="123456"
-                maxLength={6}
-                inputMode="numeric"
+                style={{ ...inputStyle, width: 210, textAlign: 'center', letterSpacing: '0.08em' }}
+                placeholder="123456 or backup-code"
+                maxLength={36}
+                inputMode="text"
                 value={disableCode}
-                onChange={e => setDisableCode(e.target.value.replace(/\D/g, ''))}
+                onChange={e => setDisableCode(e.target.value.replace(/\s/g, ''))}
               />
-              <button style={btnDanger} onClick={disableTotp} disabled={loading || disableCode.length !== 6}>Disable</button>
+              <button style={btnDanger} onClick={disableTotp} disabled={loading || disableCode.trim().length < 6}>Disable</button>
             </div>
           </div>
         </div>
@@ -366,7 +366,7 @@ export function SecuritySettings({ onClose }: Props) {
           <div style={sectionTitle}>Backup Codes</div>
           <div style={cardStyle}>
             <div style={{ fontSize: 10, color: '#5a7a9a', marginBottom: 6 }}>
-              Regenerate all backup codes (requires current TOTP code). Old codes are invalidated immediately.
+              Regenerate all backup codes (requires current TOTP or backup code). Old codes are invalidated immediately.
             </div>
             {backupCodes.length > 0 ? (
               <div style={{ ...cardStyle, background: 'rgba(255,250,220,0.9)', borderColor: 'rgba(200,160,40,0.4)', marginBottom: 8 }}>
@@ -380,14 +380,14 @@ export function SecuritySettings({ onClose }: Props) {
             ) : (
               <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
                 <input
-                  style={{ ...inputStyle, width: 90, textAlign: 'center', letterSpacing: '0.15em' }}
-                  placeholder="123456"
-                  maxLength={6}
-                  inputMode="numeric"
+                  style={{ ...inputStyle, width: 210, textAlign: 'center', letterSpacing: '0.08em' }}
+                  placeholder="123456 or backup-code"
+                  maxLength={36}
+                  inputMode="text"
                   value={regenCode}
-                  onChange={e => setRegenCode(e.target.value.replace(/\D/g, ''))}
+                  onChange={e => setRegenCode(e.target.value.replace(/\s/g, ''))}
                 />
-                <button style={btnPrimary} onClick={regenerateCodes} disabled={loading || regenCode.length !== 6}>
+                <button style={btnPrimary} onClick={regenerateCodes} disabled={loading || regenCode.trim().length < 6}>
                   Regenerate
                 </button>
               </div>

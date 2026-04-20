@@ -25,6 +25,7 @@ use oauth2::{
     TokenUrl,
 };
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use sha2::{Digest, Sha256};
 
@@ -1084,6 +1085,25 @@ fn sha256_hex(input: &str) -> String {
     hex::encode(Sha256::digest(input.as_bytes()))
 }
 
+/// Verify either a current 6-digit TOTP code or a one-time recovery code.
+/// Returns true on success; recovery codes are consumed on use.
+async fn verify_totp_or_recovery(
+    pool: &db::DbPool,
+    user_id: Uuid,
+    secret: &str,
+    code: &str,
+) -> Result<bool, AppError> {
+    let code_clean = code.trim();
+    if code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()) {
+        return Ok(totp::verify(secret, code_clean));
+    }
+
+    let hash = sha256_hex(code_clean);
+    db::consume_recovery_code(pool, user_id, &hash)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))
+}
+
 // ── TOTP: challenge verification (2FA login step) ──────────────────────────
 
 #[derive(Deserialize)]
@@ -1118,21 +1138,15 @@ pub async fn totp_challenge(
         .ok_or(AppError::Unauthorized)?;
 
     // Try TOTP code first, then backup code.
-    let code_clean = body.code.trim();
-    let verified = if code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()) {
-        totp::verify(secret, code_clean)
-    } else {
-        // Treat as a backup code: hash it and look it up in the DB.
-        let hash = sha256_hex(code_clean);
-        let consumed = db::consume_recovery_code(pool, user_id, &hash)
-            .await
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-        if consumed {
-            audit::log(pool, Some(user_id), audit::Action::RecoveryCodeUsed, Some(&ip),
-                serde_json::json!({ "remaining": db::count_recovery_codes(pool, user_id).await.unwrap_or(0) })).await;
-        }
-        consumed
+    let using_recovery_code = {
+        let code_clean = body.code.trim();
+        !(code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()))
     };
+    let verified = verify_totp_or_recovery(pool, user_id, secret, &body.code).await?;
+    if verified && using_recovery_code {
+        audit::log(pool, Some(user_id), audit::Action::RecoveryCodeUsed, Some(&ip),
+            serde_json::json!({ "remaining": db::count_recovery_codes(pool, user_id).await.unwrap_or(0) })).await;
+    }
 
     if !verified {
         audit::log(pool, Some(user_id), audit::Action::TotpChallengeFailed, Some(&ip),
@@ -1210,8 +1224,16 @@ pub async fn totp_confirm(
         .as_deref()
         .ok_or_else(|| AppError::Internal("No pending TOTP secret — call /setup first".into()))?;
 
-    if !totp::verify(secret, body.code.trim()) {
+    let using_recovery_code = {
+        let code_clean = body.code.trim();
+        !(code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()))
+    };
+    if !verify_totp_or_recovery(pool, user.id, secret, &body.code).await? {
         return Err(AppError::Unauthorized);
+    }
+    if using_recovery_code {
+        audit::log(pool, Some(user.id), audit::Action::RecoveryCodeUsed, Some(&ip),
+            serde_json::json!({ "remaining": db::count_recovery_codes(pool, user.id).await.unwrap_or(0) })).await;
     }
 
     // Enable 2FA and generate backup codes atomically.
@@ -1251,8 +1273,16 @@ pub async fn totp_disable(
     }
 
     let secret = user.totp_secret.as_deref().ok_or(AppError::Unauthorized)?;
-    if !totp::verify(secret, body.code.trim()) {
+    let using_recovery_code = {
+        let code_clean = body.code.trim();
+        !(code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()))
+    };
+    if !verify_totp_or_recovery(pool, user.id, secret, &body.code).await? {
         return Err(AppError::Unauthorized);
+    }
+    if using_recovery_code {
+        audit::log(pool, Some(user.id), audit::Action::RecoveryCodeUsed, Some(&ip),
+            serde_json::json!({ "remaining": db::count_recovery_codes(pool, user.id).await.unwrap_or(0) })).await;
     }
 
     db::set_totp_enabled(pool, user.id, false)
@@ -1269,7 +1299,7 @@ pub async fn totp_disable(
 
 #[derive(Deserialize)]
 pub struct RegenerateCodesRequest {
-    /// Requires a valid TOTP code to confirm intent before wiping old codes.
+    /// Requires a valid TOTP or recovery code to confirm intent before wiping old codes.
     pub code: String,
 }
 
@@ -1295,8 +1325,16 @@ pub async fn recovery_codes_generate(
     }
 
     let secret = user.totp_secret.as_deref().ok_or(AppError::Unauthorized)?;
-    if !totp::verify(secret, body.code.trim()) {
+    let using_recovery_code = {
+        let code_clean = body.code.trim();
+        !(code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()))
+    };
+    if !verify_totp_or_recovery(pool, user.id, secret, &body.code).await? {
         return Err(AppError::Unauthorized);
+    }
+    if using_recovery_code {
+        audit::log(pool, Some(user.id), audit::Action::RecoveryCodeUsed, Some(&ip),
+            serde_json::json!({ "remaining": db::count_recovery_codes(pool, user.id).await.unwrap_or(0) })).await;
     }
 
     let remaining_before = db::count_recovery_codes(pool, user.id)
