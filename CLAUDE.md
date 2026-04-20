@@ -12,6 +12,11 @@ The core thesis: modern messaging apps (Discord, Signal, iMessage) are sterile a
 
 **App icon:** `https://i.imgur.com/cg6eejI.png`
 
+## Process Rules (Repository Hygiene)
+
+- Every pull request must review and update `ROADMAP.md` when feature scope, implementation status, priorities, or exclusions change.
+- If no roadmap edits are needed for a PR, the PR description must explicitly state: "Roadmap reviewed; no update required."
+
 ---
 
 ## Design Language

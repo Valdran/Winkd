@@ -37,9 +37,10 @@ impl RateLimiter {
     pub async fn check(&self, ip: IpAddr) -> bool {
         let mut map = self.entries.lock().await;
         let now = Instant::now();
-        let entry = map
-            .entry(ip)
-            .or_insert_with(|| Entry { count: 0, window_start: now });
+        let entry = map.entry(ip).or_insert_with(|| Entry {
+            count: 0,
+            window_start: now,
+        });
 
         if now.duration_since(entry.window_start) >= self.window {
             entry.count = 0;

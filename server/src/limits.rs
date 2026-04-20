@@ -71,7 +71,11 @@ pub enum LimitViolation {
 
 impl LimitViolation {
     pub fn user_message(&self, tier: &str) -> String {
-        let hint = if tier == SUPPORTER_PLUS { "" } else { " — Winkd Plus! raises this cap." };
+        let hint = if tier == SUPPORTER_PLUS {
+            ""
+        } else {
+            " — Winkd Plus! raises this cap."
+        };
         match self {
             Self::TextTooLong { len, max } => {
                 format!("Message is {len} characters — limit is {max}{hint}")
@@ -100,7 +104,10 @@ pub fn validate_send_payload(
     if let Some(body) = payload.get("body").and_then(|v| v.as_str()) {
         let len = body.chars().count();
         if len > limits.max_text_chars {
-            return Err(LimitViolation::TextTooLong { len, max: limits.max_text_chars });
+            return Err(LimitViolation::TextTooLong {
+                len,
+                max: limits.max_text_chars,
+            });
         }
     }
 
@@ -111,7 +118,10 @@ pub fn validate_send_payload(
     if let Some(data_uri) = media_data {
         let bytes = approx_base64_decoded_len(data_uri);
         if bytes > limits.max_media_bytes {
-            return Err(LimitViolation::MediaTooLarge { bytes, max: limits.max_media_bytes });
+            return Err(LimitViolation::MediaTooLarge {
+                bytes,
+                max: limits.max_media_bytes,
+            });
         }
     }
 
