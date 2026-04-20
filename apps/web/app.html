@@ -3148,12 +3148,29 @@ function drawQR(text,_retries){
 // ── QR SCANNER ──
 let qrStream=null,qrScanInterval=null,detectedQRValue=null;
 let _qrScanCanvas=null,_qrScanCtx=null;
+function decodeQrFrameWithJsQr(){
+  if(!_qrScanCanvas||!_qrScanCtx||typeof jsQR==='undefined')return null;
+  const width=_qrScanCanvas.width,height=_qrScanCanvas.height;
+  if(width===0||height===0)return null;
+  // Try full-frame first.
+  let imgData=_qrScanCtx.getImageData(0,0,width,height);
+  let result=jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'attemptBoth'});
+  if(result)return result;
+  // Fallback: center crop helps when the code is small in a busy frame.
+  const cropW=Math.floor(width*0.72),cropH=Math.floor(height*0.72);
+  const cropX=Math.floor((width-cropW)/2),cropY=Math.floor((height-cropH)/2);
+  imgData=_qrScanCtx.getImageData(cropX,cropY,cropW,cropH);
+  return jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'attemptBoth'});
+}
 function initQRPanel(){document.getElementById('qr-result-box').style.display='none';document.getElementById('qr-scanner-status').textContent='Point your camera at a contact\u2019s QR code';}
 async function startQRScan(){
   const video=document.getElementById('qr-video'),idle=document.getElementById('qr-idle-state'),status=document.getElementById('qr-scanner-status'),startBtn=document.getElementById('qr-start-btn'),stopBtn=document.getElementById('qr-stop-btn'),scanline=document.getElementById('qr-scanline');
   try{
     qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false});
     video.srcObject=qrStream;
+    video.setAttribute('playsinline','true');
+    video.playsInline=true;
+    video.muted=true;
     await video.play();
     video.style.display='block';
     idle.style.display='none';
@@ -3168,10 +3185,12 @@ async function startQRScan(){
     if(typeof jsQR!=='undefined'){
       qrScanInterval=setInterval(()=>{
         if(video.readyState<2||video.videoWidth===0)return;
-        _qrScanCanvas.width=video.videoWidth;_qrScanCanvas.height=video.videoHeight;
+        const maxScanWidth=960;
+        const scale=Math.min(1,maxScanWidth/video.videoWidth);
+        _qrScanCanvas.width=Math.max(1,Math.floor(video.videoWidth*scale));
+        _qrScanCanvas.height=Math.max(1,Math.floor(video.videoHeight*scale));
         _qrScanCtx.drawImage(video,0,0);
-        const imgData=_qrScanCtx.getImageData(0,0,_qrScanCanvas.width,_qrScanCanvas.height);
-        const result=jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'dontInvert'});
+        const result=decodeQrFrameWithJsQr();
         if(result)handleQRDetect(result.data);
       },250);
     }
