@@ -1553,10 +1553,29 @@ body {
                   <div style="color:rgba(255,255,255,0.9);font-size:12px;z-index:1;">✕</div>
                 </div>
                 <div style="padding:14px;">
-                  <div style="font-size:11px;color:#334;margin-bottom:10px;font-family:'Segoe UI',sans-serif;">Enter a Winkd ID to send a contact request.</div>
-                  <div style="font-size:9px;font-weight:700;color:#6a8aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;font-family:'Segoe UI',sans-serif;">Winkd ID</div>
-                  <div id="lp-sh-ac-input" style="width:100%;border:1px solid rgba(100,150,220,0.5);border-radius:3px;padding:5px 8px;font-size:11px;font-family:'Segoe UI',sans-serif;color:#1a2a40;background:#fff;margin-bottom:5px;min-height:22px;box-sizing:border-box;"></div>
-                  <div style="font-size:10px;color:#7a9abb;font-style:italic;margin-bottom:12px;font-family:'Segoe UI',sans-serif;">Format: username#XXXX</div>
+                  <div style="font-size:11px;color:#334;margin-bottom:10px;font-family:'Segoe UI',sans-serif;">Add by Winkd ID or scan a contact QR code.</div>
+                  <div style="display:flex;gap:5px;margin-bottom:9px;">
+                    <div style="flex:1;background:linear-gradient(to bottom,#ffffff,#edf4ff);border:1px solid rgba(80,130,220,0.45);border-radius:4px;padding:3px 6px;font-size:10px;font-weight:600;color:#1e4f95;text-align:center;font-family:'Segoe UI',sans-serif;">#️⃣ ID</div>
+                    <div style="flex:1;background:linear-gradient(to bottom,#f8fbff,#e7f2ff);border:1px solid rgba(80,130,220,0.3);border-radius:4px;padding:3px 6px;font-size:10px;color:#4c73a8;text-align:center;font-family:'Segoe UI',sans-serif;">📷 Scan QR</div>
+                  </div>
+                  <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;">
+                    <div style="width:58px;height:58px;border:1px solid rgba(90,130,190,0.4);border-radius:3px;padding:2px;background:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.6);">
+                      <svg width="54" height="54" viewBox="0 0 54 54" style="display:block;">
+                        <rect x="0" y="0" width="54" height="54" fill="#fff"/>
+                        <rect x="4" y="4" width="13" height="13" fill="#1a2a40"/><rect x="7" y="7" width="7" height="7" fill="#fff"/>
+                        <rect x="37" y="4" width="13" height="13" fill="#1a2a40"/><rect x="40" y="7" width="7" height="7" fill="#fff"/>
+                        <rect x="4" y="37" width="13" height="13" fill="#1a2a40"/><rect x="7" y="40" width="7" height="7" fill="#fff"/>
+                        <rect x="22" y="22" width="3" height="3" fill="#1a2a40"/><rect x="28" y="22" width="3" height="3" fill="#1a2a40"/>
+                        <rect x="22" y="28" width="3" height="3" fill="#1a2a40"/><rect x="31" y="31" width="3" height="3" fill="#1a2a40"/>
+                        <rect x="37" y="25" width="3" height="3" fill="#1a2a40"/><rect x="43" y="31" width="3" height="3" fill="#1a2a40"/>
+                      </svg>
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:9px;font-weight:700;color:#6a8aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;font-family:'Segoe UI',sans-serif;">Winkd ID</div>
+                      <div id="lp-sh-ac-input" style="width:100%;border:1px solid rgba(100,150,220,0.5);border-radius:3px;padding:5px 8px;font-size:11px;font-family:'Segoe UI',sans-serif;color:#1a2a40;background:#fff;margin-bottom:5px;min-height:22px;box-sizing:border-box;"></div>
+                      <div style="font-size:10px;color:#7a9abb;font-style:italic;font-family:'Segoe UI',sans-serif;">Format: username#XXXX</div>
+                    </div>
+                  </div>
                   <div style="display:flex;justify-content:flex-end;gap:5px;">
                     <div style="border:1px solid rgba(100,150,220,0.35);border-radius:4px;padding:4px 12px;font-size:10px;color:#5a7aaa;cursor:pointer;font-family:'Segoe UI',sans-serif;">Cancel</div>
                     <div style="background:linear-gradient(to bottom,#5090e8,#2060c8);border:1px solid #1050a0;border-radius:4px;padding:4px 14px;font-size:10px;font-weight:600;color:#fff;cursor:pointer;font-family:'Segoe UI',sans-serif;">Send Request</div>
@@ -1575,10 +1594,11 @@ body {
                 </div>
                 <div style="margin:10px;background:#fff;border:1px solid rgba(100,150,220,0.3);border-radius:4px;height:130px;overflow:hidden;">
                   <svg width="100%" height="100%" viewBox="0 0 280 130" preserveAspectRatio="none">
-                    <path d="M 20 90 C 50 40, 90 20, 130 55 C 160 80, 190 95, 230 60" stroke="#4060C8" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M 30 105 C 65 65, 105 50, 145 75 C 175 95, 210 100, 250 80" stroke="#9060C8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M 50 70 C 70 55, 95 48, 115 62" stroke="#C04040" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                    <text x="140" y="122" font-size="16" text-anchor="middle">💜</text>
+                    <path d="M 55 34 L 95 34 L 78 51 L 110 51 L 66 95 L 98 95" stroke="#4060C8" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M 167 34 L 207 34 L 190 51 L 222 51 L 178 95 L 210 95" stroke="#9060C8" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M 109 51 L 178 95" stroke="#355090" stroke-width="3.3" fill="none" stroke-linecap="round"/>
+                    <path d="M 110 34 L 177 51" stroke="#355090" stroke-width="3.3" fill="none" stroke-linecap="round"/>
+                    <text x="140" y="118" font-size="12" text-anchor="middle" style="font-family:'Segoe UI',sans-serif;fill:#4b5f8f;">cool S unlocked</text>
                   </svg>
                 </div>
                 <div style="display:flex;align-items:center;gap:5px;padding:0 10px 6px;">
@@ -2260,6 +2280,8 @@ function playMsgRecvSound() {
 
 // ── DEMO ANIMATIONS ──
 (function() {
+  var DEMO_PACE = 1.35;
+  function pace(ms){ return Math.round(ms * DEMO_PACE); }
 
   // ── Showcase Demo (Landing Page) ──
   function runShowcaseDemo() {
@@ -2317,7 +2339,7 @@ function playMsgRecvSound() {
     setDot(-1);
 
     var t = 0;
-    function at(delay, fn) { t += delay; _demoTimers.push(setTimeout(fn, t)); }
+    function at(delay, fn) { t += pace(delay); _demoTimers.push(setTimeout(fn, t)); }
 
     function setDot(n) {
       dots.forEach(function(d, i) { d.classList.toggle('active', i === n); });
@@ -2402,9 +2424,11 @@ function playMsgRecvSound() {
           '<div class="m-meta" style="text-align:right;">You · 9:46 PM</div>' +
           '<div class="m-me" style="padding:5px;">' +
             '<svg width="150" height="65" viewBox="0 0 150 65" style="display:block;">' +
-              '<path d="M 8 48 C 28 14,50 5,72 28 C 92 50,112 56,138 32" stroke="#4060C8" stroke-width="2" fill="none" stroke-linecap="round"/>' +
-              '<path d="M 12 56 C 38 32,62 24,88 42 C 112 58,128 52,144 40" stroke="#8040A8" stroke-width="1.5" fill="none" stroke-linecap="round"/>' +
-              '<text x="78" y="62" font-size="11" text-anchor="middle">💜</text>' +
+              '<path d="M 15 8 L 42 8 L 30 20 L 52 20 L 22 46 L 44 46" stroke="#4060C8" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+              '<path d="M 91 8 L 118 8 L 106 20 L 128 20 L 98 46 L 120 46" stroke="#9060C8" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+              '<path d="M 52 20 L 98 46" stroke="#355090" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
+              '<path d="M 52 8 L 98 20" stroke="#355090" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
+              '<text x="76" y="61" font-size="9" text-anchor="middle" style="font-family:Segoe UI,sans-serif;fill:#4b5f8f;">Cool S</text>' +
             '</svg>' +
           '</div>' +
         '</div>';
@@ -2428,7 +2452,7 @@ function playMsgRecvSound() {
       if (!pfName) return;
       pfName.textContent = '';
       var newName = 'NightPilot', i = 0;
-      (function typeName() { if (i < newName.length) { pfName.textContent += newName[i++]; setTimeout(typeName, 72); } })();
+      (function typeName() { if (i < newName.length) { pfName.textContent += newName[i++]; setTimeout(typeName, pace(72)); } })();
     });
     at(1600, function() {
       if (!pfNcRow) return;
@@ -2484,12 +2508,12 @@ function playMsgRecvSound() {
       if (myMood) {
         var nm = '☕ brb, making coffee', j = 0;
         myMood.textContent = '';
-        (function typeMood() { if (j < nm.length) { myMood.textContent += nm[j++]; setTimeout(typeMood, 42); } })();
+        (function typeMood() { if (j < nm.length) { myMood.textContent += nm[j++]; setTimeout(typeMood, pace(42)); } })();
       }
     });
 
     // ── Feature 4: Add a Contact ──
-    at(2200, function() { showFeat('➕', 'Add a Contact', 'Find anyone by their Winkd ID. No email, no phone number. Just their handle.', 4); });
+    at(2200, function() { showFeat('➕', 'Add a Contact', 'Find anyone by Winkd ID or scan a QR code. No email, no phone number needed.', 4); });
     at(2800, function() {
       hideFeat();
       var acInput = document.getElementById('lp-sh-ac-input');
@@ -2500,7 +2524,7 @@ function playMsgRecvSound() {
       var acInput = document.getElementById('lp-sh-ac-input');
       if (!acInput) return;
       var id = 'nightowl#7391', i = 0;
-      (function typeId() { if (i < id.length) { acInput.textContent += id[i++]; setTimeout(typeId, 62); } })();
+      (function typeId() { if (i < id.length) { acInput.textContent += id[i++]; setTimeout(typeId, pace(62)); } })();
     });
     at(2000, function() {
       if (addModal) addModal.style.display = 'none';
@@ -2537,7 +2561,7 @@ function playMsgRecvSound() {
         var text = 'encrypted and stylish 😎', i = 0;
         input.textContent = '';
         (function typeChar() {
-          if (i < text.length) { input.textContent += text[i++]; setTimeout(typeChar, 50); }
+          if (i < text.length) { input.textContent += text[i++]; setTimeout(typeChar, pace(50)); }
         })();
       }
     });
@@ -2575,7 +2599,7 @@ function playMsgRecvSound() {
         var text = 'this encryption is solid 🔒', i = 0;
         input.textContent = '';
         (function typeChar() {
-          if (i < text.length) { input.textContent += text[i++]; setTimeout(typeChar, 44); }
+          if (i < text.length) { input.textContent += text[i++]; setTimeout(typeChar, pace(44)); }
           else {
             setTimeout(function() {
               if (input) { input.textContent = 'Type a message…'; input.style.color = '#5a7a9a'; }
@@ -2589,18 +2613,24 @@ function playMsgRecvSound() {
               if (statusbar) {
                 statusbar.style.transition = 'background 0.4s ease';
                 statusbar.style.background = 'linear-gradient(to bottom,rgba(60,160,60,0.35),rgba(40,130,40,0.3))';
-                setTimeout(function(){ if (statusbar) statusbar.style.background = ''; }, 2200);
+                setTimeout(function(){ if (statusbar) statusbar.style.background = ''; }, pace(2200));
               }
-            }, 500);
+            }, pace(500));
           }
         })();
       }
     });
 
     // ── Feature 8: Winks & Emoticons ──
-    at(3000, function() { showFeat('✨', 'Winks & Custom Emoticons', 'Full-screen animated Winks mid-conversation. Custom emoticon packs you create and share.', 8); });
+    at(3000, function() { showFeat('✨', 'Winks & Classic Emoticons', 'Send full-screen Winks plus classic MSN and custom emoticon packs in chat.', 8); });
     at(2800, function() {
       hideFeat();
+      addMsg(
+        '<div class="m-av" style="background:linear-gradient(135deg,#6060C8,#3030A0);">CF</div>' +
+        '<div class="m-body"><div class="m-meta">CryptoFox · 9:54 PM</div>' +
+        '<div class="m-them">retro mode <img src="/msn-emoticons/winking-smile.png" alt="wink" style="width:18px;height:18px;vertical-align:middle;"> <img src="/msn-emoticons/red-heart.png" alt="heart" style="width:18px;height:18px;vertical-align:middle;"></div></div>',
+        'mrow them'
+      );
       var el = addMsg('');
       el.style.cssText = 'align-self:center;background:linear-gradient(135deg,rgba(36,18,72,0.95),rgba(72,36,144,0.95));border:1px solid rgba(160,100,255,0.5);border-radius:10px;padding:14px 24px;text-align:center;box-shadow:0 2px 16px rgba(0,0,0,0.35);';
       el.innerHTML = '<div style="font-size:30px;margin-bottom:5px;">✨</div><div style="font-size:11px;font-weight:700;color:#d0b0ff;font-family:\'Segoe UI\',sans-serif;">CryptoFox sent a Wink!</div><div style="font-size:10px;color:rgba(200,165,255,0.7);margin-top:2px;font-family:\'Segoe UI\',sans-serif;">Sparkle Pack · Vol. 1</div>';
@@ -2621,14 +2651,14 @@ function playMsgRecvSound() {
     Array.from(msgs.querySelectorAll('.demo-mb-dyn')).forEach(function(el){ el.remove(); });
 
     var t = 0;
-    function at(delay, fn){ t += delay; _demoTimers.push(setTimeout(fn, t)); }
+    function at(delay, fn){ t += pace(delay); _demoTimers.push(setTimeout(fn, t)); }
 
     // 1. New message from CryptoFox
     at(2000, function(){
       playMsgRecvSound();
       var el = document.createElement('div');
       el.className = 'ph-msg them demo-mb-dyn demo-new-msg';
-      el.innerHTML = '<div class="ph-msg-who">CryptoFox · 9:44</div><div class="ph-bub-them">LOTR marathon after this? extended editions only ⚔️</div>';
+      el.innerHTML = '<div class="ph-msg-who">CryptoFox · 9:44</div><div class="ph-bub-them">LOTR marathon after this? <img src="/msn-emoticons/filmstrip.png" alt="film" style="width:14px;height:14px;vertical-align:middle;"> extended editions only ⚔️</div>';
       msgs.appendChild(el);
     });
 
@@ -2687,7 +2717,7 @@ function playMsgRecvSound() {
     if (input) { input.textContent = 'Type a message…'; input.style.color = '#5a7a9a'; }
 
     var t = 0;
-    function at(delay, fn){ t += delay; _demoTimers.push(setTimeout(fn, t)); }
+    function at(delay, fn){ t += pace(delay); _demoTimers.push(setTimeout(fn, t)); }
 
     // 1. Type a message into the input
     at(1800, function(){
@@ -2697,7 +2727,7 @@ function playMsgRecvSound() {
       var i = 0;
       input.textContent = '';
       (function typeChar(){
-        if (i < text.length) { input.textContent += text[i++]; setTimeout(typeChar, 48); }
+        if (i < text.length) { input.textContent += text[i++]; setTimeout(typeChar, pace(48)); }
       })();
     });
 
