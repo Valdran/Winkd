@@ -834,15 +834,26 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
         <div class="modal-btn" onclick="startTotpSetup()" style="display:inline-flex;">Enable 2FA</div>
       </div>
       <div id="sec-2fa-qr" style="display:none;margin-top:8px;padding:10px;border:1px solid rgba(100,150,220,0.28);border-radius:6px;background:rgba(255,255,255,0.75);">
-        <div style="font-size:11px;color:#1a3a6a;margin-bottom:6px;">Scan this URI in your authenticator app:</div>
-        <div id="sec-setup-uri" style="font-size:10px;word-break:break-all;color:#406090;margin-bottom:8px;"></div>
+        <div style="font-size:11px;color:#1a3a6a;margin-bottom:8px;">Scan this QR code with your authenticator app:</div>
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:8px;">
+          <canvas id="sec-totp-qr-canvas" width="160" height="160" style="flex:0 0 160px;background:#fff;border:1px solid rgba(100,150,220,0.28);border-radius:4px;"></canvas>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:10px;color:#5a7a9a;margin-bottom:4px;">Can't scan? Enter this secret manually:</div>
+            <div id="sec-setup-secret" style="font-family:monospace;font-size:11px;letter-spacing:0.08em;color:#1a2a40;background:#f0f4ff;border:1px solid rgba(100,150,220,0.2);border-radius:4px;padding:6px 8px;word-break:break-all;margin-bottom:6px;"></div>
+            <div style="font-size:9px;color:#7a9ab0;margin-bottom:4px;">Raw URI:</div>
+            <div id="sec-setup-uri" style="font-size:9px;word-break:break-all;color:#406090;"></div>
+          </div>
+        </div>
         <input id="sec-confirm-code" class="modal-input" type="text" maxlength="6" placeholder="Enter 6-digit code" style="margin-bottom:8px;">
         <div class="modal-btn-row"><div class="modal-btn-cancel" onclick="cancelTotpSetup()">Cancel</div><div class="modal-btn" onclick="confirmTotpSetup()">Confirm 2FA</div></div>
       </div>
       <div id="sec-2fa-disable" style="display:none;margin-top:8px;">
         <div style="font-size:10px;color:#5a7a9a;margin-bottom:6px;">Disable 2FA (requires current code):</div>
         <input id="sec-disable-code" class="modal-input" type="text" maxlength="6" placeholder="6-digit code" style="margin-bottom:8px;">
-        <div class="modal-btn-row"><div class="modal-btn-cancel" onclick="disableTotp()">Disable 2FA</div><div class="modal-btn" onclick="regenerateRecoveryCodes()">Regenerate backup codes</div></div>
+        <div class="modal-btn-row"><div class="modal-btn-cancel" onclick="disableTotp()">Disable 2FA</div></div>
+        <div style="font-size:10px;color:#5a7a9a;margin:12px 0 6px;">Regenerate backup codes (invalidates old codes immediately):</div>
+        <input id="sec-regen-code" class="modal-input" type="text" maxlength="6" placeholder="6-digit code" style="margin-bottom:8px;">
+        <div class="modal-btn-row"><div class="modal-btn" onclick="regenerateRecoveryCodes()">Regenerate backup codes</div></div>
       </div>
       <div id="sec-backup-codes" style="display:none;white-space:pre-wrap;font-family:monospace;font-size:11px;background:#fff;border:1px solid rgba(100,150,220,0.28);border-radius:6px;padding:8px;margin-top:8px;"></div>
 
@@ -2060,35 +2071,47 @@ function sendNudge(){
   playNudgeSound();
 }
 
-// Render an outgoing payload into the active conversation without waiting for
-// the server relay echo. Keeps the same shape as handleRelayedMessage so the
-// dedup check (by payload.id) collapses the server echo into the same entry.
-function locallyRenderOutgoing(payload){
-  const conversationId=payload?.conversationId;
-  if(!conversationId)return;
-  if(!convos[conversationId])convos[conversationId]=[];
-  const msgId=payload?.id||null;
-  if(msgId&&convos[conversationId].some(m=>m&&m.id===msgId))return;
-  const contact=contacts.find(x=>x.id===conversationId);
-  const kind=payload?.type||'text';
-  const msgTime=payload?.sentAt||ts();
+// Normalize a wire-format send_message payload into the UI message shape used
+// by addMsg/convos. Shared between the optimistic outgoing render and the
+// inbound relay handler so the two paths cannot drift (any drift would break
+// the id-based dedup that collapses the server echo onto the optimistic entry).
+function payloadToUiMessage(payload,contact,fromMe){
+  const kind=payload?.type||payload?.kind||'text';
+  const msgTime=payload?.sentAt||payload?.sent_at||payload?.time||ts();
+  const from=fromMe?'me':'them';
   let message;
-  if(kind==='winkd')message={type:'winkd',from:'me',time:msgTime};
-  else if(kind==='nudge')message={type:'nudge',from:'me',time:msgTime};
+  if(kind==='winkd')message={type:'winkd',from,time:msgTime};
+  else if(kind==='nudge')message={type:'nudge',from,time:msgTime};
+  else if(kind==='wink')message={type:'system',text:fromMe?'✨ You sent a Wink!':`✨ ${contact?.name||'Someone'} sent you a Wink!`};
   else message={
-    from:'me',
-    text:payload?.body||'',
+    from,
+    text:payload?.body||payload?.text||'',
     time:msgTime,
     color:payload?.color||null,
     bold:!!payload?.bold,
     italic:!!payload?.italic,
     underline:!!payload?.underline,
     font:payload?.font||null,
-    mediaType:payload?.media_type||null,
-    mediaUrl:payload?.media_url||null,
-    mediaData:payload?.media_data||null,
+    mediaType:payload?.mediaType||payload?.media_type||null,
+    mediaUrl:payload?.mediaUrl||payload?.media_url||null,
+    mediaData:payload?.mediaData||payload?.media_data||null,
   };
+  const msgId=payload?.id||null;
   if(msgId)message.id=msgId;
+  return message;
+}
+
+// Render an outgoing payload into the active conversation without waiting for
+// the server relay echo. handleRelayedMessage dedupes by payload.id so the
+// echo collapses back into this entry.
+function locallyRenderOutgoing(payload){
+  const conversationId=payload?.conversationId||payload?.conversation_id;
+  if(!conversationId)return;
+  if(!convos[conversationId])convos[conversationId]=[];
+  const msgId=payload?.id||null;
+  if(msgId&&convos[conversationId].some(m=>m&&m.id===msgId))return;
+  const contact=contacts.find(x=>x.id===conversationId);
+  const message=payloadToUiMessage(payload,contact,true);
   convos[conversationId].push(message);
   saveConvos();
   if(activeContact===conversationId&&contact){
@@ -2177,9 +2200,6 @@ function pickColor(){
   setTimeout(()=>document.addEventListener('click',function h(e){if(!d.contains(e.target)){d.remove();document.removeEventListener('click',h);}},),100);
 }
 function changeFont(v){msgFont=v;const i=document.getElementById('chat-input');if(i)i.style.fontFamily=v;}
-
-function fakeTyping(){/* bots removed */}
-function fakeReply(){/* bots removed */}
 
 function setStatus(s){
   myStatus=s;
@@ -2485,27 +2505,7 @@ function handleRelayedMessage(payload){
   if(msgId&&convos[conversationId].some(m=>m&&m.id===msgId))return;
 
   const fromMe=senderId===myWinkdId;
-  const kind=payload?.type||payload?.kind||'text';
-  const msgTime=payload?.sentAt||payload?.sent_at||payload?.time||ts();
-
-  let message;
-  if(kind==='winkd')message={type:'winkd',from:fromMe?'me':'them',time:msgTime};
-  else if(kind==='nudge')message={type:'nudge',from:fromMe?'me':'them',time:msgTime};
-  else if(kind==='wink')message={type:'system',text:fromMe?'✨ You sent a Wink!':`✨ ${contact.name} sent you a Wink!`};
-  else message={
-    from:fromMe?'me':'them',
-    text:payload?.body||payload?.text||'',
-    time:msgTime,
-    color:payload?.color||null,
-    bold:!!payload?.bold,
-    italic:!!payload?.italic,
-    underline:!!payload?.underline,
-    font:payload?.font||null,
-    mediaType:payload?.mediaType||payload?.media_type||null,
-    mediaUrl:payload?.mediaUrl||payload?.media_url||null,
-    mediaData:payload?.mediaData||payload?.media_data||null,
-  };
-  if(msgId)message.id=msgId;
+  const message=payloadToUiMessage(payload,contact,fromMe);
 
   convos[conversationId].push(message);
   saveConvos();
@@ -2787,12 +2787,34 @@ function renderSecurity2fa(enabled,recoveryRemaining){
   const setup=document.getElementById('sec-2fa-setup');
   const disable=document.getElementById('sec-2fa-disable');
   const qr=document.getElementById('sec-2fa-qr');
-  if(status)status.textContent=enabled?`🔐 2FA enabled (${recoveryRemaining??0} backup code${recoveryRemaining===1?'':'s'} remaining)`:'🔓 2FA disabled';
+  if(status){
+    if(enabled){
+      const n=recoveryRemaining??0;
+      const low=n<=2;
+      status.innerHTML=`🔐 2FA enabled <span style=\"color:${low?'#c05000':'#3a5a3a'};font-weight:${low?'700':'400'};\">(${n} backup code${n===1?'':'s'} remaining${low?' — regenerate soon':''})</span>`;
+    }else{
+      status.textContent='🔓 2FA disabled';
+    }
+  }
   if(setup)setup.style.display=enabled?'none':'block';
   if(disable)disable.style.display=enabled?'block':'none';
   if(qr)qr.style.display='none';
 }
 function cancelTotpSetup(){const q=document.getElementById('sec-2fa-qr');if(q)q.style.display='none';}
+function drawTotpQr(uri,_retries){
+  const retries=_retries||0;
+  const canvas=document.getElementById('sec-totp-qr-canvas');if(!canvas||!uri)return;
+  const paintFallback=()=>{const ctx=canvas.getContext('2d');if(!ctx)return;ctx.fillStyle='#f0f4ff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#8aabcc';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText('QR unavailable',canvas.width/2,canvas.height/2-6);ctx.fillText('use secret below',canvas.width/2,canvas.height/2+10);};
+  if(typeof QRCode==='undefined'){
+    if(retries<30)setTimeout(()=>drawTotpQr(uri,retries+1),200);
+    else paintFallback();
+    return;
+  }
+  requestAnimationFrame(()=>{
+    QRCode.toCanvas(canvas,uri,{width:160,margin:1,color:{dark:'#1a2a40',light:'#ffffff'}})
+      .catch(err=>{console.error('TOTP QR render failed:',err);paintFallback();});
+  });
+}
 async function startTotpSetup(){
   try{
     const res=await fetch('/api/auth/totp/setup',{method:'POST',headers:authHeaders()});
@@ -2800,8 +2822,11 @@ async function startTotpSetup(){
     const d=await res.json();
     const box=document.getElementById('sec-2fa-qr');
     const uri=document.getElementById('sec-setup-uri');
+    const secret=document.getElementById('sec-setup-secret');
     if(uri)uri.textContent=d?.uri||'';
+    if(secret)secret.textContent=d?.secret||'';
     if(box)box.style.display='block';
+    drawTotpQr(d?.uri||'');
   }catch{flashSecurity('TOTP setup failed.',true);}
 }
 async function confirmTotpSetup(){
@@ -2828,7 +2853,7 @@ async function disableTotp(){
   }catch{flashSecurity('Could not disable 2FA.',true);}
 }
 async function regenerateRecoveryCodes(){
-  const code=document.getElementById('sec-disable-code')?.value?.trim()||'';
+  const code=document.getElementById('sec-regen-code')?.value?.trim()||'';
   if(code.length!==6){flashSecurity('Enter your current 6-digit code first.',true);return;}
   try{
     const res=await fetch('/api/auth/recovery-codes/generate',{method:'POST',headers:authHeaders(),body:JSON.stringify({code})});
@@ -2836,7 +2861,8 @@ async function regenerateRecoveryCodes(){
     const d=await res.json();
     const out=document.getElementById('sec-backup-codes');
     if(out){out.style.display='block';out.textContent=(d?.backup_codes||[]).join('\n');}
-    flashSecurity('Backup codes regenerated.');
+    const regenInput=document.getElementById('sec-regen-code');if(regenInput)regenInput.value='';
+    flashSecurity('Backup codes regenerated. Save them now — old codes are no longer valid.');
     loadSecuritySettings();
   }catch{flashSecurity('Could not generate backup codes.',true);}
 }
@@ -2848,7 +2874,9 @@ function renderSecurityDevices(devices){
     const row=document.createElement('div');
     row.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border:1px solid rgba(100,150,220,0.25);border-radius:6px;background:rgba(255,255,255,0.8);';
     const meta=document.createElement('div');
-    meta.innerHTML=`<div style=\"font-size:11px;font-weight:700;color:#1a2a40;\">💻 ${device.device_name||'Unknown device'}</div><div style=\"font-size:10px;color:#5a7a9a;\">Last seen: ${device.last_seen_at||'unknown'}</div>`;
+    const regAt=device.registered_at?fmtSecurityDate(device.registered_at):'unknown';
+    const lastSeen=device.last_seen||device.last_seen_at?fmtSecurityDate(device.last_seen||device.last_seen_at):'unknown';
+    meta.innerHTML=`<div style=\"font-size:11px;font-weight:700;color:#1a2a40;\">💻 ${escapeSecurityHtml(device.device_name||'Unknown device')}</div><div style=\"font-size:10px;color:#5a7a9a;\">Registered ${escapeSecurityHtml(regAt)} · Last seen ${escapeSecurityHtml(lastSeen)}</div>`;
     const btn=document.createElement('button');
     btn.type='button';btn.textContent='Revoke';
     btn.style.cssText='height:24px;padding:0 10px;border-radius:4px;border:1px solid rgba(180,80,80,0.45);background:linear-gradient(to bottom,#d06060,#a03030);color:#fff;font-size:11px;font-weight:700;cursor:pointer;';
@@ -2864,6 +2892,24 @@ async function revokeDevice(deviceId){
     loadSecuritySettings();
   }catch{flashSecurity('Could not revoke device.',true);}
 }
+const AUDIT_ACTION_LABELS={
+  login:'✅ Login',
+  login_failed:'❌ Login failed',
+  register:'🆕 Account created',
+  logout:'👋 Logged out',
+  totp_enabled:'🔐 2FA enabled',
+  totp_disabled:'🔓 2FA disabled',
+  totp_challenge_issued:'🔑 2FA challenge issued',
+  totp_challenge_passed:'✅ 2FA passed',
+  totp_challenge_failed:'❌ 2FA failed',
+  recovery_code_used:'🔑 Backup code used',
+  recovery_codes_regenerated:'🔄 Backup codes regenerated',
+  device_registered:'💻 Device registered',
+  device_revoked:'🗑️ Device revoked',
+  password_changed:'🔒 Password changed',
+};
+function fmtSecurityDate(s){if(!s)return '';try{return new Date(s).toLocaleString(undefined,{dateStyle:'short',timeStyle:'short'});}catch{return s;}}
+function escapeSecurityHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
 async function loadSecurityAuditLog(){
   const wrap=document.getElementById('sec-audit-log');if(!wrap)return;
   wrap.innerHTML='<div style=\"font-size:10px;color:#6a86a6;\">Loading…</div>';
@@ -2873,10 +2919,13 @@ async function loadSecurityAuditLog(){
     const d=await res.json();const events=Array.isArray(d?.events)?d.events:[];
     if(!events.length){wrap.innerHTML='<div style=\"font-size:10px;color:#6a86a6;\">No audit events yet.</div>';return;}
     wrap.innerHTML='';
+    wrap.style.cssText='display:flex;flex-direction:column;gap:0;max-height:220px;overflow-y:auto;border:1px solid rgba(100,150,220,0.22);border-radius:6px;background:rgba(255,255,255,0.7);';
     events.forEach(entry=>{
       const row=document.createElement('div');
-      row.style.cssText='padding:8px 10px;border:1px solid rgba(100,150,220,0.2);border-radius:6px;background:rgba(255,255,255,0.75);';
-      row.innerHTML=`<div style=\"font-size:11px;font-weight:700;color:#1a2a40;\">${entry.action||'event'}</div><div style=\"font-size:10px;color:#5a7a9a;\">${entry.created_at||''}</div>`;
+      row.style.cssText='padding:6px 10px;border-bottom:1px solid rgba(100,150,220,0.12);display:flex;justify-content:space-between;align-items:flex-start;gap:8px;';
+      const label=AUDIT_ACTION_LABELS[entry.action]||escapeSecurityHtml(entry.action||'event');
+      const ip=entry.ip_address?`<div style=\"font-size:9px;color:#7a9ab0;\">IP: ${escapeSecurityHtml(entry.ip_address)}</div>`:'';
+      row.innerHTML=`<div><div style=\"font-size:11px;color:#1a2a40;\">${label}</div>${ip}</div><div style=\"font-size:9px;color:#7a9ab0;white-space:nowrap;\">${escapeSecurityHtml(fmtSecurityDate(entry.created_at))}</div>`;
       wrap.appendChild(row);
     });
   }catch{
