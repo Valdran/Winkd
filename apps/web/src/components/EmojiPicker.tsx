@@ -266,9 +266,9 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
 
   const getInsertValue = (item: EmojiItem) =>
     item.type === 'classic'
-      ? `${MSN_EMOTICON_BASE_URL}/${item.filename}.png `
+      ? `:classic-${item.filename}: `
       : item.type === 'spikey'
-        ? `/emoji-packs/spikey/${item.filename} `
+        ? `:spikey-${item.filename.replace(/\.png$/i, '').toLowerCase()}: `
         : item.value
 
   return (
