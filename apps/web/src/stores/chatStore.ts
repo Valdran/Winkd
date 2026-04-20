@@ -19,6 +19,18 @@ interface ChatState {
     body: string,
     send: (p: object) => void,
   ) => void
+  sendAttachment: (
+    conversationId: string,
+    senderId: string,
+    attachment: {
+      mediaData: string
+      mediaName: string
+      mediaMime: string
+      mediaSize: number
+      body?: string
+    },
+    send: (p: object) => void,
+  ) => void
   sendWinkd: (
     conversationId: string,
     senderId: string,
@@ -67,6 +79,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
       senderId,
       type: 'text',
       body,
+      sentAt: nowIso(),
+      delivered: false,
+      read: false,
+    }
+    set((s) => ({
+      conversations: {
+        ...s.conversations,
+        [conversationId]: {
+          ...s.conversations[conversationId]!,
+          messages: [...(s.conversations[conversationId]?.messages ?? []), msg],
+        },
+      },
+    }))
+    send({ command: 'send_message', payload: msg })
+  },
+
+  sendAttachment: (conversationId, senderId, attachment, send) => {
+    const msg: TextMessage = {
+      id: mkId(),
+      conversationId,
+      senderId,
+      type: 'text',
+      body: attachment.body ?? `📎 ${attachment.mediaName}`,
+      mediaData: attachment.mediaData,
+      mediaName: attachment.mediaName,
+      mediaMime: attachment.mediaMime,
+      mediaSize: attachment.mediaSize,
       sentAt: nowIso(),
       delivered: false,
       read: false,

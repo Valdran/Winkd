@@ -49,6 +49,7 @@ function ToolbarBtn({ label, onClick, variant = 'default', disabled }: ToolbarBt
 }
 
 interface WinkdToolbarProps {
+  onFile: () => void
   onWinkd: () => void
   onNudge: () => void
   onWinks: () => void
@@ -57,6 +58,7 @@ interface WinkdToolbarProps {
 }
 
 export function WinkdToolbar({
+  onFile,
   onWinkd,
   onNudge,
   onWinks,
@@ -77,6 +79,7 @@ export function WinkdToolbar({
         flexShrink: 0,
       }}
     >
+      <ToolbarBtn label="📎 File" onClick={onFile} disabled={disabled} />
       <ToolbarBtn
         label="💥 Winkd!"
         onClick={onWinkd}
