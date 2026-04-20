@@ -1546,39 +1546,44 @@ body {
 
             <!-- DEMO MODAL: Add a Contact -->
             <div id="lp-sh-add-modal" style="display:none;position:absolute;inset:0;z-index:35;align-items:center;justify-content:center;background:rgba(0,15,50,0.68);border-radius:0 0 8px 8px;">
-              <div style="background:linear-gradient(to bottom,rgba(226,238,255,0.99),rgba(208,228,255,0.98));border:1px solid rgba(100,160,255,0.5);border-radius:6px;width:260px;box-shadow:0 8px 32px rgba(0,0,0,0.5);overflow:hidden;">
+              <div style="background:linear-gradient(to bottom,rgba(226,238,255,0.99),rgba(208,228,255,0.98));border:1px solid rgba(100,160,255,0.5);border-radius:6px;width:380px;box-shadow:0 8px 32px rgba(0,0,0,0.5);overflow:hidden;">
                 <div style="background:linear-gradient(to bottom,rgba(80,140,240,0.55),rgba(40,100,200,0.45));padding:5px 10px;display:flex;align-items:center;justify-content:space-between;position:relative;">
                   <div style="position:absolute;inset:0;height:50%;background:rgba(255,255,255,0.13);pointer-events:none;"></div>
                   <div style="font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,60,0.6);display:flex;align-items:center;gap:5px;z-index:1;"><img src="https://i.imgur.com/cg6eejI.png" style="width:13px;height:13px;object-fit:contain;"> Add a Contact</div>
                   <div style="color:rgba(255,255,255,0.9);font-size:12px;z-index:1;">✕</div>
                 </div>
-                <div style="padding:14px;">
-                  <div style="font-size:11px;color:#334;margin-bottom:10px;font-family:'Segoe UI',sans-serif;">Add by Winkd ID or scan a contact QR code.</div>
-                  <div style="display:flex;gap:5px;margin-bottom:9px;">
-                    <div style="flex:1;background:linear-gradient(to bottom,#ffffff,#edf4ff);border:1px solid rgba(80,130,220,0.45);border-radius:4px;padding:3px 6px;font-size:10px;font-weight:600;color:#1e4f95;text-align:center;font-family:'Segoe UI',sans-serif;">#️⃣ ID</div>
-                    <div style="flex:1;background:linear-gradient(to bottom,#f8fbff,#e7f2ff);border:1px solid rgba(80,130,220,0.3);border-radius:4px;padding:3px 6px;font-size:10px;color:#4c73a8;text-align:center;font-family:'Segoe UI',sans-serif;">📷 Scan QR</div>
+                <div style="padding:12px;">
+                  <div style="display:flex;gap:2px;margin-bottom:12px;background:rgba(100,150,220,0.12);border-radius:6px;padding:3px;">
+                    <div id="lp-sh-ac-tab-id" style="flex:1;text-align:center;padding:4px 6px;border-radius:4px;font-size:10px;font-weight:600;font-family:'Segoe UI',sans-serif;color:#1e4f95;background:linear-gradient(to bottom,#ffffff,#edf4ff);border:1px solid rgba(80,130,220,0.45);">🔤 Winkd ID</div>
+                    <div id="lp-sh-ac-tab-qr" style="flex:1;text-align:center;padding:4px 6px;border-radius:4px;font-size:10px;font-family:'Segoe UI',sans-serif;color:#4c73a8;background:linear-gradient(to bottom,#f8fbff,#e7f2ff);border:1px solid rgba(80,130,220,0.3);">📷 Scan QR</div>
+                    <div id="lp-sh-ac-tab-invite" style="flex:1;text-align:center;padding:4px 6px;border-radius:4px;font-size:10px;font-family:'Segoe UI',sans-serif;color:#4c73a8;background:linear-gradient(to bottom,#f8fbff,#e7f2ff);border:1px solid rgba(80,130,220,0.3);">🔗 Invite Link</div>
                   </div>
-                  <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;">
-                    <div style="width:58px;height:58px;border:1px solid rgba(90,130,190,0.4);border-radius:3px;padding:2px;background:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.6);">
-                      <svg width="54" height="54" viewBox="0 0 54 54" style="display:block;">
-                        <rect x="0" y="0" width="54" height="54" fill="#fff"/>
-                        <rect x="4" y="4" width="13" height="13" fill="#1a2a40"/><rect x="7" y="7" width="7" height="7" fill="#fff"/>
-                        <rect x="37" y="4" width="13" height="13" fill="#1a2a40"/><rect x="40" y="7" width="7" height="7" fill="#fff"/>
-                        <rect x="4" y="37" width="13" height="13" fill="#1a2a40"/><rect x="7" y="40" width="7" height="7" fill="#fff"/>
-                        <rect x="22" y="22" width="3" height="3" fill="#1a2a40"/><rect x="28" y="22" width="3" height="3" fill="#1a2a40"/>
-                        <rect x="22" y="28" width="3" height="3" fill="#1a2a40"/><rect x="31" y="31" width="3" height="3" fill="#1a2a40"/>
-                        <rect x="37" y="25" width="3" height="3" fill="#1a2a40"/><rect x="43" y="31" width="3" height="3" fill="#1a2a40"/>
-                      </svg>
-                    </div>
-                    <div style="flex:1;min-width:0;">
-                      <div style="font-size:9px;font-weight:700;color:#6a8aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;font-family:'Segoe UI',sans-serif;">Winkd ID</div>
-                      <div id="lp-sh-ac-input" style="width:100%;border:1px solid rgba(100,150,220,0.5);border-radius:3px;padding:5px 8px;font-size:11px;font-family:'Segoe UI',sans-serif;color:#1a2a40;background:#fff;margin-bottom:5px;min-height:22px;box-sizing:border-box;"></div>
-                      <div style="font-size:10px;color:#7a9abb;font-style:italic;font-family:'Segoe UI',sans-serif;">Format: username#XXXX</div>
-                    </div>
+
+                  <div id="lp-sh-ac-panel-id" style="display:block;">
+                    <div style="font-size:10px;font-weight:700;color:#5a7aaa;margin-bottom:4px;font-family:'Segoe UI',sans-serif;">Enter a Winkd ID</div>
+                    <div id="lp-sh-ac-input" style="width:100%;border:1px solid rgba(100,150,220,0.5);border-radius:4px;padding:6px 8px;font-size:11px;font-family:'Segoe UI',sans-serif;color:#1a2a40;background:#fff;margin-bottom:6px;min-height:26px;box-sizing:border-box;"></div>
+                    <div id="lp-sh-ac-status" style="font-size:10px;color:#7a9abb;margin-bottom:10px;font-family:'Segoe UI',sans-serif;">Format: username#XXXX</div>
                   </div>
+
+                  <div id="lp-sh-ac-panel-qr" style="display:none;">
+                    <div style="position:relative;width:116px;height:116px;margin:0 auto 8px;border-radius:8px;overflow:hidden;background:#0a1a2a;border:2px solid rgba(100,160,255,0.4);display:flex;align-items:center;justify-content:center;">
+                      <div style="font-size:28px;color:rgba(180,210,255,0.75);">📷</div>
+                      <div style="position:absolute;top:8px;left:8px;width:16px;height:16px;border-top:2px solid #60c0ff;border-left:2px solid #60c0ff;"></div>
+                      <div style="position:absolute;top:8px;right:8px;width:16px;height:16px;border-top:2px solid #60c0ff;border-right:2px solid #60c0ff;"></div>
+                      <div style="position:absolute;bottom:8px;left:8px;width:16px;height:16px;border-bottom:2px solid #60c0ff;border-left:2px solid #60c0ff;"></div>
+                      <div style="position:absolute;bottom:8px;right:8px;width:16px;height:16px;border-bottom:2px solid #60c0ff;border-right:2px solid #60c0ff;"></div>
+                    </div>
+                    <div style="font-size:10px;color:#6a8aaa;text-align:center;margin-bottom:10px;font-family:'Segoe UI',sans-serif;">Point your camera at a contact's QR code</div>
+                  </div>
+
+                  <div id="lp-sh-ac-panel-invite" style="display:none;">
+                    <div style="font-size:10px;color:#5a7aaa;margin-bottom:6px;font-family:'Segoe UI',sans-serif;">Generate a personal invite link.</div>
+                    <div style="background:#fff;border:1px solid rgba(100,150,220,0.4);border-radius:5px;padding:6px 8px;margin-bottom:10px;font-size:10px;color:#345b90;font-family:Consolas,monospace;">https://winkd.net/invite/np-7x4k</div>
+                  </div>
+
                   <div style="display:flex;justify-content:flex-end;gap:5px;">
                     <div style="border:1px solid rgba(100,150,220,0.35);border-radius:4px;padding:4px 12px;font-size:10px;color:#5a7aaa;cursor:pointer;font-family:'Segoe UI',sans-serif;">Cancel</div>
-                    <div style="background:linear-gradient(to bottom,#5090e8,#2060c8);border:1px solid #1050a0;border-radius:4px;padding:4px 14px;font-size:10px;font-weight:600;color:#fff;cursor:pointer;font-family:'Segoe UI',sans-serif;">Send Request</div>
+                    <div id="lp-sh-ac-send" style="background:linear-gradient(to bottom,#5090e8,#2060c8);border:1px solid #1050a0;border-radius:4px;padding:4px 14px;font-size:10px;font-weight:600;color:#fff;cursor:pointer;font-family:'Segoe UI',sans-serif;">Send Request</div>
                   </div>
                 </div>
               </div>
@@ -1594,11 +1599,15 @@ body {
                 </div>
                 <div style="margin:10px;background:#fff;border:1px solid rgba(100,150,220,0.3);border-radius:4px;height:130px;overflow:hidden;">
                   <svg width="100%" height="100%" viewBox="0 0 280 130" preserveAspectRatio="none">
-                    <path d="M 55 34 L 95 34 L 78 51 L 110 51 L 66 95 L 98 95" stroke="#4060C8" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M 167 34 L 207 34 L 190 51 L 222 51 L 178 95 L 210 95" stroke="#9060C8" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M 109 51 L 178 95" stroke="#355090" stroke-width="3.3" fill="none" stroke-linecap="round"/>
-                    <path d="M 110 34 L 177 51" stroke="#355090" stroke-width="3.3" fill="none" stroke-linecap="round"/>
-                    <text x="140" y="118" font-size="12" text-anchor="middle" style="font-family:'Segoe UI',sans-serif;fill:#4b5f8f;">cool S unlocked</text>
+                    <path d="M 70 18 L 130 18" stroke="#355090" stroke-width="6" fill="none" stroke-linecap="round"/>
+                    <path d="M 70 18 L 95 43" stroke="#355090" stroke-width="6" fill="none" stroke-linecap="round"/>
+                    <path d="M 130 18 L 145 43" stroke="#355090" stroke-width="6" fill="none" stroke-linecap="round"/>
+                    <path d="M 95 43 L 145 43" stroke="#355090" stroke-width="6" fill="none" stroke-linecap="round"/>
+                    <path d="M 145 43 L 85 88" stroke="#355090" stroke-width="6" fill="none" stroke-linecap="round"/>
+                    <path d="M 85 88 L 135 88" stroke="#355090" stroke-width="6" fill="none" stroke-linecap="round"/>
+                    <path d="M 85 88 L 60 112" stroke="#355090" stroke-width="6" fill="none" stroke-linecap="round"/>
+                    <path d="M 135 88 L 110 112" stroke="#355090" stroke-width="6" fill="none" stroke-linecap="round"/>
+                    <path d="M 60 112 L 110 112" stroke="#355090" stroke-width="6" fill="none" stroke-linecap="round"/>
                   </svg>
                 </div>
                 <div style="display:flex;align-items:center;gap:5px;padding:0 10px 6px;">
@@ -2308,6 +2317,9 @@ function playMsgRecvSound() {
     var profileModal = document.getElementById('lp-sh-profile-modal');
     var addModal     = document.getElementById('lp-sh-add-modal');
     var drawPanel    = document.getElementById('lp-sh-draw-panel');
+    var acInput      = document.getElementById('lp-sh-ac-input');
+    var acStatus     = document.getElementById('lp-sh-ac-status');
+    var acSend       = document.getElementById('lp-sh-ac-send');
     if (!win || !msgs || !introSlide) return;
 
     // ── Reset state ──
@@ -2329,6 +2341,10 @@ function playMsgRecvSound() {
     if (profileModal) profileModal.style.display = 'none';
     if (addModal)     addModal.style.display = 'none';
     if (drawPanel)    drawPanel.style.display = 'none';
+    setAddContactTab('id');
+    if (acInput) acInput.textContent = '';
+    if (acStatus) { acStatus.textContent = 'Format: username#XXXX'; acStatus.style.color = '#7a9abb'; }
+    if (acSend) acSend.style.filter = '';
     var pfAv = document.getElementById('lp-pf-av');
     if (pfAv) pfAv.style.background = 'linear-gradient(135deg,#4060C8,#2040A0)';
     var pfNcRow = document.getElementById('lp-pf-nc-row');
@@ -2387,6 +2403,20 @@ function playMsgRecvSound() {
       if (statusDot) statusDot.textContent = cfg[status].dot;
     }
 
+    function setAddContactTab(tab) {
+      ['id','qr','invite'].forEach(function(key){
+        var tabEl = document.getElementById('lp-sh-ac-tab-' + key);
+        var panel = document.getElementById('lp-sh-ac-panel-' + key);
+        var active = key === tab;
+        if (panel) panel.style.display = active ? 'block' : 'none';
+        if (!tabEl) return;
+        tabEl.style.fontWeight = active ? '600' : '400';
+        tabEl.style.color = active ? '#1e4f95' : '#4c73a8';
+        tabEl.style.background = active ? 'linear-gradient(to bottom,#ffffff,#edf4ff)' : 'linear-gradient(to bottom,#f8fbff,#e7f2ff)';
+        tabEl.style.border = active ? '1px solid rgba(80,130,220,0.45)' : '1px solid rgba(80,130,220,0.3)';
+      });
+    }
+
     // ── Phase 0: Intro (3s) ──
     at(3000, function() { introSlide.classList.add('hidden'); });
 
@@ -2423,12 +2453,16 @@ function playMsgRecvSound() {
         '<div class="m-body">' +
           '<div class="m-meta" style="text-align:right;">You · 9:46 PM</div>' +
           '<div class="m-me" style="padding:5px;">' +
-            '<svg width="150" height="65" viewBox="0 0 150 65" style="display:block;">' +
-              '<path d="M 15 8 L 42 8 L 30 20 L 52 20 L 22 46 L 44 46" stroke="#4060C8" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
-              '<path d="M 91 8 L 118 8 L 106 20 L 128 20 L 98 46 L 120 46" stroke="#9060C8" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
-              '<path d="M 52 20 L 98 46" stroke="#355090" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
-              '<path d="M 52 8 L 98 20" stroke="#355090" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
-              '<text x="76" y="61" font-size="9" text-anchor="middle" style="font-family:Segoe UI,sans-serif;fill:#4b5f8f;">Cool S</text>' +
+            '<svg width="150" height="70" viewBox="0 0 150 70" style="display:block;">' +
+              '<path d="M 24 10 L 66 10" stroke="#355090" stroke-width="4.6" fill="none" stroke-linecap="round"/>' +
+              '<path d="M 24 10 L 42 28" stroke="#355090" stroke-width="4.6" fill="none" stroke-linecap="round"/>' +
+              '<path d="M 66 10 L 77 28" stroke="#355090" stroke-width="4.6" fill="none" stroke-linecap="round"/>' +
+              '<path d="M 42 28 L 77 28" stroke="#355090" stroke-width="4.6" fill="none" stroke-linecap="round"/>' +
+              '<path d="M 77 28 L 35 50" stroke="#355090" stroke-width="4.6" fill="none" stroke-linecap="round"/>' +
+              '<path d="M 35 50 L 70 50" stroke="#355090" stroke-width="4.6" fill="none" stroke-linecap="round"/>' +
+              '<path d="M 35 50 L 18 62" stroke="#355090" stroke-width="4.6" fill="none" stroke-linecap="round"/>' +
+              '<path d="M 70 50 L 53 62" stroke="#355090" stroke-width="4.6" fill="none" stroke-linecap="round"/>' +
+              '<path d="M 18 62 L 53 62" stroke="#355090" stroke-width="4.6" fill="none" stroke-linecap="round"/>' +
             '</svg>' +
           '</div>' +
         '</div>';
@@ -2516,18 +2550,26 @@ function playMsgRecvSound() {
     at(2200, function() { showFeat('➕', 'Add a Contact', 'Find anyone by Winkd ID or scan a QR code. No email, no phone number needed.', 4); });
     at(2800, function() {
       hideFeat();
-      var acInput = document.getElementById('lp-sh-ac-input');
+      setAddContactTab('id');
       if (acInput) acInput.textContent = '';
+      if (acStatus) { acStatus.textContent = 'Format: username#XXXX'; acStatus.style.color = '#7a9abb'; }
       if (addModal) addModal.style.display = 'flex';
     });
+    at(700, function() { setAddContactTab('qr'); });
+    at(1000, function() { setAddContactTab('invite'); });
+    at(1200, function() { setAddContactTab('id'); });
     at(600, function() {
-      var acInput = document.getElementById('lp-sh-ac-input');
       if (!acInput) return;
       var id = 'nightowl#7391', i = 0;
       (function typeId() { if (i < id.length) { acInput.textContent += id[i++]; setTimeout(typeId, pace(62)); } })();
     });
+    at(1200, function() {
+      if (acStatus) { acStatus.textContent = '✓ Valid Winkd ID format'; acStatus.style.color = '#2f8a4d'; }
+      if (acSend) acSend.style.filter = 'brightness(1.15)';
+    });
     at(2000, function() {
       if (addModal) addModal.style.display = 'none';
+      if (acSend) acSend.style.filter = '';
       var contactParent = document.querySelector('#lp-sh-win .aero-contact.sel');
       if (contactParent && contactParent.parentNode) {
         var newC = document.createElement('div');
