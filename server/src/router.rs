@@ -877,6 +877,19 @@ async fn handle_command(
 
             match db::find_user_by_winkd_id(&state.db, &recipient_winkd_id).await {
                 Ok(Some(recipient)) => {
+                    match db::is_blocked_between(&state.db, user.id, recipient.id).await {
+                        Ok(true) => {
+                            send_err(tx, "You can't message this user.");
+                            return;
+                        }
+                        Ok(false) => {}
+                        Err(e) => {
+                            tracing::warn!("is_blocked_between error on send_message: {e}");
+                            send_err(tx, "Server error. Please try again.");
+                            return;
+                        }
+                    }
+
                     let mut sender_payload = cmd.payload.clone();
                     sender_payload["conversationId"] = json!(recipient_winkd_id.clone());
                     sender_payload["senderId"] = json!(user.winkd_id.clone());
