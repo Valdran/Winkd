@@ -47,6 +47,7 @@ export function ChatWindow({ send }: ChatWindowProps) {
   const emojiPickerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   const conversation = activeConversationId ? conversations[activeConversationId] : null
   const contact = conversation
@@ -118,6 +119,11 @@ export function ChatWindow({ send }: ChatWindowProps) {
   const handleFilePick = () => {
     setAttachmentError(null)
     fileInputRef.current?.click()
+  }
+
+  const handlePhotoPick = () => {
+    setAttachmentError(null)
+    photoInputRef.current?.click()
   }
 
   const handleAttachmentSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -226,11 +232,13 @@ export function ChatWindow({ send }: ChatWindowProps) {
 
       {/* Action toolbar */}
       <WinkdToolbar
-        onFile={handleFilePick}
         onWinkd={() => sendWinkd(conversation.id, session.profile.winkdId, send)}
         onNudge={() => sendNudge(conversation.id, session.profile.winkdId, send)}
         onWinks={() => { /* Phase 4 */ }}
         onEmoticons={() => setShowEmojiPicker((v) => !v)}
+        onFormat={() => setAttachmentError('Text formatting controls are not hooked up in this React view yet.')}
+        onBackground={() => setAttachmentError('Chat background picker is available in app.html and will be wired here next.')}
+        onDraw={() => setAttachmentError('Draw & send is available in app.html and will be wired here next.')}
       />
 
       {/* Message history */}
@@ -316,6 +324,14 @@ export function ChatWindow({ send }: ChatWindowProps) {
           accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.csv,.txt,.rtf,.png,.jpg,.jpeg,.gif,.webp,.mp4,.webm,.mp3,.wav,.zip"
           style={{ display: 'none' }}
         />
+        <input
+          ref={photoInputRef}
+          type="file"
+          onChange={handleAttachmentSelect}
+          accept="image/*"
+          capture="environment"
+          style={{ display: 'none' }}
+        />
         {/* Emoji picker popup */}
         {showEmojiPicker && (
           <div
@@ -374,6 +390,46 @@ export function ChatWindow({ send }: ChatWindowProps) {
             Preview: {renderRichEmojiText(inputValue, 14)}
           </div>
         )}
+        <button
+          type="button"
+          onClick={handlePhotoPick}
+          style={{
+            height: 34,
+            width: 34,
+            borderRadius: 4,
+            border: '1px solid rgba(100,150,220,0.5)',
+            background: 'linear-gradient(180deg, rgba(236,245,255,0.95) 0%, rgba(208,226,250,0.88) 100%)',
+            color: '#1a2a40',
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: 'pointer',
+            flexShrink: 0,
+            lineHeight: 1,
+          }}
+          title="Take photo"
+        >
+          📷
+        </button>
+        <button
+          type="button"
+          onClick={handleFilePick}
+          style={{
+            height: 34,
+            width: 34,
+            borderRadius: 4,
+            border: '1px solid rgba(100,150,220,0.5)',
+            background: 'linear-gradient(180deg, rgba(236,245,255,0.95) 0%, rgba(208,226,250,0.88) 100%)',
+            color: '#1a2a40',
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: 'pointer',
+            flexShrink: 0,
+            lineHeight: 1,
+          }}
+          title="Attach file"
+        >
+          📁
+        </button>
         <button
           type="button"
           onClick={handleSend}

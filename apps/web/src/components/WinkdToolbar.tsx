@@ -49,20 +49,24 @@ function ToolbarBtn({ label, onClick, variant = 'default', disabled }: ToolbarBt
 }
 
 interface WinkdToolbarProps {
-  onFile: () => void
   onWinkd: () => void
   onNudge: () => void
   onWinks: () => void
   onEmoticons: () => void
+  onFormat: () => void
+  onBackground: () => void
+  onDraw: () => void
   disabled?: boolean
 }
 
 export function WinkdToolbar({
-  onFile,
   onWinkd,
   onNudge,
   onWinks,
   onEmoticons,
+  onFormat,
+  onBackground,
+  onDraw,
   disabled,
 }: WinkdToolbarProps) {
   return (
@@ -79,7 +83,6 @@ export function WinkdToolbar({
         flexShrink: 0,
       }}
     >
-      <ToolbarBtn label="📎 File" onClick={onFile} disabled={disabled} />
       <ToolbarBtn
         label="💥 Winkd!"
         onClick={onWinkd}
@@ -102,6 +105,17 @@ export function WinkdToolbar({
       />
       <ToolbarBtn label="✨ Winks" onClick={onWinks} disabled={disabled} />
       <ToolbarBtn label="😄 Emoticons" onClick={onEmoticons} disabled={disabled} />
+      <ToolbarBtn label="A" onClick={onFormat} disabled={disabled} />
+      <div
+        style={{
+          width: 1,
+          height: 18,
+          background: 'rgba(255,255,255,0.14)',
+          margin: '0 3px',
+        }}
+      />
+      <ToolbarBtn label="🖼️ BG" onClick={onBackground} disabled={disabled} />
+      <ToolbarBtn label="✏️ Draw" onClick={onDraw} disabled={disabled} />
     </div>
   )
 }
