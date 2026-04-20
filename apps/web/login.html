@@ -842,6 +842,16 @@ async function authenticateWithPassword(username, password, err, suc){
       return;
     }
     const data = await res.json();
+    if (data.totp_required && data.challenge_token) {
+      const code = window.prompt('Enter your 2FA code (6-digit authenticator or backup code):', '');
+      if (!code) {
+        err.textContent='Two-factor sign-in was cancelled.';
+        err.classList.add('show');
+        return;
+      }
+      await completeTotpChallenge(data.challenge_token, code, err, suc);
+      return;
+    }
     saveSession(data.session_token, data.winkd_id, data.display_name, data.mood_message, data.avatar_data, data.display_name_color, data.av_color);
     suc.textContent='Signed in successfully. Opening Winkd…';
     suc.classList.add('show');
@@ -850,6 +860,29 @@ async function authenticateWithPassword(username, password, err, suc){
     err.textContent='Could not connect to the server.';
     err.classList.add('show');
   }
+}
+
+async function completeTotpChallenge(challengeToken, code, err, suc){
+  const res = await fetch('/api/auth/totp/challenge', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      challenge_token: challengeToken,
+      code: code.trim(),
+    }),
+  });
+
+  if(!res.ok){
+    err.textContent='Invalid 2FA code. Please try again.';
+    err.classList.add('show');
+    return;
+  }
+
+  const data = await res.json();
+  saveSession(data.session_token, data.winkd_id, data.display_name, data.mood_message, data.avatar_data, data.display_name_color, data.av_color);
+  suc.textContent='Two-factor verified. Opening Winkd…';
+  suc.classList.add('show');
+  setTimeout(()=>window.location.href='app.html', 900);
 }
 
 // ── PHONE / OTP ──
