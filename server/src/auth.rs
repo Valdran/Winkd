@@ -1085,6 +1085,19 @@ fn sha256_hex(input: &str) -> String {
     hex::encode(Sha256::digest(input.as_bytes()))
 }
 
+fn normalize_2fa_code(input: &str) -> String {
+    input
+        .trim()
+        .chars()
+        .filter(|c| !c.is_whitespace() && *c != '-')
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
+fn is_totp_code(code: &str) -> bool {
+    code.len() == 6 && code.chars().all(|c| c.is_ascii_digit())
+}
+
 /// Verify either a current 6-digit TOTP code or a one-time recovery code.
 /// Returns true on success; recovery codes are consumed on use.
 async fn verify_totp_or_recovery(
@@ -1093,12 +1106,12 @@ async fn verify_totp_or_recovery(
     secret: &str,
     code: &str,
 ) -> Result<bool, AppError> {
-    let code_clean = code.trim();
-    if code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()) {
-        return Ok(totp::verify(secret, code_clean));
+    let code_clean = normalize_2fa_code(code);
+    if is_totp_code(&code_clean) {
+        return Ok(totp::verify(secret, &code_clean));
     }
 
-    let hash = sha256_hex(code_clean);
+    let hash = sha256_hex(&code_clean);
     db::consume_recovery_code(pool, user_id, &hash)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))
@@ -1138,10 +1151,7 @@ pub async fn totp_challenge(
         .ok_or(AppError::Unauthorized)?;
 
     // Try TOTP code first, then backup code.
-    let using_recovery_code = {
-        let code_clean = body.code.trim();
-        !(code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()))
-    };
+    let using_recovery_code = !is_totp_code(&normalize_2fa_code(&body.code));
     let verified = verify_totp_or_recovery(pool, user_id, secret, &body.code).await?;
     if verified && using_recovery_code {
         audit::log(pool, Some(user_id), audit::Action::RecoveryCodeUsed, Some(&ip),
@@ -1224,16 +1234,8 @@ pub async fn totp_confirm(
         .as_deref()
         .ok_or_else(|| AppError::Internal("No pending TOTP secret — call /setup first".into()))?;
 
-    let using_recovery_code = {
-        let code_clean = body.code.trim();
-        !(code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()))
-    };
-    if !verify_totp_or_recovery(pool, user.id, secret, &body.code).await? {
+    if !totp::verify(secret, normalize_2fa_code(&body.code).as_str()) {
         return Err(AppError::Unauthorized);
-    }
-    if using_recovery_code {
-        audit::log(pool, Some(user.id), audit::Action::RecoveryCodeUsed, Some(&ip),
-            serde_json::json!({ "remaining": db::count_recovery_codes(pool, user.id).await.unwrap_or(0) })).await;
     }
 
     // Enable 2FA and generate backup codes atomically.
@@ -1273,10 +1275,7 @@ pub async fn totp_disable(
     }
 
     let secret = user.totp_secret.as_deref().ok_or(AppError::Unauthorized)?;
-    let using_recovery_code = {
-        let code_clean = body.code.trim();
-        !(code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()))
-    };
+    let using_recovery_code = !is_totp_code(&normalize_2fa_code(&body.code));
     if !verify_totp_or_recovery(pool, user.id, secret, &body.code).await? {
         return Err(AppError::Unauthorized);
     }
@@ -1325,10 +1324,7 @@ pub async fn recovery_codes_generate(
     }
 
     let secret = user.totp_secret.as_deref().ok_or(AppError::Unauthorized)?;
-    let using_recovery_code = {
-        let code_clean = body.code.trim();
-        !(code_clean.len() == 6 && code_clean.chars().all(|c| c.is_ascii_digit()))
-    };
+    let using_recovery_code = !is_totp_code(&normalize_2fa_code(&body.code));
     if !verify_totp_or_recovery(pool, user.id, secret, &body.code).await? {
         return Err(AppError::Unauthorized);
     }
