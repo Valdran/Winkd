@@ -2178,6 +2178,10 @@ function endChat(){
   const a=document.getElementById('chat-area');a.className='empty';
   a.innerHTML='<div id="offline-toast">📡 You\'re offline. Messages will send when reconnected</div><div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;"><img src="https://i.imgur.com/cg6eejI.png" alt="Winkd" style="width:80px;height:80px;object-fit:contain;"><span style="font-size:28px;color:#5a8abf;font-weight:400;text-shadow:0 1px 4px rgba(0,0,80,0.12);"><b>Winkd</b> Messenger</span></div><div class="placeholder-text">Select a contact to start chatting</div><div class="placeholder-sub">Or add someone new with + Add Contact</div><div id="dyk-wrap"><div id="dyk-label">💡 Did you know?</div><div id="dyk-tip"></div><div id="dyk-dots"></div></div>';
   initDidYouKnow();
+  if(mob()){
+    document.getElementById('sidebar')?.classList.remove('slide-out');
+    a.classList.remove('slide-in');
+  }
   closeEmoji();
 }
 function goBack(){document.getElementById('sidebar').classList.remove('slide-out');document.getElementById('chat-area').classList.remove('slide-in');activeContact=null;renderContacts(document.getElementById('search-input').value);closeEmoji();}
@@ -2654,7 +2658,26 @@ function handleBlockedList(payload){
 function handleContactUnblocked(payload){
   const uid=payload?.user_id;
   if(!uid)return;
+  const unblocked=blockedUsers.find(u=>u.user_id===uid)||null;
   blockedUsers=blockedUsers.filter(u=>u.user_id!==uid);
+  if(unblocked){
+    const wid=unblocked.winkd_id;
+    if(wid&&!contacts.find(c=>c.id===wid)){
+      contacts.push({
+        id:wid,
+        initials:(unblocked.display_name||wid.split('#')[0]).slice(0,2).toUpperCase(),
+        name:unblocked.display_name||wid.split('#')[0],
+        mood:'',
+        status:'offline',
+        color:'#406080',
+        avatarSrc:unblocked.avatar_data||null,
+        unread:0,
+      });
+      buddyUsed+=1;
+      updateBuddyCounter();
+      renderContacts(document.getElementById('search-input')?.value||'');
+    }
+  }
   renderBlockedUsers();
   showToast('User unblocked.','info');
 }
