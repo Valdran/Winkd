@@ -273,6 +273,28 @@ export function ChatWindow({ send }: ChatWindowProps) {
             color: '#1a2a40',
           }}
         />
+        {inputValue.trim() && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 18,
+              right: 88,
+              bottom: 12,
+              pointerEvents: 'none',
+              fontSize: 11,
+              color: 'rgba(26,42,64,0.85)',
+              background: 'rgba(255,255,255,0.72)',
+              borderRadius: 4,
+              padding: '2px 6px',
+              border: '1px dashed rgba(100,150,220,0.35)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            Preview: {renderRichEmojiText(inputValue, 14)}
+          </div>
+        )}
         <button
           type="button"
           onClick={handleSend}

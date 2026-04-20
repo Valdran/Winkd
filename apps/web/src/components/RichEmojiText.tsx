@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react'
+import { getEmojiAssetUrlFromToken } from './emojiAssets'
 
-const INLINE_TOKEN_REGEX = /(https?:\/\/[^\s]+|\/(?:emoji-packs|msn-emoticons)\/[^\s]+)/gi
+const INLINE_TOKEN_REGEX = /(https?:\/\/[^\s]+|\/(?:emoji-packs|msn-emoticons)\/[^\s]+|:[a-z0-9-]+:)/gi
 const TRAILING_PUNCTUATION_REGEX = /[),.;:!?'"`]+$/
 
 function isInlineEmojiAsset(token: string): boolean {
+  if (getEmojiAssetUrlFromToken(token) !== null) return true
   const normalized = token.toLowerCase()
   return (
     /^\/emoji-packs\/.+\.(?:png|gif|webp)(?:\?|$)/.test(normalized) ||
@@ -39,11 +41,12 @@ export function renderRichEmojiText(text: string, size = 16): ReactNode[] {
     .map((token, index) => {
       const { asset, trailingText } = splitInlineEmojiToken(token)
       if (!asset) return <span key={`text-${index}`}>{token}</span>
+      const resolvedAsset = getEmojiAssetUrlFromToken(asset) ?? asset
 
       return (
         <span key={`emoji-${index}`}>
           <img
-            src={asset}
+            src={resolvedAsset}
             alt="emoji"
             style={{
               width: size,

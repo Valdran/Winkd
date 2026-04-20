@@ -1,10 +1,12 @@
 import type { Message } from '@winkd/types'
 import { renderRichEmojiText } from './RichEmojiText'
+import { getEmojiAssetUrlFromToken } from './emojiAssets'
 
-const URL_REGEX = /(https?:\/\/[^\s]+|\/(?:emoji-packs|msn-emoticons)\/[^\s]+)/g
+const URL_REGEX = /(https?:\/\/[^\s]+|\/(?:emoji-packs|msn-emoticons)\/[^\s]+|:[a-z0-9-]+:)/g
 const TRAILING_PUNCTUATION_REGEX = /[),.;:!?'"`]+$/
 
 function isImageAssetUrl(rawUrl: string): boolean {
+  if (getEmojiAssetUrlFromToken(rawUrl) !== null) return true
   const normalized = rawUrl.toLowerCase()
   return (
     /(\.gif|\.webp|\.png|\.jpg|\.jpeg)(\?|$)/.test(normalized) ||
@@ -17,6 +19,7 @@ function shouldHideCompanionGifLink(rawUrl: string): boolean {
 }
 
 function isInlineEmojiAsset(rawUrl: string): boolean {
+  if (getEmojiAssetUrlFromToken(rawUrl) !== null) return true
   const normalized = rawUrl.toLowerCase()
   return (
     normalized.startsWith('/emoji-packs/') ||
@@ -153,9 +156,10 @@ export function MessageBubble({ message, isMe }: MessageBubbleProps) {
         if (isImageAssetUrl(part)) {
           const { asset, trailingText } = splitInlineEmojiToken(part)
           if (asset) {
+            const resolvedAsset = getEmojiAssetUrlFromToken(asset) ?? asset
             return (
               <span key={`inline-image-${index}`}>
-                {renderRichEmojiText(asset, 20)}
+                {renderRichEmojiText(resolvedAsset, 20)}
                 {trailingText}
               </span>
             )
