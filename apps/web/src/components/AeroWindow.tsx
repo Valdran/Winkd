@@ -99,36 +99,6 @@ export function AeroWindow({ title, icon, children, style }: AeroWindowProps) {
         </div>
       </div>
 
-      {/* Menu bar */}
-      <div
-        style={{
-          height: 22,
-          background:
-            'linear-gradient(180deg, rgba(220,235,255,0.96) 0%, rgba(200,220,255,0.9) 100%)',
-          borderBottom: '1px solid rgba(100,150,220,0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          paddingLeft: 8,
-          gap: 16,
-          flexShrink: 0,
-          userSelect: 'none',
-        }}
-      >
-        {['File', 'Contacts', 'Tools', 'Help'].map((item) => (
-          <span
-            key={item}
-            style={{
-              fontSize: 11,
-              color: '#1a2a40',
-              cursor: 'default',
-              padding: '1px 4px',
-            }}
-          >
-            {item}
-          </span>
-        ))}
-      </div>
-
       {/* Content */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
         {children}
