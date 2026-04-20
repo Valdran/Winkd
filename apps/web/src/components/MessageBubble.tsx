@@ -52,6 +52,13 @@ interface MessageBubbleProps {
   isMe: boolean
 }
 
+function formatBytes(bytes?: number): string {
+  if (!bytes || Number.isNaN(bytes)) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
 export function MessageBubble({ message, isMe }: MessageBubbleProps) {
   if (message.type === 'winkd') {
     return (
@@ -121,6 +128,16 @@ export function MessageBubble({ message, isMe }: MessageBubbleProps) {
   const bodyParts = message.body.split(URL_REGEX)
   const imageUrls = (message.body.match(URL_REGEX) ?? []).filter(isImageAssetUrl)
   const hasImageAssets = imageUrls.length > 0
+  const mediaSrc = message.mediaData || message.mediaUrl
+  const mediaMime = message.mediaMime || ''
+  const mediaName = message.mediaName || 'attachment'
+  const canInlinePreview =
+    Boolean(mediaSrc) &&
+    (mediaMime.startsWith('image/') ||
+      mediaMime.startsWith('video/') ||
+      mediaMime.startsWith('audio/') ||
+      mediaMime === 'application/pdf' ||
+      mediaMime.startsWith('text/'))
 
   return (
     <div
@@ -196,6 +213,54 @@ export function MessageBubble({ message, isMe }: MessageBubbleProps) {
           </a>
         )
       })}
+      {mediaSrc && (
+        <div
+          style={{
+            marginTop: message.body.trim() ? 8 : 0,
+            borderTop: message.body.trim() ? '1px solid rgba(80,120,180,0.2)' : 'none',
+            paddingTop: message.body.trim() ? 8 : 0,
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>
+            📎 {mediaName} {message.mediaSize ? `(${formatBytes(message.mediaSize)})` : ''}
+          </div>
+          {canInlinePreview ? (
+            mediaMime.startsWith('image/') ? (
+              <img
+                src={mediaSrc}
+                alt={mediaName}
+                style={{ display: 'block', maxWidth: '100%', borderRadius: 6, marginBottom: 6 }}
+              />
+            ) : (
+              <iframe
+                src={mediaSrc}
+                title={mediaName}
+                style={{
+                  width: '100%',
+                  minHeight: 210,
+                  border: '1px solid rgba(80,120,180,0.25)',
+                  borderRadius: 6,
+                  background: 'rgba(255,255,255,0.82)',
+                  marginBottom: 6,
+                }}
+              />
+            )
+          ) : (
+            <div style={{ fontSize: 10, opacity: 0.8, marginBottom: 6 }}>
+              Inline preview not available for this format. Download to open.
+            </div>
+          )}
+          <a
+            href={mediaSrc}
+            download={mediaName}
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: '#0f4ca8', fontWeight: 600, textDecoration: 'underline' }}
+          >
+            Download file
+          </a>
+        </div>
+      )}
     </div>
   )
 }

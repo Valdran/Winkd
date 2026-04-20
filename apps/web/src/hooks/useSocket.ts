@@ -95,6 +95,31 @@ export function useSocket() {
             senderId: String(raw.senderId ?? raw.sender_id ?? ''),
             type: String(raw.type ?? ''),
             body: typeof raw.body === 'string' ? raw.body : undefined,
+            mediaData: typeof raw.mediaData === 'string'
+              ? raw.mediaData
+              : typeof raw.media_data === 'string'
+                ? raw.media_data
+                : undefined,
+            mediaUrl: typeof raw.mediaUrl === 'string'
+              ? raw.mediaUrl
+              : typeof raw.media_url === 'string'
+                ? raw.media_url
+                : undefined,
+            mediaName: typeof raw.mediaName === 'string'
+              ? raw.mediaName
+              : typeof raw.media_name === 'string'
+                ? raw.media_name
+                : undefined,
+            mediaMime: typeof raw.mediaMime === 'string'
+              ? raw.mediaMime
+              : typeof raw.media_mime === 'string'
+                ? raw.media_mime
+                : undefined,
+            mediaSize: typeof raw.mediaSize === 'number'
+              ? raw.mediaSize
+              : typeof raw.media_size === 'number'
+                ? raw.media_size
+                : undefined,
             sentAt: String(raw.sentAt ?? raw.sent_at ?? new Date().toISOString()),
             delivered: Boolean(raw.delivered),
             read: Boolean(raw.read),

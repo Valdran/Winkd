@@ -25,6 +25,16 @@ export interface TextMessage extends BaseMessage {
   type: "text";
   /** Plaintext body (decrypted locally — never stored server-side in plaintext) */
   body: string;
+  /** Optional inline attachment payload (e.g., data URI) */
+  mediaData?: string;
+  /** Optional attachment URL */
+  mediaUrl?: string;
+  /** Original file name for rendering + download */
+  mediaName?: string;
+  /** Attachment MIME type */
+  mediaMime?: string;
+  /** Attachment byte size */
+  mediaSize?: number;
 }
 
 export interface WinkdMessage extends BaseMessage {

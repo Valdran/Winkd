@@ -13,17 +13,40 @@ interface ChatWindowProps {
   send: (payload: object) => void
 }
 
+const BLOCKED_ATTACHMENT_EXTENSIONS = new Set([
+  'exe', 'msi', 'bat', 'cmd', 'com', 'scr', 'pif', 'jar', 'vbs', 'vbe', 'js', 'jse', 'wsf',
+  'wsh', 'ps1', 'psm1', 'hta', 'reg', 'scf', 'lnk', 'dll', 'sys', 'iso', 'img', 'apk', 'app',
+  'dmg', 'pkg', 'deb', 'rpm', 'sh',
+])
+
+const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024
+
+function fileExtension(fileName: string): string {
+  const parts = fileName.split('.')
+  return parts.length > 1 ? parts[parts.length - 1]!.toLowerCase() : ''
+}
+
 export function ChatWindow({ send }: ChatWindowProps) {
   const session = useAuthStore((s) => s.session)
   const contacts = useContactsStore((s) => s.contacts)
-  const { activeConversationId, conversations, sendText, sendWinkd, sendNudge, clearShaking } =
+  const {
+    activeConversationId,
+    conversations,
+    sendText,
+    sendAttachment,
+    sendWinkd,
+    sendNudge,
+    clearShaking,
+  } =
     useChatStore()
 
   const [inputValue, setInputValue] = useState('')
+  const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const conversation = activeConversationId ? conversations[activeConversationId] : null
   const contact = conversation
@@ -92,6 +115,54 @@ export function ChatWindow({ send }: ChatWindowProps) {
     }
   }
 
+  const handleFilePick = () => {
+    setAttachmentError(null)
+    fileInputRef.current?.click()
+  }
+
+  const handleAttachmentSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const pickedFile = event.target.files?.[0]
+    event.target.value = ''
+    if (!pickedFile) return
+
+    const extension = fileExtension(pickedFile.name)
+    if (BLOCKED_ATTACHMENT_EXTENSIONS.has(extension)) {
+      setAttachmentError('This file type is blocked for safety. Executables and scripts are not allowed.')
+      return
+    }
+
+    if (pickedFile.size > MAX_ATTACHMENT_BYTES) {
+      setAttachmentError('File is too large. Current attachment limit is 3 MB.')
+      return
+    }
+
+    try {
+      const mediaData = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result ?? ''))
+        reader.onerror = () => reject(new Error('Unable to read file'))
+        reader.readAsDataURL(pickedFile)
+      })
+
+      sendAttachment(
+        conversation.id,
+        session.profile.winkdId,
+        {
+          mediaData,
+          mediaName: pickedFile.name,
+          mediaMime: pickedFile.type || 'application/octet-stream',
+          mediaSize: pickedFile.size,
+          body: inputValue.trim() || `📎 ${pickedFile.name}`,
+        },
+        send,
+      )
+      setInputValue('')
+      setAttachmentError(null)
+    } catch {
+      setAttachmentError('Could not read that file. Try again.')
+    }
+  }
+
   return (
     <div
       className={conversation.isShaking ? 'winkd-shake' : undefined}
@@ -155,6 +226,7 @@ export function ChatWindow({ send }: ChatWindowProps) {
 
       {/* Action toolbar */}
       <WinkdToolbar
+        onFile={handleFilePick}
         onWinkd={() => sendWinkd(conversation.id, session.profile.winkdId, send)}
         onNudge={() => sendNudge(conversation.id, session.profile.winkdId, send)}
         onWinks={() => { /* Phase 4 */ }}
@@ -237,6 +309,13 @@ export function ChatWindow({ send }: ChatWindowProps) {
             alignItems: 'flex-end',
           }}
         >
+        <input
+          ref={fileInputRef}
+          type="file"
+          onChange={handleAttachmentSelect}
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.csv,.txt,.rtf,.png,.jpg,.jpeg,.gif,.webp,.mp4,.webm,.mp3,.wav,.zip"
+          style={{ display: 'none' }}
+        />
         {/* Emoji picker popup */}
         {showEmojiPicker && (
           <div
@@ -316,6 +395,18 @@ export function ChatWindow({ send }: ChatWindowProps) {
         >
           Send
         </button>
+        </div>
+        <div
+          style={{
+            padding: '0 12px 7px',
+            fontSize: 10,
+            color: attachmentError ? '#ffb5b5' : 'rgba(185,210,255,0.75)',
+            lineHeight: 1.35,
+          }}
+        >
+          {attachmentError
+            ? `⚠️ ${attachmentError}`
+            : '⚠️ Attachments can contain malware. Only open files from people you trust. Office docs may require download + local viewer (LibreOffice / ONLYOFFICE).'}
         </div>
       </div>
 
