@@ -10,9 +10,9 @@
           var raw = localStorage.getItem('winkd-auth')
           var auth = raw ? JSON.parse(raw) : null
           var token = auth && auth.state && auth.state.session && auth.state.session.token
-          window.location.replace(token ? 'app.html' : 'login.html')
+          window.location.replace(token ? 'app.html' : 'winkd_website.html')
         } catch (e) {
-          window.location.replace('login.html')
+          window.location.replace('winkd_website.html')
         }
       })()
     </script>
