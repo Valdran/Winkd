@@ -2063,35 +2063,47 @@ function sendNudge(){
   playNudgeSound();
 }
 
-// Render an outgoing payload into the active conversation without waiting for
-// the server relay echo. Keeps the same shape as handleRelayedMessage so the
-// dedup check (by payload.id) collapses the server echo into the same entry.
-function locallyRenderOutgoing(payload){
-  const conversationId=payload?.conversationId;
-  if(!conversationId)return;
-  if(!convos[conversationId])convos[conversationId]=[];
-  const msgId=payload?.id||null;
-  if(msgId&&convos[conversationId].some(m=>m&&m.id===msgId))return;
-  const contact=contacts.find(x=>x.id===conversationId);
-  const kind=payload?.type||'text';
-  const msgTime=payload?.sentAt||ts();
+// Normalize a wire-format send_message payload into the UI message shape used
+// by addMsg/convos. Shared between the optimistic outgoing render and the
+// inbound relay handler so the two paths cannot drift (any drift would break
+// the id-based dedup that collapses the server echo onto the optimistic entry).
+function payloadToUiMessage(payload,contact,fromMe){
+  const kind=payload?.type||payload?.kind||'text';
+  const msgTime=payload?.sentAt||payload?.sent_at||payload?.time||ts();
+  const from=fromMe?'me':'them';
   let message;
-  if(kind==='winkd')message={type:'winkd',from:'me',time:msgTime};
-  else if(kind==='nudge')message={type:'nudge',from:'me',time:msgTime};
+  if(kind==='winkd')message={type:'winkd',from,time:msgTime};
+  else if(kind==='nudge')message={type:'nudge',from,time:msgTime};
+  else if(kind==='wink')message={type:'system',text:fromMe?'✨ You sent a Wink!':`✨ ${contact?.name||'Someone'} sent you a Wink!`};
   else message={
-    from:'me',
-    text:payload?.body||'',
+    from,
+    text:payload?.body||payload?.text||'',
     time:msgTime,
     color:payload?.color||null,
     bold:!!payload?.bold,
     italic:!!payload?.italic,
     underline:!!payload?.underline,
     font:payload?.font||null,
-    mediaType:payload?.media_type||null,
-    mediaUrl:payload?.media_url||null,
-    mediaData:payload?.media_data||null,
+    mediaType:payload?.mediaType||payload?.media_type||null,
+    mediaUrl:payload?.mediaUrl||payload?.media_url||null,
+    mediaData:payload?.mediaData||payload?.media_data||null,
   };
+  const msgId=payload?.id||null;
   if(msgId)message.id=msgId;
+  return message;
+}
+
+// Render an outgoing payload into the active conversation without waiting for
+// the server relay echo. handleRelayedMessage dedupes by payload.id so the
+// echo collapses back into this entry.
+function locallyRenderOutgoing(payload){
+  const conversationId=payload?.conversationId||payload?.conversation_id;
+  if(!conversationId)return;
+  if(!convos[conversationId])convos[conversationId]=[];
+  const msgId=payload?.id||null;
+  if(msgId&&convos[conversationId].some(m=>m&&m.id===msgId))return;
+  const contact=contacts.find(x=>x.id===conversationId);
+  const message=payloadToUiMessage(payload,contact,true);
   convos[conversationId].push(message);
   saveConvos();
   if(activeContact===conversationId&&contact){
@@ -2180,9 +2192,6 @@ function pickColor(){
   setTimeout(()=>document.addEventListener('click',function h(e){if(!d.contains(e.target)){d.remove();document.removeEventListener('click',h);}},),100);
 }
 function changeFont(v){msgFont=v;const i=document.getElementById('chat-input');if(i)i.style.fontFamily=v;}
-
-function fakeTyping(){/* bots removed */}
-function fakeReply(){/* bots removed */}
 
 function setStatus(s){
   myStatus=s;
@@ -2488,27 +2497,7 @@ function handleRelayedMessage(payload){
   if(msgId&&convos[conversationId].some(m=>m&&m.id===msgId))return;
 
   const fromMe=senderId===myWinkdId;
-  const kind=payload?.type||payload?.kind||'text';
-  const msgTime=payload?.sentAt||payload?.sent_at||payload?.time||ts();
-
-  let message;
-  if(kind==='winkd')message={type:'winkd',from:fromMe?'me':'them',time:msgTime};
-  else if(kind==='nudge')message={type:'nudge',from:fromMe?'me':'them',time:msgTime};
-  else if(kind==='wink')message={type:'system',text:fromMe?'✨ You sent a Wink!':`✨ ${contact.name} sent you a Wink!`};
-  else message={
-    from:fromMe?'me':'them',
-    text:payload?.body||payload?.text||'',
-    time:msgTime,
-    color:payload?.color||null,
-    bold:!!payload?.bold,
-    italic:!!payload?.italic,
-    underline:!!payload?.underline,
-    font:payload?.font||null,
-    mediaType:payload?.mediaType||payload?.media_type||null,
-    mediaUrl:payload?.mediaUrl||payload?.media_url||null,
-    mediaData:payload?.mediaData||payload?.media_data||null,
-  };
-  if(msgId)message.id=msgId;
+  const message=payloadToUiMessage(payload,contact,fromMe);
 
   convos[conversationId].push(message);
   saveConvos();
