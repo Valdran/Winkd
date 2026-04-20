@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Avatar } from '@winkd/ui'
 import type { Contact } from '@winkd/types'
+import { renderRichEmojiText } from './RichEmojiText'
 
 interface ContactItemProps {
   contact: Contact
@@ -67,7 +68,7 @@ export function ContactItem({
               whiteSpace: 'nowrap',
             }}
           >
-            {contact.moodMessage}
+            {renderRichEmojiText(contact.moodMessage, 13)}
           </div>
         )}
       </div>

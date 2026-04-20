@@ -268,7 +268,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
     item.type === 'classic'
       ? `${MSN_EMOTICON_BASE_URL}/${item.filename}.png `
       : item.type === 'spikey'
-        ? `${location.origin}/emoji-packs/spikey/${item.filename} `
+        ? `/emoji-packs/spikey/${item.filename} `
         : item.value
 
   return (
