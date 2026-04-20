@@ -2378,6 +2378,8 @@ function renderReactions(msgId){
 
 // ── WEBSOCKET ──
 let ws=null,wsReconnectDelay=2000,wsAuthenticated=false;
+const OFFLINE_SEND_QUEUE_KEY=myWinkdId?`winkd-offline-send-queue:${myWinkdId}`:'winkd-offline-send-queue';
+let offlineSendQueue=[];
 
 // Tier + size limits. Defaults match the server's free-tier caps so the UI
 // behaves correctly before the auth_ok frame arrives. Once we authenticate
@@ -2472,6 +2474,39 @@ function wsGetToken(){
   try{const auth=JSON.parse(localStorage.getItem('winkd-auth')||'{}');return auth?.state?.session?.token||'';}
   catch{return '';}
 }
+function loadOfflineSendQueue(){
+  try{
+    const raw=localStorage.getItem(OFFLINE_SEND_QUEUE_KEY);
+    const parsed=raw?JSON.parse(raw):[];
+    offlineSendQueue=Array.isArray(parsed)?parsed:[];
+  }catch{
+    offlineSendQueue=[];
+  }
+}
+function persistOfflineSendQueue(){
+  try{localStorage.setItem(OFFLINE_SEND_QUEUE_KEY,JSON.stringify(offlineSendQueue));}catch{}
+}
+function enqueueOfflineMessage(payload){
+  offlineSendQueue.push(payload);
+  persistOfflineSendQueue();
+}
+function flushOfflineSendQueue(){
+  if(!(ws?.readyState===WebSocket.OPEN&&wsAuthenticated))return;
+  if(offlineSendQueue.length===0)return;
+  let sent=0;
+  while(offlineSendQueue.length>0){
+    const payload=offlineSendQueue[0];
+    try{
+      ws.send(JSON.stringify({command:'send_message',payload}));
+      offlineSendQueue.shift();
+      sent++;
+    }catch{
+      break;
+    }
+  }
+  persistOfflineSendQueue();
+  if(sent>0)showToast(`Sent ${sent} queued message${sent===1?'':'s'}.`,'info');
+}
 
 function wsConnect(){
   const token=wsGetToken();if(!token)return;
@@ -2492,6 +2527,7 @@ function wsConnect(){
             m.tier, m.limits, m.purchased_extras,
             m.buddy_cap, m.buddy_used, m.group_chat_unlocked
           );
+          flushOfflineSendQueue();
         }
         return;
       }
@@ -2505,6 +2541,10 @@ function wsConnect(){
 function wsSend(command,payload){
   if(ws?.readyState===WebSocket.OPEN&&wsAuthenticated){
     ws.send(JSON.stringify({command,payload}));
+    return true;
+  }
+  if(command==='send_message'&&payload){
+    enqueueOfflineMessage(payload);
     return true;
   }
   return false;
@@ -3490,6 +3530,7 @@ initDidYouKnow();
 registerSW();
 initInstallPrompt();
 initOfflineDetection();
+loadOfflineSendQueue();
 wsConnect();
 // Synchronous render path completed. Any later error is non-fatal — don't
 // tear the whole UI down with the fatal overlay.
