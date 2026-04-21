@@ -391,7 +391,7 @@ pub async fn oauth_start(Path(provider): Path<String>) -> Result<Response, AppEr
     );
 
     let set_cookie = format!(
-        "winkd_oauth_state={}; Path=/; HttpOnly; SameSite=Strict; Max-Age=600",
+        "winkd_oauth_state={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600",
         urlencoding::encode(&cookie_val)
     );
 
@@ -474,7 +474,7 @@ pub async fn oauth_callback(
         urlencoding::encode(user.av_color.as_deref().unwrap_or("")),
     );
 
-    let clear_cookie = "winkd_oauth_state=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0";
+    let clear_cookie = "winkd_oauth_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
     let mut response = Redirect::to(&location).into_response();
     response.headers_mut().insert(
         header::SET_COOKIE,
