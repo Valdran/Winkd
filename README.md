@@ -137,7 +137,7 @@ TOTP 2FA is available on all accounts and optional but strongly recommended.
 Security measures applied to every OAuth flow:
 
 - **PKCE (Proof Key for Code Exchange):** SHA-256 code challenge and verifier prevent authorization code interception attacks
-- **CSRF protection:** State validated via an HttpOnly `SameSite=Strict` cookie (`winkd_oauth_state`) containing provider + CSRF token + PKCE verifier + timestamp — no server-side state session required
+- **CSRF protection:** State validated via an HttpOnly `SameSite=Lax` cookie (`winkd_oauth_state`) containing provider + CSRF token + PKCE verifier + timestamp — no server-side state session required
 - **Cookie expiry:** 10 minutes (`Max-Age=600`) — short enough to prevent replay
 - **Email deduplication:** If an OAuth email matches an existing account, the OAuth identity is linked rather than creating a duplicate account
 - **OAuth-only accounts:** Users who register via OAuth have `NULL` password hashes — there is no password to leak
