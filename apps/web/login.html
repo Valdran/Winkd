@@ -1124,7 +1124,24 @@ async function handleOAuthCallback(){
   // Immediately clear the hash so the code never lingers in browser history.
   window.history.replaceState({}, document.title, window.location.pathname);
 
-  // The server passes a short-lived one-time code, never the session token itself.
+  // Current server callback sends session payload directly in the URL hash.
+  const sessionToken = params.get('session_token');
+  const winkdId = params.get('winkd_id');
+  if(sessionToken && winkdId){
+    saveSession(
+      sessionToken,
+      winkdId,
+      params.get('display_name') || winkdId,
+      params.get('mood_message') || '',
+      params.get('avatar_data') || null,
+      params.get('display_name_color') || null,
+      params.get('av_color') || null
+    );
+    simulateSuccess('OAuth sign-in complete. Opening Winkd…');
+    return;
+  }
+
+  // Backward compatibility with older server flow that returns an exchange code.
   const code = params.get('code');
   if(!code) return;
 
