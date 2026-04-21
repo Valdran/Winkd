@@ -1052,17 +1052,30 @@ fn env_var_first(keys: &[&str]) -> Option<String> {
 }
 
 fn infer_redirect_url(headers: &HeaderMap, provider_slug: &str) -> String {
-    let proto = headers
+    let forwarded_proto = headers
         .get("x-forwarded-proto")
         .and_then(|v| v.to_str().ok())
-        .filter(|v| !v.is_empty())
-        .unwrap_or("http");
+        .and_then(|v| v.split(',').next())
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
     let host = headers
         .get("x-forwarded-host")
         .or_else(|| headers.get(header::HOST))
         .and_then(|v| v.to_str().ok())
         .filter(|v| !v.is_empty())
         .unwrap_or("localhost:8080");
+    let proto = forwarded_proto.unwrap_or_else(|| {
+        if host.starts_with("localhost")
+            || host.starts_with("127.0.0.1")
+            || host.starts_with("[::1]")
+        {
+            "http"
+        } else {
+            // In production behind reverse proxies (Railway, Fly, etc.),
+            // x-forwarded-proto can be missing/misconfigured. Prefer HTTPS.
+            "https"
+        }
+    });
 
     format!("{proto}://{host}/api/auth/oauth/{provider_slug}/callback")
 }
