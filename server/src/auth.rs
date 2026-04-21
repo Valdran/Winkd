@@ -360,13 +360,20 @@ pub struct OAuthCallbackQuery {
     state: String,
 }
 
-pub async fn oauth_start(Path(provider): Path<String>) -> Result<Response, AppError> {
+pub async fn oauth_start(
+    Path(provider): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, AppError> {
     let provider = OAuthProvider::from_slug(&provider)
         .ok_or_else(|| AppError::Internal("Unsupported OAuth provider".into()))?;
 
     let cfg = provider.load_env()?;
+    let redirect_url = cfg
+        .redirect_url
+        .clone()
+        .unwrap_or_else(|| infer_redirect_url(&headers, provider.slug()));
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
-    let oauth_client = provider.client(&cfg)?;
+    let oauth_client = provider.client(&cfg, &redirect_url)?;
 
     // Build authorization URL with provider-appropriate scopes
     let auth_request = provider
@@ -380,14 +387,15 @@ pub async fn oauth_start(Path(provider): Path<String>) -> Result<Response, AppEr
 
     let (auth_url, csrf_token) = auth_request.url();
 
-    // Pack provider + state + pkce_verifier + timestamp into an HttpOnly cookie
+    // Pack provider + state + pkce_verifier + timestamp + redirect_url into an HttpOnly cookie
     // so we can validate the callback without server-side storage.
     let cookie_val = format!(
-        "{}|{}|{}|{}",
+        "{}|{}|{}|{}|{}",
         provider.slug(),
         csrf_token.secret(),
         pkce_verifier.secret(),
-        now_epoch_secs()
+        now_epoch_secs(),
+        redirect_url
     );
 
     let set_cookie = format!(
@@ -421,11 +429,11 @@ pub async fn oauth_callback(
     let cookie = parse_cookie(&headers, "winkd_oauth_state").ok_or(AppError::Unauthorized)?;
     let decoded = urlencoding::decode(&cookie).map_err(|_| AppError::Unauthorized)?;
     let parts: Vec<&str> = decoded.split('|').collect();
-    if parts.len() != 4 {
+    if parts.len() != 5 {
         return Err(AppError::Unauthorized);
     }
-    let (cookie_provider, saved_state, pkce_verifier_secret, issued_at) =
-        (parts[0], parts[1], parts[2], parts[3]);
+    let (cookie_provider, saved_state, pkce_verifier_secret, issued_at, cookie_redirect_url) =
+        (parts[0], parts[1], parts[2], parts[3], parts[4]);
 
     if cookie_provider != provider.slug() || saved_state != query.state {
         return Err(AppError::Unauthorized);
@@ -436,7 +444,15 @@ pub async fn oauth_callback(
     }
 
     // Exchange the authorization code for an access token
-    let oauth_client = provider.client(&cfg)?;
+    let redirect_url = if cookie_redirect_url.is_empty() {
+        cfg.redirect_url
+            .clone()
+            .unwrap_or_else(|| infer_redirect_url(&headers, provider.slug()))
+    } else {
+        cookie_redirect_url.to_string()
+    };
+
+    let oauth_client = provider.client(&cfg, &redirect_url)?;
     let token_response = oauth_client
         .exchange_code(AuthorizationCode::new(query.code.clone()))
         .set_pkce_verifier(PkceCodeVerifier::new(pkce_verifier_secret.to_string()))
@@ -944,13 +960,7 @@ impl OAuthProvider {
         let redirect_url = env_var_first(&[
             &format!("WINKD_OAUTH_{}_REDIRECT_URL", upper),
             &format!("OAUTH_{}_REDIRECT_URL", upper),
-        ])
-        .unwrap_or_else(|| {
-            format!(
-                "http://localhost:8080/api/auth/oauth/{}/callback",
-                self.slug()
-            )
-        });
+        ]);
 
         Ok(OAuthProviderConfig {
             client_id,
@@ -973,12 +983,16 @@ impl OAuthProvider {
             .is_some()
     }
 
-    fn client(self, cfg: &OAuthProviderConfig) -> Result<BasicClient, AppError> {
+    fn client(
+        self,
+        cfg: &OAuthProviderConfig,
+        redirect_url: &str,
+    ) -> Result<BasicClient, AppError> {
         let auth_url = AuthUrl::new(self.auth_url().to_string())
             .map_err(|_| AppError::Internal("Invalid auth URL".into()))?;
         let token_url = TokenUrl::new(self.token_url().to_string())
             .map_err(|_| AppError::Internal("Invalid token URL".into()))?;
-        let redirect_url = RedirectUrl::new(cfg.redirect_url.clone())
+        let redirect_url = RedirectUrl::new(redirect_url.to_string())
             .map_err(|_| AppError::Internal("Invalid redirect URL".into()))?;
 
         Ok(BasicClient::new(
@@ -994,7 +1008,7 @@ impl OAuthProvider {
 struct OAuthProviderConfig {
     client_id: String,
     client_secret: String,
-    redirect_url: String,
+    redirect_url: Option<String>,
 }
 
 // ── Utilities ──────────────────────────────────────────────────────────────
@@ -1035,6 +1049,22 @@ pub fn sanitize_id_part(input: &str) -> String {
 
 fn env_var_first(keys: &[&str]) -> Option<String> {
     keys.iter().find_map(|key| env::var(key).ok())
+}
+
+fn infer_redirect_url(headers: &HeaderMap, provider_slug: &str) -> String {
+    let proto = headers
+        .get("x-forwarded-proto")
+        .and_then(|v| v.to_str().ok())
+        .filter(|v| !v.is_empty())
+        .unwrap_or("http");
+    let host = headers
+        .get("x-forwarded-host")
+        .or_else(|| headers.get(header::HOST))
+        .and_then(|v| v.to_str().ok())
+        .filter(|v| !v.is_empty())
+        .unwrap_or("localhost:8080");
+
+    format!("{proto}://{host}/api/auth/oauth/{provider_slug}/callback")
 }
 
 // ── Argon2 factory ─────────────────────────────────────────────────────────
