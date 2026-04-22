@@ -558,10 +558,55 @@ html,body{
 </div>
 
 <script>
-const PHONE_AUTH_ENABLED = true;
-const PASSKEY_AUTH_ENABLED = true;
+let PHONE_AUTH_ENABLED = false;
+let PASSKEY_AUTH_ENABLED = false;
 const enabledOAuthProviders = new Set();
 let phoneChallengeToken = null;
+
+function setTabEnabled(name, enabled, disabledTitle){
+  const tab = document.getElementById('tab-'+name);
+  if(!tab) return;
+  tab.classList.toggle('disabled', !enabled);
+  tab.title = enabled ? '' : disabledTitle;
+  if(!enabled && document.getElementById('tab-'+name).classList.contains('on')){
+    switchTab('email');
+  }
+}
+
+async function loadAuthMethodAvailability(){
+  // Passkey probe: route missing/not implemented => disable tab.
+  try{
+    const passkeyRes = await fetch('/api/auth/passkey/begin', { method:'POST' });
+    PASSKEY_AUTH_ENABLED = ![404,405,501].includes(passkeyRes.status);
+    if(PASSKEY_AUTH_ENABLED && !passkeyRes.ok){
+      const data = await passkeyRes.json().catch(()=>({}));
+      const msg = String(data.error || '').toLowerCase();
+      if(msg.includes('not configured') || msg.includes('disabled')) PASSKEY_AUTH_ENABLED = false;
+    }
+  }catch{
+    PASSKEY_AUTH_ENABLED = false;
+  }
+
+  // Phone probe: send a placeholder number and inspect config/route errors.
+  try{
+    const phoneRes = await fetch('/api/auth/phone/request-otp', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ phone: '+10000000000' }),
+    });
+    PHONE_AUTH_ENABLED = ![404,405,501].includes(phoneRes.status);
+    if(PHONE_AUTH_ENABLED && !phoneRes.ok){
+      const data = await phoneRes.json().catch(()=>({}));
+      const msg = String(data.error || '').toLowerCase();
+      if(msg.includes('not configured') || msg.includes('disabled') || msg.includes('twilio')) PHONE_AUTH_ENABLED = false;
+    }
+  }catch{
+    PHONE_AUTH_ENABLED = false;
+  }
+
+  setTabEnabled('phone', PHONE_AUTH_ENABLED, 'Phone sign-in not enabled on this server');
+  setTabEnabled('passkey', PASSKEY_AUTH_ENABLED, 'Passkey sign-in not enabled on this server');
+}
 
 // ── TAB SWITCHING ──
 function switchTab(name){
@@ -834,6 +879,12 @@ async function completeTotpChallenge(challengeToken, code, err, suc){
 let otpResendTimer=null;
 
 function sendOTP(){
+  if(!PHONE_AUTH_ENABLED){
+    const err=document.getElementById('phone-error');
+    err.textContent='Phone sign-in is not configured on this server.';
+    err.classList.add('show');
+    return;
+  }
   const phone=document.getElementById('phone-input').value.trim();
   const err=document.getElementById('phone-error');
   const suc=document.getElementById('phone-success');
@@ -854,6 +905,11 @@ function sendOTP(){
   }).then(async (res)=>{
     if(!res.ok){
       const data = await res.json().catch(()=>({}));
+      if([404,405,501].includes(res.status)){
+        PHONE_AUTH_ENABLED = false;
+        setTabEnabled('phone', false, 'Phone sign-in not enabled on this server');
+        throw new Error('Phone sign-in is not configured on this server.');
+      }
       throw new Error(data.error || 'Could not send verification code.');
     }
     const data = await res.json();
@@ -1038,6 +1094,12 @@ function serializeAssertion(cred){
 async function doPasskey(){
   const err = document.getElementById('email-error');
   err.classList.remove('show');
+  if(!PASSKEY_AUTH_ENABLED){
+    err.textContent='Passkey sign-in is not configured on this server.';
+    err.classList.add('show');
+    switchTab('email');
+    return;
+  }
   if(!window.PublicKeyCredential || !navigator.credentials){
     err.textContent='Passkeys are not supported in this browser.';
     err.classList.add('show');
@@ -1052,6 +1114,10 @@ async function doPasskey(){
   try{
     const begin = await fetch('/api/auth/passkey/begin', { method:'POST' });
     if(!begin.ok){
+      if([404,405,501].includes(begin.status)){
+        PASSKEY_AUTH_ENABLED = false;
+        setTabEnabled('passkey', false, 'Passkey sign-in not enabled on this server');
+      }
       throw new Error('Passkey sign-in is not configured on this server.');
     }
     const beginData = await begin.json();
@@ -1292,18 +1358,7 @@ async function handleOAuthCallback(){
 
 handleOAuthCallback();
 loadEnabledOAuthProviders();
-
-if(!PHONE_AUTH_ENABLED){
-  const phoneTab=document.getElementById('tab-phone');
-  phoneTab.classList.add('disabled');
-  phoneTab.title='Phone sign-in not enabled yet';
-}
-
-if(!PASSKEY_AUTH_ENABLED){
-  const passkeyTab=document.getElementById('tab-passkey');
-  passkeyTab.classList.add('disabled');
-  passkeyTab.title='Passkey sign-in not enabled yet';
-}
+loadAuthMethodAvailability();
 
 // ── KEYBOARD ──
 document.addEventListener('keydown',e=>{
