@@ -327,8 +327,6 @@ html,body{
       <div class="auth-tabs">
         <div class="auth-tab on" id="tab-oauth"  onclick="switchTab('oauth')">Continue with</div>
         <div class="auth-tab"    id="tab-email"  onclick="switchTab('email')">Email</div>
-        <div class="auth-tab"    id="tab-phone"  onclick="switchTab('phone')">Phone</div>
-        <div class="auth-tab"    id="tab-passkey" onclick="switchTab('passkey')">Passkey</div>
       </div>
 
       <!-- Panel: OAuth -->
@@ -612,7 +610,7 @@ async function loadAuthMethodAvailability(){
 function switchTab(name){
   if(name==='phone' && !PHONE_AUTH_ENABLED) return;
   if(name==='passkey' && !PASSKEY_AUTH_ENABLED) return;
-  ['oauth','email','phone','passkey'].forEach(t=>{
+  ['oauth','email'].forEach(t=>{
     document.getElementById('tab-'+t).classList.toggle('on',t===name);
     document.getElementById('panel-'+t).classList.toggle('on',t===name);
   });
@@ -1365,7 +1363,6 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Enter'){
     const tab=document.querySelector('.auth-tab.on')?.id;
     if(tab==='tab-email')doEmailLogin();
-    else if(tab==='tab-phone')document.getElementById('phone-step2').classList.contains('hidden')?sendOTP():verifyOTP();
   }
 });
 </script>
