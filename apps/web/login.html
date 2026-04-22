@@ -561,6 +561,7 @@ html,body{
 const PHONE_AUTH_ENABLED = true;
 const PASSKEY_AUTH_ENABLED = true;
 const enabledOAuthProviders = new Set();
+let phoneChallengeToken = null;
 
 // ── TAB SWITCHING ──
 function switchTab(name){
@@ -833,22 +834,45 @@ async function completeTotpChallenge(challengeToken, code, err, suc){
 let otpResendTimer=null;
 
 function sendOTP(){
-  if(!PHONE_AUTH_ENABLED){
-    const err=document.getElementById('phone-error');
-    err.textContent='Phone sign-in is not enabled on this server yet.';
-    err.classList.add('show');
-    return;
-  }
   const phone=document.getElementById('phone-input').value.trim();
   const err=document.getElementById('phone-error');
+  const suc=document.getElementById('phone-success');
   err.classList.remove('show');
+  suc.classList.remove('show');
   if(!phone||phone.length<6){err.textContent='Please enter a valid phone number.';err.classList.add('show');return;}
-  document.getElementById('phone-step1').classList.add('hidden');
-  document.getElementById('phone-step2').classList.remove('hidden');
-  const cc=document.getElementById('country-code').value.replace('us','');
-  document.getElementById('otp-hint-text').textContent=`Enter the 6-digit code sent to ${cc} ${phone}`;
-  document.getElementById('otp0').focus();
-  startResendTimer();
+  const cc=document.getElementById('country-code').value;
+  const fullPhone = `${cc}${phone.replace(/\D/g,'')}`;
+  const btn = document.querySelector('#phone-step1 .submit-btn');
+  const oldBtn = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Sending code…';
+  btn.style.pointerEvents = 'none';
+
+  fetch('/api/auth/phone/request-otp', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ phone: fullPhone }),
+  }).then(async (res)=>{
+    if(!res.ok){
+      const data = await res.json().catch(()=>({}));
+      throw new Error(data.error || 'Could not send verification code.');
+    }
+    const data = await res.json();
+    if(!data.challenge_token){
+      throw new Error('Phone sign-in is not configured correctly on this server.');
+    }
+    phoneChallengeToken = data.challenge_token;
+    document.getElementById('phone-step1').classList.add('hidden');
+    document.getElementById('phone-step2').classList.remove('hidden');
+    document.getElementById('otp-hint-text').textContent=`Enter the 6-digit code sent to ${cc} ${phone}`;
+    document.getElementById('otp0').focus();
+    startResendTimer();
+  }).catch((e)=>{
+    err.textContent=e.message || 'Could not send verification code.';
+    err.classList.add('show');
+  }).finally(()=>{
+    btn.innerHTML = oldBtn;
+    btn.style.pointerEvents = '';
+  });
 }
 
 function otpMove(idx){
@@ -867,11 +891,58 @@ function otpBack(idx,e){
 
 function verifyOTP(){
   let code='';for(let i=0;i<6;i++)code+=document.getElementById('otp'+i).value;
+  const err = document.getElementById('phone-error');
+  const suc = document.getElementById('phone-success');
+  err.classList.remove('show');
+  suc.classList.remove('show');
   if(code.length<6){
-    document.getElementById('phone-error').textContent='Please enter all 6 digits.';
-    document.getElementById('phone-error').classList.add('show');return;
+    err.textContent='Please enter all 6 digits.';
+    err.classList.add('show');return;
   }
-  simulateSuccess('Verifying code…');
+  if(!phoneChallengeToken){
+    err.textContent='Your verification session expired. Please request a new code.';
+    err.classList.add('show');
+    resetPhone();
+    return;
+  }
+
+  const btn = document.querySelector('#phone-step2 .submit-btn');
+  const oldBtn = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Verifying…';
+  btn.style.pointerEvents = 'none';
+
+  fetch('/api/auth/phone/verify', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ challenge_token: phoneChallengeToken, code }),
+  }).then(async (res)=>{
+    if(!res.ok){
+      const data = await res.json().catch(()=>({}));
+      throw new Error(data.error || 'Invalid verification code.');
+    }
+    const data = await res.json();
+    if(!data.session_token || !data.winkd_id){
+      throw new Error('Phone sign-in response is invalid.');
+    }
+    saveSession(
+      data.session_token,
+      data.winkd_id,
+      data.display_name || data.winkd_id,
+      data.mood_message,
+      data.avatar_data,
+      data.display_name_color,
+      data.av_color,
+    );
+    suc.textContent='Phone verified. Opening Winkd…';
+    suc.classList.add('show');
+    setTimeout(()=>window.location.href='app.html', 900);
+  }).catch((e)=>{
+    err.textContent=e.message || 'Could not verify code.';
+    err.classList.add('show');
+  }).finally(()=>{
+    btn.innerHTML = oldBtn;
+    btn.style.pointerEvents = '';
+  });
 }
 
 function startResendTimer(){
@@ -889,31 +960,145 @@ function startResendTimer(){
   },1000);
 }
 function resendOTP(){
+  const err = document.getElementById('phone-error');
+  if(!phoneChallengeToken){
+    err.textContent='Please enter your phone number again.';
+    err.classList.add('show');
+    return;
+  }
   for(let i=0;i<6;i++){document.getElementById('otp'+i).value='';}
   document.getElementById('otp0').focus();
-  document.getElementById('phone-success').textContent='New code sent!';
-  document.getElementById('phone-success').classList.add('show');
-  setTimeout(()=>document.getElementById('phone-success').classList.remove('show'),2500);
-  startResendTimer();
+  fetch('/api/auth/phone/resend-otp', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ challenge_token: phoneChallengeToken }),
+  }).then(async (res)=>{
+    if(!res.ok){
+      const data = await res.json().catch(()=>({}));
+      throw new Error(data.error || 'Could not resend code.');
+    }
+    document.getElementById('phone-success').textContent='New code sent!';
+    document.getElementById('phone-success').classList.add('show');
+    setTimeout(()=>document.getElementById('phone-success').classList.remove('show'),2500);
+    startResendTimer();
+  }).catch((e)=>{
+    err.textContent=e.message || 'Could not resend code.';
+    err.classList.add('show');
+  });
 }
 function resetPhone(){
   if(otpResendTimer)clearInterval(otpResendTimer);
+  phoneChallengeToken = null;
   document.getElementById('phone-step1').classList.remove('hidden');
   document.getElementById('phone-step2').classList.add('hidden');
   for(let i=0;i<6;i++)document.getElementById('otp'+i).value='';
 }
 
 // ── PASSKEY ──
+function b64urlToUint8Array(v){
+  const pad = '='.repeat((4 - (v.length % 4)) % 4);
+  const base64 = (v + pad).replace(/-/g,'+').replace(/_/g,'/');
+  const bin = atob(base64);
+  return Uint8Array.from(bin, c => c.charCodeAt(0));
+}
+
+function normalizeGetOptions(publicKey){
+  const opts = { ...publicKey };
+  if(typeof opts.challenge === 'string') opts.challenge = b64urlToUint8Array(opts.challenge);
+  if(Array.isArray(opts.allowCredentials)){
+    opts.allowCredentials = opts.allowCredentials.map((c)=>({
+      ...c,
+      id: typeof c.id === 'string' ? b64urlToUint8Array(c.id) : c.id,
+    }));
+  }
+  return opts;
+}
+
+function uint8ToB64url(buf){
+  const bytes = new Uint8Array(buf);
+  let str = '';
+  bytes.forEach((b)=>{ str += String.fromCharCode(b); });
+  return btoa(str).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+function serializeAssertion(cred){
+  return {
+    id: cred.id,
+    rawId: uint8ToB64url(cred.rawId),
+    type: cred.type,
+    response: {
+      clientDataJSON: uint8ToB64url(cred.response.clientDataJSON),
+      authenticatorData: uint8ToB64url(cred.response.authenticatorData),
+      signature: uint8ToB64url(cred.response.signature),
+      userHandle: cred.response.userHandle ? uint8ToB64url(cred.response.userHandle) : null,
+    },
+  };
+}
+
 async function doPasskey(){
-  if(!PASSKEY_AUTH_ENABLED) return;
+  const err = document.getElementById('email-error');
+  err.classList.remove('show');
+  if(!window.PublicKeyCredential || !navigator.credentials){
+    err.textContent='Passkeys are not supported in this browser.';
+    err.classList.add('show');
+    switchTab('email');
+    return;
+  }
+
   const btn=document.querySelector('.passkey-btn');
-  btn.innerHTML='<span class="spinner"></span> Waiting for authenticator…';
+  const originalBtn = btn.innerHTML;
+  btn.innerHTML='<span class="spinner"></span> Preparing passkey sign-in…';
   btn.style.pointerEvents='none';
-  // In production: use navigator.credentials.get({ publicKey: ... })
-  await new Promise(r=>setTimeout(r,2200));
-  btn.innerHTML='<span style="font-size:18px;">🔑</span> Sign in with a Passkey';
-  btn.style.pointerEvents='';
-  simulateSuccess('Passkey verified — signing you in…');
+  try{
+    const begin = await fetch('/api/auth/passkey/begin', { method:'POST' });
+    if(!begin.ok){
+      throw new Error('Passkey sign-in is not configured on this server.');
+    }
+    const beginData = await begin.json();
+    if(!beginData.publicKey){
+      throw new Error('Passkey challenge is invalid.');
+    }
+
+    btn.innerHTML='<span class="spinner"></span> Waiting for authenticator…';
+    const assertion = await navigator.credentials.get({
+      publicKey: normalizeGetOptions(beginData.publicKey),
+    });
+    if(!assertion){
+      throw new Error('Passkey sign-in was cancelled.');
+    }
+
+    btn.innerHTML='<span class="spinner"></span> Verifying passkey…';
+    const finish = await fetch('/api/auth/passkey/finish', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ assertion: serializeAssertion(assertion), challenge_token: beginData.challenge_token || null }),
+    });
+    if(!finish.ok){
+      const data = await finish.json().catch(()=>({}));
+      throw new Error(data.error || 'Passkey verification failed.');
+    }
+    const data = await finish.json();
+    if(!data.session_token || !data.winkd_id){
+      throw new Error('Passkey sign-in response is invalid.');
+    }
+    saveSession(
+      data.session_token,
+      data.winkd_id,
+      data.display_name || data.winkd_id,
+      data.mood_message,
+      data.avatar_data,
+      data.display_name_color,
+      data.av_color,
+    );
+    simulateSuccess('Passkey verified — signing you in…');
+  }catch(e){
+    err.textContent=e.message || 'Passkey sign-in failed.';
+    err.classList.add('show');
+    switchTab('email');
+  }finally{
+    btn.innerHTML=originalBtn;
+    btn.style.pointerEvents='';
+  }
 }
 
 // ── REGISTER ──
