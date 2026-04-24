@@ -47,17 +47,14 @@ background:linear-gradient(to bottom,rgba(255,255,255,0.28),transparent);pointer
 font-size:12px;font-weight:400;color:#fff;text-shadow:0 1px 3px rgba(0,0,60,0.7);pointer-events:none;z-index:1;}
 .tb-right{font-size:11px;color:rgba(220,235,255,0.75);font-style:italic;z-index:1;}
 .win-btns{display:none;}
-.wb{width:26px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;
-font-size:10px;font-weight:700;cursor:pointer;border:1px solid;transition:all 0.1s;}
-.wb-min,.wb-max{
-background:linear-gradient(to bottom,rgba(255,255,255,0.42),rgba(180,210,255,0.28));
-border-color:rgba(100,160,255,0.55) rgba(60,110,200,0.65) rgba(60,110,200,0.65) rgba(100,160,255,0.55);
-color:rgba(20,50,120,0.9);}
-.wb-close{
+.wb-close-btn{
+width:26px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;
+font-size:13px;font-weight:400;cursor:pointer;border:1px solid;transition:all 0.1s;
 background:linear-gradient(to bottom,rgba(255,180,180,0.75),rgba(220,60,60,0.65));
 border-color:rgba(255,120,120,0.65) rgba(180,40,40,0.75) rgba(180,40,40,0.75) rgba(255,120,120,0.65);
+box-shadow:inset 0 1px 0 rgba(255,255,255,0.3);
 color:#fff;}
-.wb-close:hover{background:linear-gradient(to bottom,#ff6464,#cc1414);}
+.wb-close-btn:hover{background:linear-gradient(to bottom,#ff6464,#cc1414);}
 
 #main{flex:1;display:flex;overflow:hidden;position:relative;}
 
@@ -91,8 +88,10 @@ width:44px;height:44px;border-radius:6px;border:2.5px solid transparent;
 display:flex;align-items:center;justify-content:center;
 font-size:14px;font-weight:700;color:#fff;flex-shrink:0;position:relative;
 box-shadow:0 2px 10px rgba(0,0,100,0.35),inset 0 1px 0 rgba(255,255,255,0.25);cursor:pointer;
-overflow:hidden;}
-.av-dot{position:absolute;bottom:-3px;right:-3px;width:13px;height:13px;border-radius:50%;border:2px solid rgba(160,200,255,0.5);}
+overflow:visible;}
+.my-av-inner{position:absolute;inset:0;border-radius:5px;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.av-dot{position:absolute;bottom:-3px;right:-3px;width:13px;height:13px;border-radius:50%;box-shadow:inset 0 1px 0 rgba(255,255,255,0.65),0 0 6px rgba(0,0,0,0.2);}
+.c-dot{position:absolute;bottom:-2px;right:-2px;width:9px;height:9px;border-radius:50%;box-shadow:inset 0 1px 0 rgba(255,255,255,0.6),0 0 4px rgba(0,0,0,0.15);}
 .my-name{font-size:13px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);cursor:pointer;}
 .my-name:hover{text-decoration:underline;text-decoration-color:rgba(255,255,255,0.4);}
 .my-mood{font-size:10px;color:rgba(210,230,255,0.88);font-style:italic;cursor:pointer;
@@ -133,7 +132,6 @@ transition:background 0.1s;border-left:2px solid transparent;}
 .c-av{width:34px;height:34px;border-radius:6px;border:2.5px solid transparent;
 display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;position:relative;
 box-shadow:0 1px 5px rgba(0,0,80,0.25);}
-.c-dot{position:absolute;bottom:-2px;right:-2px;width:9px;height:9px;border-radius:50%;border:1.5px solid rgba(20,50,100,0.6);}
 .c-name{font-size:11px;font-weight:600;color:#ffffff;text-shadow:0 1px 3px rgba(0,0,0,0.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .c-mood{font-size:10px;color:rgba(220,238,255,0.95);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .c-badge{background:linear-gradient(to bottom,#ff7020,#dd4000);color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 6px;margin-left:auto;flex-shrink:0;}
@@ -304,19 +302,19 @@ box-shadow:0 1px 4px rgba(0,0,80,0.12),inset 0 1px 0 rgba(255,255,255,0.9);}
 
 /* Input */
 #chat-input-area{border-top:1px solid rgba(130,175,240,0.28);background:rgba(248,252,255,0.99);
-padding:7px 9px;display:flex;gap:6px;align-items:flex-end;flex-shrink:0;}
+padding:6px 9px;display:flex;gap:4px;align-items:stretch;flex-shrink:0;min-height:50px;}
 #chat-input{flex:1;background:#fff;border:1px solid rgba(100,150,220,0.48);border-radius:6px;
 padding:7px 11px;font-size:12px;font-family:var(--font);color:var(--text-dark);outline:none;
 resize:none;min-height:36px;max-height:100px;line-height:1.5;
 box-shadow:inset 0 1px 3px rgba(0,0,80,0.07);transition:border-color 0.15s;}
 #chat-input:focus{border-color:rgba(60,120,220,0.68);}
-#input-file-btns{display:flex;gap:3px;align-items:center;flex-shrink:0;}
-#input-file-btns .tbtn{padding:6px 8px;font-size:14px;background:linear-gradient(to bottom,rgba(255,255,255,0.92),rgba(220,236,255,0.75));}
+#input-file-btns{display:flex;gap:3px;align-items:stretch;flex-shrink:0;}
+#input-file-btns .tbtn{padding:0 8px;background:linear-gradient(to bottom,rgba(255,255,255,0.92),rgba(220,236,255,0.75));}
 #send-btn{background:linear-gradient(to bottom,#60a0f8,#2060c8 55%,#1450a8);
-border:1px solid #1050a0;border-radius:6px;padding:7px 20px;font-size:12px;font-weight:600;
+border:1px solid #1050a0;border-radius:6px;padding:0 20px;font-size:12px;font-weight:600;
 font-family:var(--font);color:#fff;cursor:pointer;text-shadow:0 1px 2px rgba(0,0,0,0.35);
 box-shadow:inset 0 1px 0 rgba(255,255,255,0.35),0 2px 4px rgba(0,0,0,0.2);
-transition:all 0.1s;white-space:nowrap;flex-shrink:0;align-self:flex-end;height:36px;}
+transition:all 0.1s;white-space:nowrap;flex-shrink:0;align-self:stretch;display:flex;align-items:center;}
 #send-btn:hover{background:linear-gradient(to bottom,#78b0ff,#3070d8 55%,#2060b8);}
 #send-btn:active{transform:scale(0.97);}
 
@@ -624,7 +622,7 @@ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
 .dp-label{font-size:9px;color:#4a6a9a;margin-top:4px;text-align:center;font-style:italic;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .dp-mine-wrap{display:flex;flex-direction:column;align-items:center;}
 .dp-them-wrap{display:flex;flex-direction:column;align-items:center;width:100%;}
-.dp-status-dot{position:absolute;bottom:4px;right:4px;width:12px;height:12px;border-radius:50%;border:2px solid rgba(180,205,255,0.6);}
+.dp-status-dot{position:absolute;bottom:4px;right:4px;width:12px;height:12px;border-radius:50%;box-shadow:inset 0 1px 0 rgba(255,255,255,0.65),0 0 5px rgba(0,0,0,0.2);}
 @media(max-width:640px){#dp-panel{display:none;}}
 
 /* Wink overlay */
@@ -704,6 +702,7 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
     </div>
     <div class="tb-right" style="display:flex;align-items:center;gap:8px;z-index:1;">
       <span id="tb-status-text">You are Online</span>
+      <div class="wb-close-btn" onclick="signOut()" title="Sign out">×</div>
     </div>
   </div>
 
@@ -712,8 +711,8 @@ color:rgba(210,230,255,0.95);text-align:center;flex-shrink:0;letter-spacing:0.1p
       <div id="profile-block">
         <div class="profile-row">
           <div class="my-av" id="my-av" onclick="openModal('profile-modal')" title="Edit profile">
-            <span id="my-initials">ME</span>
-            <div class="av-dot" id="my-status-dot" style="background:var(--online);"></div>
+            <div class="my-av-inner"><span id="my-initials">ME</span></div>
+            <div class="av-dot" id="my-status-dot"></div>
           </div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
@@ -1651,6 +1650,15 @@ const contacts=[];
 const convos={};
 const SC={online:'#00cc00',away:'#ffaa00',busy:'#dd2020',offline:'#aaaaaa',invisible:'#aaaaaa'};
 const STATUS_GRAD={online:['#70ff90','#00aa30'],away:['#ffe060','#cc8000'],busy:['#ff7070','#cc0000'],offline:['#cccccc','#888888'],invisible:['#d8d8d8','#aaaaaa']};
+function gemStyle(status){
+  if(!status||status==='invisible')return'background:transparent;border:2px dashed rgba(180,200,230,0.7)';
+  const col=SC[status]||'#aaaaaa';
+  const h=col.replace('#','');
+  const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  const li=`rgba(${Math.min(r+70,255)},${Math.min(g+70,255)},${Math.min(b+70,255)},1)`;
+  const dk2=`rgba(${Math.max(r-30,0)},${Math.max(g-30,0)},${Math.max(b-30,0)},1)`;
+  return`background:radial-gradient(circle at 35% 30%,${li},${col} 55%,${dk2} 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,0.65),0 0 5px rgba(${r},${g},${b},0.5)`;
+}
 
 function avBg(gradA,gradB,status){const sg=STATUS_GRAD[status]||STATUS_GRAD.offline;return`linear-gradient(135deg,${gradA},${gradB}) padding-box,linear-gradient(135deg,${sg[0]} 0%,${sg[1]} 100%) border-box`;}
 function myAvBg(){return avBg(myAvColor,dk(myAvColor),myStatus||'online');}
@@ -1748,7 +1756,7 @@ function _applyProfileBroadcast(d){
     myStatus=d.status;
     ['online','away','busy','invisible'].forEach(x=>{const p=document.getElementById('pill-'+x);if(p)p.classList.toggle('active',x===d.status);});
     const dot=document.getElementById('my-status-dot');
-    if(dot){dot.style.background=d.status==='invisible'?'transparent':SC[d.status];dot.style.border=d.status==='invisible'?'2px dashed rgba(180,200,230,0.7)':'2px solid rgba(160,200,255,0.5)';}
+    if(dot){dot.style.cssText=gemStyle(d.status);}
     const tb=document.getElementById('tb-status-text');if(tb){const labels={online:'You are Online',away:'You are Away',busy:'You are Busy',invisible:'You appear Offline'};tb.textContent=labels[d.status]||'';}
   }
   applyAvatarToSidebar();
@@ -1827,7 +1835,7 @@ function renderContacts(f=''){
     ms.forEach(c=>{
       const it=document.createElement('div');it.className='contact-item'+(activeContact===c.id?' active':'');
       const avatarInner=c.avatarSrc?`<img src="${c.avatarSrc}" alt="${c.initials}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;display:block;">`:c.initials;
-      it.innerHTML=`<div class="c-av" style="background:${avBg(c.color,dk(c.color),c.status)};">${avatarInner}<div class="c-dot" style="background:${SC[c.status]};"></div></div><div style="flex:1;min-width:0;"><div class="c-name">${escapeHtml(c.name)}</div><div class="c-mood">${moodToInlineHtml(c.mood,13)}</div></div>${c.unread>0?`<div class="c-badge">${c.unread}</div>`:''}`;
+      it.innerHTML=`<div class="c-av" style="background:${avBg(c.color,dk(c.color),c.status)};">${avatarInner}<div class="c-dot" style="${gemStyle(c.status)}"></div></div><div style="flex:1;min-width:0;"><div class="c-name">${escapeHtml(c.name)}</div><div class="c-mood">${moodToInlineHtml(c.mood,13)}</div></div>${c.unread>0?`<div class="c-badge">${c.unread}</div>`:''}`;
       it.onclick=()=>selectContact(c.id);ge.appendChild(it);
     });
     list.appendChild(ge);
@@ -1851,7 +1859,7 @@ function buildChat(c){
   function dpHTML(initials,colorA,colorB,label,statusKey,mood,isMe){
     const imgSrc=isMe?myAvatarSrc:(c.avatarSrc||null);
     const imgTag=imgSrc?`<img src="${imgSrc}" alt="${initials}">`:`<span>${initials}</span>`;
-    const dot=!isMe&&statusKey?`<div class="dp-status-dot" style="background:${SC[statusKey]};"></div>`:'';
+    const dot=!isMe&&statusKey?`<div class="dp-status-dot" style="${gemStyle(statusKey)}"></div>`:'';
     const statusLine=!isMe&&statusKey?`<div class="dp-contact-status" style="color:${SC[statusKey]};">● ${statusKey}</div>`:'';
     const moodLine=mood?`<div class="dp-contact-mood">${moodToInlineHtml(mood,14)}</div>`:'';
     return `<div class="dp-frame" style="background:${avBg(colorA,colorB,statusKey||'offline')};" title="${label}">${imgTag}${dot}</div>
@@ -1903,11 +1911,51 @@ function buildChat(c){
       </select>
     </div>
     <div id="compose-preview" style="display:none;padding:8px 10px 6px;border-top:1px solid rgba(130,175,240,0.25);background:linear-gradient(to bottom,rgba(220,234,255,0.75),rgba(208,226,255,0.68));"></div>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <linearGradient id="aero-chrome" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#f4f8fd"/><stop offset="45%" stop-color="#c9d8e8"/>
+          <stop offset="55%" stop-color="#9fb4c8"/><stop offset="100%" stop-color="#6a8099"/>
+        </linearGradient>
+        <linearGradient id="aero-chrome-top" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#e4ecf5"/><stop offset="60%" stop-color="#b3c4d6"/><stop offset="100%" stop-color="#8296ad"/>
+        </linearGradient>
+        <radialGradient id="aero-lens" cx="0.35" cy="0.3" r="0.85">
+          <stop offset="0%" stop-color="#9ec5ff"/><stop offset="35%" stop-color="#3a72c8"/>
+          <stop offset="75%" stop-color="#12305e"/><stop offset="100%" stop-color="#05152f"/>
+        </radialGradient>
+        <radialGradient id="aero-lens-hi" cx="0.3" cy="0.25" r="0.4">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.85)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+        </radialGradient>
+        <linearGradient id="aero-clip" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#f6f9fc"/><stop offset="40%" stop-color="#b9c9dc"/>
+          <stop offset="60%" stop-color="#7d92a8"/><stop offset="100%" stop-color="#4a5d73"/>
+        </linearGradient>
+      </defs>
+    </svg>
     <div id="chat-input-area">
+      <div class="tbtn" onclick="openPhotoPicker()" title="Take photo" style="flex-shrink:0;align-self:stretch;display:flex;align-items:center;justify-content:center;padding:0 8px;">
+        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+          <rect x="7.5" y="4" width="5.5" height="2.2" rx="0.6" fill="url(#aero-chrome-top)" stroke="#4a5d73" stroke-width="0.4"/>
+          <rect x="1.5" y="6" width="19" height="12" rx="1.8" fill="url(#aero-chrome)" stroke="#3a4a5d" stroke-width="0.5"/>
+          <rect x="2" y="6.5" width="18" height="3.6" rx="1.2" fill="rgba(255,255,255,0.38)"/>
+          <circle cx="11" cy="12.5" r="4.3" fill="#2a3a4d" stroke="#1a2230" stroke-width="0.4"/>
+          <circle cx="11" cy="12.5" r="3.5" fill="url(#aero-lens)"/>
+          <ellipse cx="9.5" cy="11.3" rx="1.7" ry="1.2" fill="url(#aero-lens-hi)"/>
+          <circle cx="17.8" cy="8.2" r="0.6" fill="#ff4848" stroke="#6a1010" stroke-width="0.2"/>
+          <circle cx="17.65" cy="8.05" r="0.22" fill="rgba(255,255,255,0.85)"/>
+        </svg>
+      </div>
       <textarea id="chat-input" placeholder="Type a message…" rows="1"></textarea>
       <div id="input-file-btns">
-        <div class="tbtn" onclick="openPhotoPicker()" title="Take photo">📷</div>
-        <div class="tbtn" onclick="openFilePicker()" title="File">📁</div>
+        <div class="tbtn" onclick="openFilePicker()" title="Attach file" style="flex-shrink:0;align-self:stretch;display:flex;align-items:center;justify-content:center;padding:0 8px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+                  fill="none" stroke="rgba(20,30,50,0.3)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" transform="translate(0.3,0.5)"/>
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+                  fill="none" stroke="url(#aero-clip)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
         <input id="photo-upload-input" type="file" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoSelected(this)">
         <input id="file-upload-input" type="file" style="display:none;" onchange="handleFileSelected(this)">
       </div>
@@ -2414,7 +2462,7 @@ function setStatus(s){
   myStatus=s;
   ['online','away','busy','invisible'].forEach(x=>{const p=document.getElementById('pill-'+x);if(p)p.classList.toggle('active',x===s);});
   const dot=document.getElementById('my-status-dot');
-  if(dot){dot.style.background=s==='invisible'?'transparent':SC[s];dot.style.border=s==='invisible'?'2px dashed rgba(180,200,230,0.7)':'2px solid rgba(160,200,255,0.5)';}
+  if(dot){dot.style.cssText=gemStyle(s);}
   const labels={online:'You are Online',away:'You are Away',busy:'You are Busy',invisible:'You appear Offline'};
   document.getElementById('tb-status-text').textContent=labels[s]||'';
   applyAvatarToSidebar();
@@ -2451,11 +2499,11 @@ function applyAvatarToSidebar(){
   if(myAvatarSrc){
     const sg=STATUS_GRAD[myStatus||'online']||STATUS_GRAD.online;
     av.style.background=`linear-gradient(${myAvColor},${myAvColor}) padding-box,linear-gradient(135deg,${sg[0]},${sg[1]}) border-box`;
-    av.innerHTML=`<img src="${myAvatarSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;"><div class="av-dot" id="my-status-dot" style="background:${dotBg};"></div>`;
+    av.innerHTML=`<div class="my-av-inner"><img src="${myAvatarSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;"></div><div class="av-dot" id="my-status-dot"></div>`;
   } else {
     const ini=myName.slice(0,2).toUpperCase()||'ME';
     av.style.background=myAvBg();
-    av.innerHTML=`<span id="my-initials">${ini}</span><div class="av-dot" id="my-status-dot" style="background:${dotBg};"></div>`;
+    av.innerHTML=`<div class="my-av-inner"><span id="my-initials">${ini}</span></div><div class="av-dot" id="my-status-dot"></div>`;
   }
 }
 function toggleMoodEdit(){
@@ -3681,7 +3729,7 @@ window.addEventListener('unhandledrejection',(e)=>{
   // Apply status pills and dot without triggering a storage write
   const s=myStatus;['online','away','busy','invisible'].forEach(x=>{const pill=document.getElementById('pill-'+x);if(pill)pill.classList.toggle('active',x===s);});
   const dot=document.getElementById('my-status-dot');
-  if(dot){dot.style.background=s==='invisible'?'transparent':SC[s];dot.style.border=s==='invisible'?'2px dashed rgba(180,200,230,0.7)':'2px solid rgba(160,200,255,0.5)';}
+  if(dot){dot.style.cssText=gemStyle(s);}
   const labels={online:'You are Online',away:'You are Away',busy:'You are Busy',invisible:'You appear Offline'};
   const tbStatus=document.getElementById('tb-status-text');if(tbStatus)tbStatus.textContent=labels[s]||'';
 })();
